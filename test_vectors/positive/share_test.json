@@ -4,7 +4,7 @@
         "k": 2
     },
     "verification_vector": {
-        "hash": "f95887d5a96c88e2b75f54f7dd91c6713eab1f06d960acf3ce7c0d9e0b8bd855",
+        "hash": "5186f2aa0bfd7e7c80135af16ac9182b855667350fa73c20a81983fe223f5392",
         "creator_pubkey": "8838aec471bb38d77d9f726fa5015531ff223676bb062ea87590e324b1c706745bf9d5d85ca43342cb0c582a88cb1fde",
         "signature": "a56ad87163f505c732ffc73df17589d402f3bcf3126f3e40c494cdac2c10afc570cdc7a27a507fe2435ba8dbff1bfa4e16365e70ca2121467735660ffdbd391c279a6549526fe44682d3dc541558e9b4685d18a1bb6aa498d85979443a205f8d",
         "pubkey": [

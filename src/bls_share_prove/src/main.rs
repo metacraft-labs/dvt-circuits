@@ -6,7 +6,7 @@ use bls12_381::{
     
 };
 use dvt_abi::{AbiBlsSharedData, AbiVerificationVector, DvtGenerateSettings};
-use sha2::Sha256;
+use sha2::{Sha256, Digest};
 sp1_zkvm::entrypoint!(main);
 
 pub fn read_array_from_host<const N: usize>() -> [u8; N] {
@@ -99,9 +99,23 @@ pub fn main() {
         sign_data.append(&mut o);
     }
 
+    let mut hasher = Sha256::new();
+
+    // Provide the data to hash
+    hasher.update(&sign_data);
+
+    // Retrieve the result
+    let result = hasher.finalize();
+    
+    if result.to_vec() == data.verification_vector.hash {
+        print!("Hash verified \n");
+    } else {
+        print!("Hash not verified \n");
+        panic!();
+    }
+
     let sig = G2Affine::from_compressed(&data.verification_vector.signature).into_option();
     let pk = G1Affine::from_compressed(&data.verification_vector.creator_pubkey).into_option();
-
 
     if bls_verify(&pk.unwrap(),&sig.unwrap(), &sign_data) {
         print!("Signature verified \n");
