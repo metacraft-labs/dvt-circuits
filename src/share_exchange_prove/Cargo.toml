@@ -1,5 +1,5 @@
 [package]
-name = "bls_share_prove"
+name = "share_exchange_prove"
 version = "1.1.0"
 edition = "2021"
 publish = false
@@ -12,5 +12,6 @@ rand = "0.8.5"
 group = "0.13.0"
 serde = "1.0.216"
 dvt_abi = { path = "../dvt_abi" }
+bls_utils = { path = "../bls_utils" }
 sha2 = "0.10"
 hex = "0.4"

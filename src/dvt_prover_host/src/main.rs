@@ -1,10 +1,17 @@
 use sp1_sdk::{include_elf, utils, ProverClient, SP1Stdin};
+pub const SHARE_PROVER_ELF: &[u8] = include_elf!("share_exchange_prove");
+pub const FINALE_PROVER_ELF: &[u8] = include_elf!("finalization_prove");
 
-pub const ELF: &[u8] = include_elf!("bls_share_prove");
 use std::env;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use dvt_abi;
 use dvt_abi_host;
+
+#[derive(Debug, Clone, ValueEnum)]
+enum CommandType {
+    Finalization,
+    Share,
+}
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -14,9 +21,12 @@ struct Cli {
 
     #[arg(long = "input-file")]
     input_file: String,
+
+    #[arg(long = "type", value_enum)]
+    command_type: CommandType,
 }
 
-fn main(){
+fn main() {
     let args = Cli::parse();
 
     if args.input_file.is_empty() {
@@ -24,35 +34,44 @@ fn main(){
         std::process::exit(1);
     }
 
-    let data = dvt_abi::read_share_data_from_file(&args.input_file);
-
-
     utils::setup_logger();
+
+    let data = dvt_abi::read_share_data_from_file(&args.input_file).unwrap_or_else(|e| {
+        eprintln!("Error parsing JSON: {}", e);
+        std::process::exit(1);
+    });
+
+    let abi_data = dvt_abi::to_abi_bls_data(&data).unwrap_or_else(|e| {
+        eprintln!("Error converting to ABI data: {}", e);
+        std::process::exit(1);
+    });
 
     let mut stdin = SP1Stdin::new();
 
-    let client = ProverClient::new();
-
-    match data {
-        Ok(data) => {
-            
-            let abi_data = dvt_abi::to_abi_bls_data(&data);            
-            match abi_data {
-                Ok(abi_data) => {
-                    dvt_abi_host::abi_bls_share_data_write_to_prover(&mut stdin, &abi_data);
-                }
-                Err(e) => {
-                    println!("Error: {}", e);
-                }
-            }
+    // Depending on the command type, we could do different things here.
+    // For now, both variants handle the data similarly.
+    match args.command_type {
+        CommandType::Share => {
+            dvt_abi_host::abi_bls_share_data_write_to_prover(&mut stdin, &abi_data);
+            let client = ProverClient::new();
+            let (_public_values, report) = client.execute(SHARE_PROVER_ELF, stdin).run().unwrap_or_else(|e| {
+                eprintln!("Failed to prove: {}", e);
+                std::process::exit(1);
+            });
+            println!("executed: {}", report);
         }
-        Err(e) => {
-            println!("Error parsing JSON: {}", e);
+        CommandType::Finalization => {
+            dvt_abi_host::abi_bls_share_data_write_to_prover(&mut stdin, &abi_data);
+            let client = ProverClient::new();
+            let (_public_values, report) = client.execute(FINALE_PROVER_ELF, stdin).run().unwrap_or_else(|e| {
+                eprintln!("Failed to prove: {}", e);
+                std::process::exit(1);
+            });
+            println!("executed: {}", report);
         }
     }
-    
-    
-    let (_public_values, report) = client.execute(ELF, stdin).run().expect("failed to prove");
 
-    println!("executed: {}", report);
+    
+
+    
 }
