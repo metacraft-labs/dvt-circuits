@@ -39,7 +39,7 @@ run_tests_in_dir() {
     for test_file in "${test_files[@]}"; do
         test_name=$(basename "$test_file")
         # Run the program
-        cargo run --release -- --execute --input-file "$test_file"
+        cargo run --release -- --execute --input-file "$test_file" --type share
         exit_code=$?
 
         if [[ "$type" == "negative" ]]; then
