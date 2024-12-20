@@ -27,10 +27,16 @@ pub struct DvtGenerateSettings {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct DvtShare {
+    pub id: String,
+    pub pubkey: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct DvtData {
     pub settings: DvtGenerateSettings,
     pub verification_vectors: Vec<VerificationVector>,
-    pub pubkeys: Vec<String>,
+    pub shares: Vec<DvtShare>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,6 +63,20 @@ pub struct AbiBlsSharedData {
     pub id: [u8; BLS_ID_SIZE],
 }
 
+#[derive(Debug)]
+pub struct AbiDvtShare {
+    pub id: [u8; BLS_ID_SIZE],
+    pub pubkey: [u8; BLS_PUBKEY_SIZE],
+}
+
+#[derive(Debug)]
+pub struct AbiDvtData {
+    pub settings: DvtGenerateSettings,
+    pub verification_vectors: Vec<AbiVerificationVector>,
+    pub shares: Vec<AbiDvtShare>,
+}
+
+
 fn decode_hex<const N: usize>(input: &str) -> Result<[u8; N], Box<dyn Error>> {
     let bytes = decode(input).map_err(|e| format!("Failed to decode input: {}", e))?;
 
@@ -71,6 +91,31 @@ fn decode_hex<const N: usize>(input: &str) -> Result<[u8; N], Box<dyn Error>> {
     let mut arr = [0u8; N];
     arr.copy_from_slice(&bytes);
     Ok(arr)
+}
+
+pub fn to_abi_dvt_share(data: &DvtShare) -> Result<AbiDvtShare, Box<dyn std::error::Error>> {
+    let id = decode_hex::<BLS_ID_SIZE>(&data.id)
+        .map_err(|e| format!("Invalid id: {}", e))?;
+    let pubkey = decode_hex::<BLS_PUBKEY_SIZE>(&data.pubkey)
+        .map_err(|e| format!("Invalid pubkey: {}", e))?;
+    Ok(AbiDvtShare { id, pubkey })
+}
+
+pub fn to_abi_dvt_data(data: &DvtData) -> Result<AbiDvtData, Box<dyn std::error::Error>> {
+    let verification_vectors = data
+        .verification_vectors
+        .iter()
+        .map(to_abi_verification_vector)
+        .collect::<Result<Vec<AbiVerificationVector>, _>>()?;
+    let shares = data.shares.iter().map(to_abi_dvt_share).collect::<Result<Vec<AbiDvtShare>, _>>()?;
+    Ok(AbiDvtData {
+        settings: DvtGenerateSettings {
+            n: data.settings.n, 
+            k: data.settings.k,
+        },
+        verification_vectors,
+        shares,
+    })
 }
 
 pub fn to_abi_verification_vector(data: &VerificationVector) -> Result<AbiVerificationVector, Box<dyn std::error::Error>> {

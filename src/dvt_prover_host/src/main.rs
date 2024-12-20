@@ -36,15 +36,6 @@ fn main() {
 
     utils::setup_logger();
 
-    let data = dvt_abi::read_share_data_from_file(&args.input_file).unwrap_or_else(|e| {
-        eprintln!("Error parsing JSON: {}", e);
-        std::process::exit(1);
-    });
-
-    let abi_data = dvt_abi::to_abi_bls_data(&data).unwrap_or_else(|e| {
-        eprintln!("Error converting to ABI data: {}", e);
-        std::process::exit(1);
-    });
 
     let mut stdin = SP1Stdin::new();
 
@@ -52,7 +43,18 @@ fn main() {
     // For now, both variants handle the data similarly.
     match args.command_type {
         CommandType::Share => {
-            dvt_abi_host::abi_bls_share_data_write_to_prover(&mut stdin, &abi_data);
+
+            let data = dvt_abi::read_share_data_from_file(&args.input_file).unwrap_or_else(|e| {
+                eprintln!("Error parsing JSON: {}", e);
+                std::process::exit(1);
+            });
+        
+            let abi_data = dvt_abi::to_abi_bls_data(&data).unwrap_or_else(|e| {
+                eprintln!("Error converting to ABI data: {}", e);
+                std::process::exit(1);
+            });
+        
+            dvt_abi_host::write_to_prover_abi_bls_share_data(&mut stdin, &abi_data);
             let client = ProverClient::new();
             let (_public_values, report) = client.execute(SHARE_PROVER_ELF, stdin).run().unwrap_or_else(|e| {
                 eprintln!("Failed to prove: {}", e);
@@ -61,13 +63,25 @@ fn main() {
             println!("executed: {}", report);
         }
         CommandType::Finalization => {
-            dvt_abi_host::abi_bls_share_data_write_to_prover(&mut stdin, &abi_data);
-            let client = ProverClient::new();
-            let (_public_values, report) = client.execute(FINALE_PROVER_ELF, stdin).run().unwrap_or_else(|e| {
-                eprintln!("Failed to prove: {}", e);
+            print!("finalization\n");
+            let data = dvt_abi::read_dvt_data_from_file(&args.input_file).unwrap_or_else(|e| {
+                println!("Error parsing JSON: {}", e);
                 std::process::exit(1);
             });
-            println!("executed: {}", report);
+        
+            let abi_data = dvt_abi::to_abi_dvt_data(&data).unwrap_or_else(|e| {
+                println!("Error converting to ABI data: {}", e);
+                std::process::exit(1);
+            });
+            print!("finalization\n");
+        
+            dvt_abi_host::write_to_prover_abi_dvt_data(&mut stdin, &abi_data);
+            let client = ProverClient::new();
+            let (_public_values, report) = client.execute(FINALE_PROVER_ELF, stdin).run().unwrap_or_else(|e| {
+                println!("Failed to prove: {}", e);
+                std::process::exit(1);
+            });
+            //println!("executed: {}", report);
         }
     }
 
