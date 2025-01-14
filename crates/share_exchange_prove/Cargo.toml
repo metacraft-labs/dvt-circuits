@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-sp1-zkvm = { path = "../../submodules/sp1/crates/zkvm/entrypoint/" }
+sp1-zkvm = "3.4.0"
 bls12_381 = { git = "https://github.com/sp1-patches/bls12_381", features = ["experimental"]  }
 ff = "0.13.0"
 rand = "0.8.5"

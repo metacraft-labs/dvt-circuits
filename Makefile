@@ -13,10 +13,9 @@ help:
 	@echo "  help       Show this help message"
 
 test:
-	@echo $(TEST_SCRIPT)
 	@if [ ! -f "$(TEST_SCRIPT)" ]; then \
 		echo "Error: run_tests.sh not found in repository root."; \
 		exit 1; \
 	fi
 	
-	cd "$(REPO_ROOT)" && $(TEST_SCRIPT)
+	@cd "$(REPO_ROOT)" && $(TEST_SCRIPT) $(ARGS)

@@ -1,17 +1,36 @@
 {
-    "settings": {
-        "n": 3,
-        "k": 2
+    "params": {
+        "cmd_extra_args": "--type=share",
+        "expected_exit_code": 1
     },
-    "verification_vector": {
-        "hash": "a5eb865618fa4c5c7fb3724f8e68ef8f3b83f8e6c7baae36b4d3999355400955",
-        "creator_pubkey": "8838aec471bb38d77d9f726fa5015531ff223676bb062ea87590e324b1c706745bf9d5d85ca43342cb0c582a88cb1fde",
-        "signature": "ab273462a6496b27df0352dd0e744f5e36e697d3cb6163a581b02959feaf7c0924fb5df0db554dfd4d67100d09f1ad94077b1b071098bea7de4bf1950a5d2cac58d0b96b00039bee0d370a2f97da7f4e2238dab62a67533200fdc79d75f2aacf",
-        "pubkey": [
-            "83990219b0461e405b7b6c5b9137fb0bfab73fc95f41c01918d9f66deaffb0baf108c7cc7dadf20f8a86449d4691631c",
-            "8c3e4c48d1745c5e1fefc34f88ab03b085d1f26f891211bb6a3a33ddb20b4762285ce3fb6fec51c6f9954a4171bd2817"
-        ]
+    "scenario":{
+    "initial_commitment": {
+        "settings": {
+            "n": 5,
+            "k": 3,
+            "gen_id": "89f0996b33ca953e0cf9b70a5f84cb50"
+        },
+        "vvector": {
+            "base_pubkeys": [
+                "b8a42e1e56d3ce1710756187607977885f73d1b817eb285f26eaddaa772c611e00d4155e0b59ad59a35e51ad6852f266",
+                "803112b6a9479905b3012d7260fbffc841cd3d07366ada81cc44d5fbd787fe504ba09ed2cc3d108d101a1a032b6bd420",
+                "b1934daf42a1ab4b70cbe04ad19b998d8b6154d0897f40db90a914945a9d8b313486125f6cb0ca3e493af966cb5d7c67"
+            ]
+        },
+        "hash": "528ba1a411efadaf3287f7eb9d1b0cfeb2ce4e071f9a2e81077f5b62617eb1c6"
     },
-    "target": "a31d6a0d2fa9bdaf4f33293d4a4f50ebab271aa3f43c234df58363bc9e35f3fdc40afc34cbaa429157e8e6e19b2e9db1",
-    "id": "0000000000000000000000000000000000000000000000000000000001000000"
+    "seeds_exchange_commitment": {
+        "initial_commitment_hash": "528ba1a411efadaf3287f7eb9d1b0cfeb2ce4e071f9a2e81077f5b62617eb1c6",
+        "ssecret": {
+            "shared_secret": "42c0cfee6addb844531f55cefde25174e2a36ce504110d7318c2b93d781f3c20",
+            "src_share_id": "0400000000000000000000000000000000000000000000000000000000000000",
+            "dst_share_id": "0200000000000000000000000000000000000000000000000000000000000000"
+        },
+        "commitment": {
+            "hash": "3d63b23608670f77d070ef0d8ee6fd7076bae36e5a6b9105c1300175d9a3da4d",
+            "pubkey": "a3426342a86164e2319e0264b7b2a2212fddacf4c0ea576ed54639612e843328c290c86902e7a243f6108e26401b669f",
+            "signature": "a8be978a6cfa519af966b82dda29ceb24f6bfc1a15220effbc24075dde0959298fcef966692a23ef67b5aa46a8a8706f085cd99421f632bb564c3900af290120433b52c228a87683e9ea5073ae0b796421cddf9a9d573b80fa2a6360240fd81f"
+        }
+    }
+}
 }

@@ -1,10 +1,9 @@
 {
     "rust-analyzer.linkedProjects": [
-        "./src/dvt_prover_host/Cargo.toml",
-        "./src/share_exchange_prove/Cargo.toml",
-        "./src/finalization_prove/Cargo.toml",
-        "./src/dvt_abi_host/Cargo.toml",
-        "./src/dvt_abi/Cargo.toml",
-        "./submodules/sp1/Cargo.toml"
+        "./crates/share_exchange_prove/Cargo.toml",
+        "./crates/finalization_prove/Cargo.toml",
+        "./crates/dvt_abi_host/Cargo.toml",
+        "./crates/dvt_abi/Cargo.toml",
+        "./Cargo.toml"
     ]
 }

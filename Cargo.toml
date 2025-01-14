@@ -1,0 +1,38 @@
+[package]
+name = "dvt_prover_host"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+keywords = { workspace = true }
+categories = { workspace = true }
+license = { workspace = true }
+
+
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+authors = ["Martin Dobrev <martindobrev0@gmail.com>", "Grigor Gachev", "Zahary Karadjov" ]
+keywords = ["nimbus", "dvt"]
+categories = ["cryptography"]
+repository = "https://github.com/metacraft-labs/dvt-circuits"
+license = "MIT OR Apache-2.0"
+
+[workspace]
+members = [
+  "crates/*",
+]
+
+[dependencies]
+hex = "0.4.3"
+sp1-sdk = "3.4.0"
+text_io = "0.1.12"
+bls12_381 = "0.8.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4", features = ["derive"] }
+dvt_abi = { path = "crates/dvt_abi" }
+dvt_abi_host = { path = "crates/dvt_abi_host" }
+
+[build-dependencies]
+sp1-build = "3.4.0"

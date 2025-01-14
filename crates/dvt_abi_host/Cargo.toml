@@ -7,5 +7,5 @@ edition = "2021"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 hex = "0.4.3"
-sp1-sdk = { path = "../../submodules/sp1/crates/sdk" }
+sp1-sdk = "3.4.0"
 dvt_abi = { path = "../dvt_abi" }  

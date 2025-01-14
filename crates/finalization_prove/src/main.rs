@@ -1,6 +1,6 @@
 #![no_main]
 
-use dvt_abi::{AbiDvtData, AbiDvtShare, AbiVerificationVector, DvtGenerateSettings};
+use dvt_abi::{AbiDvtData, AbiDvtShare, AbiVerificationVector, AbiGenerateSettings};
 sp1_zkvm::entrypoint!(main);
 
 use bls12_381::{
@@ -28,14 +28,11 @@ pub fn read_pubkeys_from_host(cnt: u32) -> Vec<[u8; 48]> {
 }
 
 
-fn read_verification_vectors_from_host(n: u32, k: u32) -> Vec<AbiVerificationVector> {
+fn read_verification_vectors_from_host(n: u8, k: u8) -> Vec<AbiVerificationVector> {
     let mut verification_vectors = Vec::new();
     for _ in 0..n {
         verification_vectors.push(AbiVerificationVector {
-            hash: read_array_from_host::<32>(),
-            creator_pubkey: read_array_from_host::<48>(),
-            pubkeys: read_pubkeys_from_host(k),
-            signature: read_array_from_host::<96>(),
+            pubkeys: read_pubkeys_from_host(k as u32),
         });
     }
     verification_vectors
@@ -52,20 +49,21 @@ fn read_shares_from_host(k: u32) -> Vec<AbiDvtShare> {
     shares
 }
 
-fn read_from_host_abi_dvt_data() -> AbiDvtData {
-    let settings = DvtGenerateSettings {
-        n: sp1_zkvm::io::read(),
-        k: sp1_zkvm::io::read(),
-    };
+// fn read_from_host_abi_dvt_data() -> AbiDvtData {
+//     let settings = AbiGenerateSettings {
+//         n: sp1_zkvm::io::read(),
+//         k: sp1_zkvm::io::read(),
+//         gen_id: read_array_from_host::<32>(),
+//     };
     
-    let verification_vectors = read_verification_vectors_from_host(settings.n, settings.k);
-    let shares = read_shares_from_host(settings.n);
-    AbiDvtData {
-        settings: settings,
-        verification_vectors: verification_vectors,
-        shares: shares
-    }
-}
+//     let verification_vectors = read_verification_vectors_from_host(settings.n, settings.k);
+//     let shares = read_shares_from_host(settings.n as u32);
+//     AbiDvtData {
+//         settings: settings,
+//         verification_vectors: verification_vectors,
+//         shares: shares
+//     }
+// }
 
 fn print_vec_g1_as_hex(v: Vec<G1Affine>) {
     for i in 0..v.len() {
@@ -83,7 +81,7 @@ fn verify_dvt(data: &AbiDvtData) -> Result<(), Box<dyn std::error::Error>> {
     }).collect();
 
 
-    let mut allPts = Vec::new();
+    let mut all_pts = Vec::new();
     
     print!("n = {}, k = {}\n", data.settings.n, data.settings.k);
     print!("shares = {}, vectors = {}\n", data.shares.len(), verification_vectors.len());
@@ -94,19 +92,19 @@ fn verify_dvt(data: &AbiDvtData) -> Result<(), Box<dyn std::error::Error>> {
             let pt = evaluate_polynomial(verification_vectors[j].clone(), share_id);
             pts.push(pt);
         }
-        allPts.push(pts);
+        all_pts.push(pts);
     }
 
     print_vec_g1_as_hex(verification_vectors[0].clone());
 
     let mut final_keys =  Vec::new(); 
 
-    print!("{}: \n", allPts.len());
-    for i in 0..allPts.len() {
-        let mut key: G1Affine = allPts[i][0];
-        print!("{}: \n", allPts[i].len());
-        for j in 1..allPts[i].len() {
-            key = G1Affine::from(G1Projective::from(key) + G1Projective::from(allPts[i][j]));
+    print!("{}: \n", all_pts.len());
+    for i in 0..all_pts.len() {
+        let mut key: G1Affine = all_pts[i][0];
+        print!("{}: \n", all_pts[i].len());
+        for j in 1..all_pts[i].len() {
+            key = G1Affine::from(G1Projective::from(key) + G1Projective::from(all_pts[i][j]));
         }
         final_keys.push(key);
     }
@@ -146,7 +144,7 @@ fn verify_dvt_from_aggregate(data: &AbiDvtData) -> Result<(), Box<dyn std::error
 
 pub fn main() {
 
-    let data = read_from_host_abi_dvt_data();
+    //let data = read_from_host_abi_dvt_data();
 
     // for i in 0..data.verification_vectors.len() {
     //     let ok = validate_verification_data(&data.verification_vectors[i]);
@@ -155,6 +153,6 @@ pub fn main() {
     //     }
     // }
 
-    verify_dvt(&data).unwrap();
+    // verify_dvt(&data).unwrap();
     //panic!();
 }

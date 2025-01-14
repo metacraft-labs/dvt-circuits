@@ -1,7 +1,8 @@
 [package]
 name = "bls_utils"
-version = "0.1.0"
-edition = "2021"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
 
 [dependencies]
 bls12_381 = { git = "https://github.com/sp1-patches/bls12_381", features = ["experimental"]  }
@@ -12,3 +13,4 @@ serde = "1.0.216"
 dvt_abi = { path = "../dvt_abi" }
 sha2 = "0.10"
 hex = "0.4"
+sp1-zkvm = "3.4.0"
