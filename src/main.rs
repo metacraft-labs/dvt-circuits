@@ -45,7 +45,7 @@ fn main() {
         match args.command_type {
             CommandType::Share => {
 
-                let data = dvt_abi::read_share_data_from_file(&args.input_file).unwrap_or_else(|e| {
+                let data = dvt_abi::read_data_from_json_file::<dvt_abi::DvtBlsSharedData>(&args.input_file).unwrap_or_else(|e| {
                     eprintln!("Error parsing JSON: {}", e);
                     std::process::exit(1);
                 });
@@ -66,7 +66,7 @@ fn main() {
             CommandType::Finalization => {
                 print!("finalization\n");
 
-                let data = dvt_abi::read_share_data_from_file(&args.input_file).unwrap_or_else(|e| {
+                let data = dvt_abi::read_data_from_json_file::<dvt_abi::DvtFinalizationData>(&args.input_file).unwrap_or_else(|e| {
                     eprintln!("Error parsing JSON: {}", e);
                     std::process::exit(1);
                 });
@@ -78,29 +78,11 @@ fn main() {
             
                 abi_data.write(&mut stdin);
                 let client = ProverClient::new();
-                let (_public_values, report) = client.execute(SHARE_PROVER_ELF, stdin).run().unwrap_or_else(|e| {
+                let (_public_values, report) = client.execute(FINALE_PROVER_ELF, stdin).run().unwrap_or_else(|e| {
                     eprintln!("Failed to prove: {}", e);
                     std::process::exit(1);
                 });
                 report
-                // let data = dvt_abi::read_dvt_data_from_file(&args.input_file).unwrap_or_else(|e| {
-                //     println!("Error parsing JSON: {}", e);
-                //     std::process::exit(1);
-                // });
-            
-                // let abi_data = dvt_abi::to_abi_dvt_data(&data).unwrap_or_else(|e| {
-                //     println!("Error converting to ABI data: {}", e);
-                //     std::process::exit(1);
-                // });
-                // print!("finalization\n");
-            
-                // dvt_abi_host::write_to_prover_abi_dvt_data(&mut stdin, &abi_data);
-                // let client = ProverClient::new();
-                // let (_public_values, report) = client.execute(FINALE_PROVER_ELF, stdin).run().unwrap_or_else(|e| {
-                //     println!("Failed to prove: {}", e);
-                //     std::process::exit(1);
-                // });
-                // report
             }
         };
 

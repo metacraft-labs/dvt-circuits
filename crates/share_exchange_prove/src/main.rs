@@ -6,12 +6,11 @@ sp1_zkvm::entrypoint!(main);
 use core::panic;
 
 use bls_utils;
-use sha2::{Sha256, Digest};
 
 pub fn main() {
     let data = bls_utils::read_bls_shared_data_from_host();
 
-    match bls_utils::verify_seed_exchange_commitment(&data.seeds_exchange_commitment, &data.initial_commitment) {
+    match bls_utils::verify_seed_exchange_commitment(&data.verification_hashes, &data.seeds_exchange_commitment, &data.initial_commitment) {
         bls_utils::ProveResult::SlashableError => {
             print!("Slashable error while verifying seed exchange commitment\n");
             return

@@ -1,5 +1,5 @@
-use sp1_sdk::{SP1Stdin};
 use dvt_abi;
+use sp1_sdk::SP1Stdin;
 fn write_array_to_prover<const N: usize>(stdin: &mut SP1Stdin, data: &[u8; N]) {
     for i in 0..N {
         stdin.write(&[data[i]]);
@@ -9,8 +9,7 @@ pub trait ProverSerialize {
     fn write(&self, stdin: &mut SP1Stdin);
 }
 
-
-impl  ProverSerialize for dvt_abi::AbiGenerateSettings {
+impl ProverSerialize for dvt_abi::AbiGenerateSettings {
     fn write(&self, stdin: &mut SP1Stdin) {
         stdin.write(&[self.n]);
         stdin.write(&[self.k]);
@@ -31,7 +30,7 @@ impl ProverSerialize for dvt_abi::AbiInitialCommitment {
         write_array_to_prover(stdin, &self.hash);
         self.settings.write(stdin);
         self.verification_vector.write(stdin);
-    }    
+    }
 }
 
 impl ProverSerialize for dvt_abi::AbiExchangedSecret {
@@ -39,6 +38,7 @@ impl ProverSerialize for dvt_abi::AbiExchangedSecret {
         write_array_to_prover(stdin, &self.src_id);
         write_array_to_prover(stdin, &self.dst_id);
         write_array_to_prover(stdin, &self.secret);
+        write_array_to_prover(stdin, &self.dst_base_hash);
     }
 }
 
@@ -58,10 +58,45 @@ impl ProverSerialize for dvt_abi::AbiSeedExchangeCommitment {
     }
 }
 
-
 impl ProverSerialize for dvt_abi::AbiBlsSharedData {
     fn write(&self, stdin: &mut SP1Stdin) {
         self.initial_commitment.write(stdin);
         self.seeds_exchange_commitment.write(stdin);
+        self.verification_hashes.write(stdin);
+    }
+}
+
+impl ProverSerialize for dvt_abi::AbiVerificationHashes {
+    fn write(&self, stdin: &mut SP1Stdin) {
+        for i in 0..self.len() {
+            write_array_to_prover(stdin, &self[i]);
+        }
+    }
+}
+
+impl ProverSerialize for dvt_abi::AbiGeneration {
+    fn write(&self, stdin: &mut SP1Stdin) {
+        for i in 0..self.verification_vector.len() {
+            write_array_to_prover(stdin, &self.verification_vector[i]);
+        }
+        write_array_to_prover(stdin, &self.base_hash);
+        write_array_to_prover(stdin, &self.partial_pubkey);
+        stdin.write(&(self.message_cleartext.len() as u32));
+
+        for i in 0..self.message_cleartext.len() {
+            stdin.write(&self.message_cleartext[i]);
+        }
+        //stdin.write(self.message_cleartext.as_bytes());
+        write_array_to_prover(stdin, &self.message_signature);
+    }
+}
+
+impl ProverSerialize for dvt_abi::AbiFinalizationData {
+    fn write(&self, stdin: &mut SP1Stdin) {
+        self.settings.write(stdin);
+        for i in 0..self.generations.len() {
+            self.generations[i].write(stdin);
+        }
+        write_array_to_prover(stdin, &self.aggregate_pubkey);
     }
 }
