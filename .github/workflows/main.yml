@@ -4,9 +4,17 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "crates/**"
+      - "Cargo.toml"
+      - ".github/workflows/**"
   pull_request:
     branches:
       - main
+    paths:
+      - "crates/**"
+      - "Cargo.toml"
+      - ".github/workflows/**"
 
 jobs:
   build:
