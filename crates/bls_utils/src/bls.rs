@@ -197,7 +197,7 @@ impl fmt::Debug for SecretKey {
 
 #[cfg(test)]
 mod tests {
-    use dvt_abi::{BLSId, BLSPubkey, BLSSignature, BLS_PUBKEY_SIZE};
+    use dvt_abi::{BLSPubkey, BLSSignature};
 
     use super::*;
 
