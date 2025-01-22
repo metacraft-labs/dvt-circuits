@@ -2,8 +2,6 @@
 
 sp1_zkvm::entrypoint!(main);
 
-use bls12_381::G1Affine;
-
 use bls_utils;
 
 pub fn main() {
