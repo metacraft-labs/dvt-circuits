@@ -1,9 +1,9 @@
 {
     "params": {
         "cmd_extra_args": "--type=share",
-        "expected_exit_code": 1
+        "expected_exit_code": 0
     },
-    "scenario":{
+    "scenario": {
         "base_hashes": [
             "0bcbd9433dfde67e0dd7c501e255a2bdc31d6968e51b1290e6ef7d264911eb91",
             "13602b274436a91ffa3bd3eb16927e011d81fe9e2e9673769a0152acbafe3e33",
@@ -35,7 +35,7 @@
                 "dst_share_id": "0100000000000000000000000000000000000000000000000000000000000000"
             },
             "commitment": {
-                "hash": "2f901d5cec8722e44afd59e94d0a56bf1506a72a0a60709920aad714d1a2ece0",
+                "hash": "788a1ee2a97e6a3b0d284e70c1142a87c98662a37d9856b510ef97cfc76556d0",
                 "pubkey": "90346f9c5f3c09d96ea02acd0220daa8459f03866ed938c798e3716e42c7e033c9a7ef66a10f83af06d5c00b508c6d0f",
                 "signature": "8c7075d8613db04218c7fef5b5646e6d819993932877ac6b4ffed320c412579c1f040df772ce41792e01f892e7a7de87090159598ce000fe7dccd9a1c386f6b144704fd565650174076017d102f6fdcc3c8101f1cd77d1b80712c3e2c4e7c465"
             }

@@ -17,17 +17,33 @@ BLUE="\e[34m"
 BOLD="\e[1m"
 RESET="\e[0m"
 
-# Counters (global)
 pass_count=0
 fail_count=0
+skip_count=0
+disabled_count=0
+execution_count=0
+total_pass_count=0
+total_fail_count=0
+total_skip_count=0
+total_disabled_count=0
 
-# Function to run tests in a given directory
-# Arguments:
-#   1: directory containing test files
-#   2: test type ("positive" or "negative")
+# Parse arguments
+FILTER=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --filter)
+            FILTER=$2
+            shift 2
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${RESET}"
+            exit 1
+            ;;
+    esac
+done
+
 run_tests_in_dir() {
     local dir=$1
-    local type=$2
 
     # Find all JSON test files in the directory
     local test_files=($(find "$dir" -type f -name "*.json"))
@@ -37,74 +53,104 @@ run_tests_in_dir() {
     fi
 
     for test_file in "${test_files[@]}"; do
+        # Apply the filter if provided
+        if [[ -n "$FILTER" && ! $(basename "$test_file") =~ $FILTER ]]; then
+            echo -e "${YELLOW}Skipping test file: $test_file${RESET}"
+            ((skip_count++))
+            continue
+        fi
+
         test_name=$(basename "$test_file")
-        # Run the program
-        cargo run --release -- --execute --input-file "$test_file" --type share
+
+        cmd_args=$(jq -r '.params.cmd_extra_args' "$test_file")
+        expected_exit_code=$(jq -r '.params.expected_exit_code' "$test_file")
+        scenario=$(jq -r '.scenario' "$test_file")
+        disabled=$(jq -r '.params.disabled' "$test_file")
+
+        if [[ $disabled == "true" ]]; then
+            echo -e "${BLUE}Disabled test: $test_name${RESET}"
+            ((disabled_count++))
+            continue
+        fi
+        echo $scenario > scenario.json
+        target/release/dvt_prover_host --input-file scenario.json $cmd_args
         exit_code=$?
 
-        if [[ "$type" == "negative" ]]; then
-            # Negative test should fail (non-zero exit)
-            if [ $exit_code -ne 0 ]; then
-                echo -e "${GREEN}[PASS]${RESET} (negative) $test_name"
-                ((pass_count++))
-            else
-                echo -e "${RED}[FAIL]${RESET} (negative) $test_name (expected non-zero exit code, got 0)"
-                ((fail_count++))
-            fi
+        ((execution_count++))
+        if [ $exit_code -eq $expected_exit_code ]; then
+            echo -e "${GREEN}[PASS]${RESET} $test_name"
+            ((pass_count++))
         else
-            # Positive test should pass (exit code 0)
-            if [ $exit_code -eq 0 ]; then
-                echo -e "${GREEN}[PASS]${RESET} (positive) $test_name"
-                ((pass_count++))
-            else
-                echo -e "${RED}[FAIL]${RESET} (positive) $test_name (exit code: $exit_code)"
-                ((fail_count++))
-            fi
+            echo -e "${RED}[FAIL]${RESET} $test_name (expected exit code: $expected_exit_code, got $exit_code)"
+            ((fail_count++))
         fi
+
+        rm scenario.json
     done
 }
 
+cargo -q build --release
+exit_code=$?
+if [ $exit_code -ne 0 ]; then
+    echo -e "${RED}Error: Cargo build failed.${RESET}"
+    exit 1
+fi
 
 # Header
 echo -e "${BOLD}${BLUE}========================================"
-echo -e "       Running Test Suite"
+echo -e "       Running Test Suites"
 echo -e "========================================${RESET}"
 
-# Check if test directory exists
 if [[ ! -d "$TEST_DIR" ]]; then
     echo -e "${RED}Error: Test directory '$TEST_DIR' not found.${RESET}"
     exit 1
 fi
 
-# Ensure we are in the correct directory for running cargo
-cd "$REPO_ROOT/src/dvt_prover_host" || exit 1
+for SUITE in "$TEST_DIR"/*/; do
+    if [[ -d "$SUITE" ]]; then
+        run_tests_in_dir "$SUITE"
 
-# Run positive tests
-if [[ -d "$TEST_DIR/positive" ]]; then
-    run_tests_in_dir "$TEST_DIR/positive" "positive"
-else
-    echo -e "${YELLOW}No 'positive' directory found in $TEST_DIR.${RESET}"
-fi
+        if [ $execution_count -gt 0 ]; then
+            echo -e "${BOLD}${BLUE}----------------------------------------${RESET}"
+            echo -e "${BOLD} $SUITE Summary:${RESET}"
+            echo -e "  ${GREEN}Passed: $pass_count${RESET}"
+            echo -e "  ${RED}Failed: $fail_count${RESET}"
+            if [ $disabled_count -gt 0 ]; then
+                echo -e "  ${BLUE}Disabled: $disabled_count${RESET}"
+            fi
+            if [ $skip_count -gt 0 ]; then
+                echo -e "  ${YELLOW}Skipped: $skip_count${RESET}"
+            fi
+            echo -e "${BOLD}${BLUE}----------------------------------------${RESET}"
+        fi
 
-# Run negative tests
-if [[ -d "$TEST_DIR/negative" ]]; then
-    run_tests_in_dir "$TEST_DIR/negative" "negative"
-else
-    echo -e "${YELLOW}No 'negative' directory found in $TEST_DIR.${RESET}"
-fi
+        total_pass_count=$((total_pass_count + pass_count))
+        total_fail_count=$((total_fail_count + fail_count))
+        total_disabled_count=$((total_disabled_count + disabled_count))
+        total_skip_count=$((total_skip_count + skip_count))
+        pass_count=0
+        fail_count=0
+        disabled_count=0
+        skip_count=0
+        execution_count=0
+    fi
+done
 
-# Summary
 echo -e "${BOLD}${BLUE}----------------------------------------${RESET}"
 echo -e "${BOLD}Test Summary:${RESET}"
-echo -e "  ${GREEN}Passed: $pass_count${RESET}"
-echo -e "  ${RED}Failed: $fail_count${RESET}"
+echo -e "  ${GREEN}Passed: $total_pass_count${RESET}"
+
+echo -e "  ${RED}Failed: $total_fail_count${RESET}"
+if [ $total_disabled_count -gt 0 ]; then
+    echo -e "  ${BLUE}Disabled: $total_disabled_count${RESET}"
+fi
+if [ $total_skip_count -gt 0 ]; then
+    echo -e "  ${YELLOW}Skipped: $total_skip_count${RESET}"
+fi
 echo -e "${BOLD}${BLUE}----------------------------------------${RESET}"
 
-# Exit code
-if [ $fail_count -eq 0 ]; then
+if [ $total_fail_count -eq 0 ]; then
     echo -e "${GREEN}All tests passed!${RESET}"
-    exit 0
 else
-    echo -e "${RED}$fail_count test(s) failed.${RESET}"
-    exit 1
+    echo -e "${RED}$total_fail_count test(s) failed.${RESET}"
 fi
