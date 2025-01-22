@@ -35,4 +35,4 @@ dvt_abi = { path = "crates/dvt_abi" }
 dvt_abi_host = { path = "crates/dvt_abi_host" }
 
 [build-dependencies]
-sp1-build = "3.4.0"
+sp1-build = "4.0.0"

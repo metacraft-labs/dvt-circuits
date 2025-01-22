@@ -89,7 +89,7 @@ run_tests_in_dir() {
     done
 }
 
-cargo -q build --release
+cargo  build --release
 exit_code=$?
 if [ $exit_code -ne 0 ]; then
     echo -e "${RED}Error: Cargo build failed.${RESET}"
