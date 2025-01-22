@@ -96,14 +96,12 @@ pub struct DvtGeneration {
     message_signature: String,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct DvtFinalizationData {
     settings: DvtGenerateSettings,
     generations: Vec<DvtGeneration>,
     aggregate_pubkey: String,
 }
-
 
 #[derive(Debug)]
 pub struct AbiVerificationVector {
@@ -155,7 +153,6 @@ pub struct AbiBlsSharedData {
     pub seeds_exchange_commitment: AbiSeedExchangeCommitment,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct AbiGeneration {
     pub verification_vector: Vec<BLSPubkey>,
@@ -164,7 +161,6 @@ pub struct AbiGeneration {
     pub message_cleartext: Vec<u8>,
     pub message_signature: BLSSignature,
 }
-
 
 #[derive(Debug)]
 pub struct AbiFinalizationData {
@@ -299,30 +295,45 @@ impl DvtBlsSharedData {
 impl DvtGeneration {
     pub fn to_abi(&self) -> Result<AbiGeneration, Box<dyn std::error::Error>> {
         Ok(AbiGeneration {
-            verification_vector: self.verification_vector.iter().map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
-            .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
-            .map_err(|e| format!("Invalid pubkey: {}", e))?,
+            verification_vector: self
+                .verification_vector
+                .iter()
+                .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
+                .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
+                .map_err(|e| format!("Invalid pubkey: {}", e))?,
             base_hash: decode_hex::<SHA256_SIZE>(&self.base_hash)
                 .map_err(|e| format!("Invalid base_hash: {}", e))?,
-            partial_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.partial_pubkey).map_err(|e| format!("Invalid partial_pubkey: {}", e))?,
+            partial_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.partial_pubkey)
+                .map_err(|e| format!("Invalid partial_pubkey: {}", e))?,
             message_cleartext: self.message_cleartext.as_bytes().to_vec(),
-            message_signature: decode_hex::<BLS_SIGNATURE_SIZE>(&self.message_signature).map_err(|e| format!("Invalid message_signature: {}", e))?,
+            message_signature: decode_hex::<BLS_SIGNATURE_SIZE>(&self.message_signature)
+                .map_err(|e| format!("Invalid message_signature: {}", e))?,
         })
     }
-}   
+}
 
-impl DvtFinalizationData {  
+impl DvtFinalizationData {
     pub fn to_abi(&self) -> Result<AbiFinalizationData, Box<dyn std::error::Error>> {
         Ok(AbiFinalizationData {
-            settings: self.settings.to_abi().map_err(|e| format!("Invalid settings: {}", e))?,
-            generations: self.generations.iter().map(|g| g.to_abi()).collect::<Result<Vec<AbiGeneration>, _>>()?,
+            settings: self
+                .settings
+                .to_abi()
+                .map_err(|e| format!("Invalid settings: {}", e))?,
+            generations: self
+                .generations
+                .iter()
+                .map(|g| g.to_abi())
+                .collect::<Result<Vec<AbiGeneration>, _>>()?,
             aggregate_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.aggregate_pubkey)
                 .map_err(|e| format!("Invalid aggregate_pubkey: {}", e))?,
         })
     }
 }
 
-pub fn read_data_from_json_file<T>(filename: &str) -> Result<T, Box<dyn Error>> where T: DeserializeOwned {
+pub fn read_data_from_json_file<T>(filename: &str) -> Result<T, Box<dyn Error>>
+where
+    T: DeserializeOwned,
+{
     let mut file = File::open(filename).map_err(|e| format!("Error opening file: {}", e))?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)
@@ -330,5 +341,4 @@ pub fn read_data_from_json_file<T>(filename: &str) -> Result<T, Box<dyn Error>> 
 
     let data: T = serde_json::from_str(&contents)?;
     Ok(data)
-
 }

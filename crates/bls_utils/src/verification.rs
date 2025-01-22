@@ -13,6 +13,43 @@ pub enum ProveResult {
     UnslashableError,
 }
 
+#[derive(Debug)]
+pub enum VerificationErrors {
+    InvalidCommitment(String),
+    InvalidSharedSecret(String),
+    InvalidSignature(String),
+    InvalidVerificationVector(String),
+    InvalidCommitmentHash(String),
+    InvalidSignatureHash(String),
+}
+
+impl std::fmt::Display for VerificationErrors {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VerificationErrors::InvalidCommitment(msg) => write!(f, "Invalid commitment: {}", msg),
+            VerificationErrors::InvalidSharedSecret(msg) => {
+                write!(f, "Invalid shared secret: {}", msg)
+            }
+            VerificationErrors::InvalidSignature(msg) => write!(f, "Invalid signature: {}", msg),
+            VerificationErrors::InvalidVerificationVector(msg) => {
+                write!(f, "Invalid verification vector: {}", msg)
+            }
+            VerificationErrors::InvalidCommitmentHash(msg) => {
+                write!(f, "Invalid commitment hash: {}", msg)
+            }
+            VerificationErrors::InvalidSignatureHash(msg) => {
+                write!(f, "Invalid signature hash: {}", msg)
+            }
+        }
+    }
+}
+
+impl std::error::Error for VerificationErrors {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
+
 pub fn compute_seed_exchange_hash(
     seed_exchange: &dvt_abi::AbiSeedExchangeCommitment,
 ) -> dvt_abi::SHA256 {
@@ -65,10 +102,12 @@ pub fn verify_seed_exchange_commitment(
             .unwrap(),
         &commitment.hash,
     ) {
+        print!("Failed to verify seed exchange commitment\n");
         return ProveResult::UnslashableError;
     }
 
     if SecretKey::from_bytes(&shared_secret.secret).is_err() {
+        print!("Invalid field seeds_exchange_commitment.shared_secret.secret\n");
         return ProveResult::SlashableError;
     }
 
@@ -78,7 +117,7 @@ pub fn verify_seed_exchange_commitment(
 
     if computed_commitment_hash.to_vec() != seed_exchange.commitment.hash {
         print!(
-            "Expected: {:?}, got hash: {:?}\n",
+            "Invalid field seeds_exchange_commitment.commitment.hash. Expected: {:?}, got hash: {:?}\n",
             hex::encode(seed_exchange.commitment.hash),
             hex::encode(computed_commitment_hash.to_vec())
         );
@@ -91,11 +130,12 @@ pub fn verify_seed_exchange_commitment(
     );
 
     if dest_id.is_err() {
+        print!("Invalid field seeds_exchange_commitment.shared_secret.dst_id\n");
         return ProveResult::SlashableError;
     }
 
     let unwraped = dest_id.unwrap() + 1;
-    let test_id = bls_id_from_u32(unwraped); 
+    let test_id = bls_id_from_u32(unwraped);
 
     let mut cfst: Vec<G1Affine> = Vec::new();
     for pubkey in &initial_commitment.verification_vector.pubkeys {
@@ -107,17 +147,14 @@ pub fn verify_seed_exchange_commitment(
     let id = Scalar::from_bytes(&le_bytes).unwrap();
 
     if id != test_id {
+        print!("Invalid field seeds_exchange_commitment.shared_secret.dst_id\n");
         return ProveResult::SlashableError;
     }
-    for i in 0..cfst.len() {
-        print!("cfst[{}]: {:?}\n", i, hex::encode(cfst[i].to_compressed()));
-    }
-    print!("id: {:?}\n", hex::encode(id.to_bytes()));
     let eval_result = evaluate_polynomial(cfst, id);
 
     if !sk.to_public_key().eq(&eval_result) {
         print!(
-            "Expected: {:?}, got pk: {:?}\n",
+            "Bad secret field : {:?}, got pk: {:?}\n",
             PublicKey::from_g1(&eval_result),
             sk.to_public_key()
         );
@@ -138,7 +175,7 @@ pub fn verify_initial_commitment(commitment: &dvt_abi::AbiInitialCommitment) -> 
     }
 
     if hasher.finalize().to_vec() != commitment.hash {
-        return ProveResult::SlashableError;
+        return ProveResult::UnslashableError;
     }
 
     ProveResult::Ok
@@ -231,10 +268,7 @@ fn compute_agg_key_from_dvt(
     print!("Final keys: \n");
     print_vec_g1_as_hex(&final_keys);
 
-    let agg_key = lagrange_interpolation(
-        &final_keys,
-        &ids
-    )?;
+    let agg_key = lagrange_interpolation(&final_keys, &ids)?;
     return Ok(agg_key);
 }
 
@@ -258,9 +292,7 @@ pub fn verify_generations(
     let ids = sorted
         .iter()
         .enumerate()
-        .map(|(i, _)| -> Scalar {
-            bls_id_from_u32((i+ 1) as u32)
-        })
+        .map(|(i, _)| -> Scalar { bls_id_from_u32((i + 1) as u32) })
         .collect();
 
     let computed_key = compute_agg_key_from_dvt(verification_vectors, settings, &ids)?;
@@ -281,10 +313,7 @@ pub fn verify_generations(
         })
         .collect();
 
-    let computed_key = lagrange_interpolation(
-        &partial_keys,
-        &ids
-    )?;
+    let computed_key = lagrange_interpolation(&partial_keys, &ids)?;
 
     if computed_key != G1Affine::from_compressed(agg_key).into_option().unwrap() {
         return Err(Box::new(std::io::Error::new(

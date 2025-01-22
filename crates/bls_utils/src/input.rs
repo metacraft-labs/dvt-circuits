@@ -34,27 +34,27 @@ fn read_vec_from_host<T: ReadFromHost>(cnt: u8) -> Vec<T> {
 }
 
 fn read_gen_id_from_host() -> [u8; dvt_abi::GEN_ID_SIZE] {
-    read_byte_array_from_host::<{dvt_abi::GEN_ID_SIZE}>()
+    read_byte_array_from_host::<{ dvt_abi::GEN_ID_SIZE }>()
 }
 
 fn read_pubkey_from_host() -> dvt_abi::BLSPubkey {
-    read_byte_array_from_host::<{dvt_abi::BLS_PUBKEY_SIZE}>()
+    read_byte_array_from_host::<{ dvt_abi::BLS_PUBKEY_SIZE }>()
 }
 
 fn read_signature_from_host() -> dvt_abi::BLSSignature {
-    read_byte_array_from_host::<{dvt_abi::BLS_SIGNATURE_SIZE}>()
+    read_byte_array_from_host::<{ dvt_abi::BLS_SIGNATURE_SIZE }>()
 }
 
 fn read_secret_from_host() -> dvt_abi::BLSSecret {
-    read_byte_array_from_host::<{dvt_abi::BLS_SECRET_SIZE}>()
+    read_byte_array_from_host::<{ dvt_abi::BLS_SECRET_SIZE }>()
 }
 
 fn read_bls_id_from_host() -> dvt_abi::BLSId {
-    read_byte_array_from_host::<{dvt_abi::BLS_ID_SIZE}>()
+    read_byte_array_from_host::<{ dvt_abi::BLS_ID_SIZE }>()
 }
 
 fn read_hash_from_host() -> dvt_abi::SHA256 {
-    read_byte_array_from_host::<{dvt_abi::SHA256_SIZE}>()
+    read_byte_array_from_host::<{ dvt_abi::SHA256_SIZE }>()
 }
 
 fn read_byte_vec_from_host() -> Vec<u8> {

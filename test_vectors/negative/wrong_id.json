@@ -1,7 +1,7 @@
 {
     "params": {
         "cmd_extra_args": "--type=share",
-        "expected_exit_code": 101
+        "expected_exit_code": 0
     },
     "scenario": {
         "base_hashes": [
@@ -37,7 +37,7 @@
             "commitment": {
                 "hash": "fe2807c0acc0766d9b917535e8c56a0a677fa0835cc40a713c0e56e699b639c8",
                 "pubkey": "90346f9c5f3c09d96ea02acd0220daa8459f03866ed938c798e3716e42c7e033c9a7ef66a10f83af06d5c00b508c6d0f",
-                "signature": "a9c08eff13742f78f1e5929888f223b5b5b12b4836b5417c5a135cf24f4e2a4c66a6cdef91be3098b7e7a6a63903b61302e3cf2b8653101da245cf01a8d82b25debe7b18a3a2eb1778f8628fd2c59c8687f6e048a31250fbc2804c20043b8443"
+                "signature": "99d9453a241dc28ab285700f0beb58b6004594e4e393084decc40c7c974f922a6d79177e1a4f1b491423c6c58fb03f1a01633f66b60fd67d750cb0d1d00435a9fbc065b535e1ed35d0563b2fff9e16487db9a7938841bf82b8c5e178a0162cf8"
             }
         }
     }

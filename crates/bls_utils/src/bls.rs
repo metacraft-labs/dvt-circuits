@@ -1,11 +1,10 @@
-
 use bls12_381::{
     hash_to_curve::{ExpandMsgXmd, HashToCurve},
     pairing, G1Affine, G1Projective, G2Affine, G2Projective, Scalar,
 };
 
-use dvt_abi;
-use sha2::{Sha256};
+use dvt_abi::{self};
+use sha2::Sha256;
 use std::fmt;
 
 // https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
@@ -40,7 +39,10 @@ pub fn evaluate_polynomial(cfs: Vec<G1Affine>, x: Scalar) -> G1Affine {
     }
 }
 
-pub fn lagrange_interpolation(y_vec: &Vec<G1Affine>, x_vec: &Vec<Scalar>) -> Result<G1Affine, Box<dyn std::error::Error>> {
+pub fn lagrange_interpolation(
+    y_vec: &Vec<G1Affine>,
+    x_vec: &Vec<Scalar>,
+) -> Result<G1Affine, Box<dyn std::error::Error>> {
     let k = x_vec.len();
     if k == 0 || k != y_vec.len() {
         return Err(Box::new(std::io::Error::new(
@@ -104,7 +106,7 @@ pub fn bls_verify(pubkey: &G1Affine, signature: &G2Affine, message: &[u8]) -> bo
 }
 
 pub fn bls_id_from_u32(id: u32) -> Scalar {
-    let unwrapped_le: [u8; 4] = (id as u32).to_le_bytes();   
+    let unwrapped_le: [u8; 4] = (id as u32).to_le_bytes();
     let mut bytes = [0u8; 32];
     bytes[..4].copy_from_slice(&unwrapped_le);
     Scalar::from_bytes(&bytes).unwrap()
@@ -181,7 +183,6 @@ impl SecretKey {
     }
 }
 
-
 impl fmt::Debug for PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "PublicKey({})", self.to_hex())
@@ -191,5 +192,219 @@ impl fmt::Debug for PublicKey {
 impl fmt::Debug for SecretKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "SecretKey({})", hex::encode(self.to_bytes()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use dvt_abi::{BLSId, BLSPubkey, BLSSignature, BLS_PUBKEY_SIZE};
+
+    use super::*;
+
+    #[test]
+    fn test_bls_id_from_u32() {
+        let mut bytes: [u8; 32] = [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ];
+        assert_eq!(bls_id_from_u32(0), Scalar::from_bytes(&bytes).unwrap());
+        bytes[0] = 1;
+        assert_eq!(bls_id_from_u32(1), Scalar::from_bytes(&bytes).unwrap());
+        bytes[0] = 2;
+        assert_eq!(bls_id_from_u32(2), Scalar::from_bytes(&bytes).unwrap());
+    }
+
+    #[test]
+    fn test_bls_id_from_u32_to_hex() {
+        let id = bls_id_from_u32(0);
+        assert_eq!(
+            hex::encode(id.to_bytes()),
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        );
+        let id = bls_id_from_u32(1);
+        assert_eq!(
+            hex::encode(id.to_bytes()),
+            "0100000000000000000000000000000000000000000000000000000000000000"
+        );
+        let id = bls_id_from_u32(2);
+        assert_eq!(
+            hex::encode(id.to_bytes()),
+            "0200000000000000000000000000000000000000000000000000000000000000"
+        );
+    }
+
+    #[test]
+    fn test_verify_signature() {
+        let data = hex::decode("2f901d5cec8722e44afd59e94d0a56bf1506a72a0a60709920aad714d1a2ece0")
+            .unwrap();
+        let pk: BLSPubkey = hex::decode("90346f9c5f3c09d96ea02acd0220daa8459f03866ed938c798e3716e42c7e033c9a7ef66a10f83af06d5c00b508c6d0f").unwrap().try_into().unwrap();
+        let sig:BLSSignature = hex::decode("a9c08eff13742f78f1e5929888f223b5b5b12b4836b5417c5a135cf24f4e2a4c66a6cdef91be3098b7e7a6a63903b61302e3cf2b8653101da245cf01a8d82b25debe7b18a3a2eb1778f8628fd2c59c8687f6e048a31250fbc2804c20043b8443").unwrap().try_into().unwrap();
+        let pk = G1Affine::from_compressed(&pk).into_option().unwrap();
+        let sig = G2Affine::from_compressed(&sig).into_option().unwrap();
+        assert!(bls_verify(&pk, &sig, &data));
+
+        let invalida_data = hex::decode("00").unwrap();
+        assert!(!bls_verify(&pk, &sig, &invalida_data));
+
+        let wrong_pk: BLSPubkey = hex::decode("98876a81fe982573ec5f986956bf9bf0bcb5349d95c3c8da0aefd05a49fea6215f59b0696f906547baed90ab245804e8").unwrap().try_into().unwrap();
+        let wrong_pk = G1Affine::from_compressed(&wrong_pk).into_option().unwrap();
+        assert!(!bls_verify(&wrong_pk, &sig, &data));
+
+        let bad_sig: BLSSignature = hex::decode("999e7b24bee2587d687e8f358ed10627ef57ec54935bd7a500bbbb18a57e7aa21b800f8b1f487a980d7c93918fdbd8020b66ce9a9e5788a4826e610ac937d8c2ce0ad9c0ee9a5732cf73052493e9a500cc5100a15bdbf9e5b79104db52dbf07c").unwrap().try_into().unwrap();
+        let bad_sig = G2Affine::from_compressed(&bad_sig).into_option().unwrap();
+        assert!(!bls_verify(&pk, &bad_sig, &data))
+    }
+
+    #[test]
+    fn test_evaluate_polynomial() {
+        let pks: Vec<G1Affine> = [
+            "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
+            "98876a81fe982573ec5f986956bf9bf0bcb5349d95c3c8da0aefd05a49fea6215f59b0696f906547baed90ab245804e8",
+            "ad2c4e5b631fbded449ede4dca2d040b9c7eae58d1e73b3050486c1ba22c15a92d9ff13c05c356f974447e4fca84864a"]
+        .iter().map(|pk| -> BLSPubkey {
+            hex::decode(pk).unwrap().try_into().unwrap()
+        })
+        .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
+
+        let target = "af8e0095ecc662f65b95ce57e5bd2f8739ff93b0621a1ad53f5616538d1323ff40e6e9ddd7132298710974fe6fc0344e";
+
+        let id = bls_id_from_u32(1);
+
+        let result = evaluate_polynomial(pks, id);
+
+        assert!(hex::encode(result.to_compressed()) == target);
+    }
+
+    #[test]
+    fn test_evaluate_polynomial_bad_base_keys() {
+        let pks: Vec<G1Affine> = [
+            "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
+            "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
+            "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9"]
+        .iter().map(|pk| -> BLSPubkey {
+            hex::decode(pk).unwrap().try_into().unwrap()
+        })
+        .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
+
+        let target = "af8e0095ecc662f65b95ce57e5bd2f8739ff93b0621a1ad53f5616538d1323ff40e6e9ddd7132298710974fe6fc0344e";
+
+        let id = bls_id_from_u32(1);
+
+        let result = evaluate_polynomial(pks, id);
+
+        assert!(hex::encode(result.to_compressed()) != target);
+    }
+
+    #[test]
+    fn test_lagrange_interpolation() {
+        let pks: Vec<G1Affine> = [
+            "8da434e68daef9af33e39ab727557a3cd86d7991cd6b545746bf92c8edec37012912cfa2292a21512bce9040a1c0e502",
+            "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
+            "8cbfb6cb7af927cfe5fb17621df7036de539b7ff4aa0620cdc218d6b7fe7f2e714a96bdeddb2a0dc24867a90594427e1",
+            "9892b390d9d3000c7bf04763006fbc617b7ba9c261fff35094aec3f43599f2c254ae667d9ba135747309b77cd02f1fbc",
+            "b255c8a66fd1a13373537e8a4ba258f4990c141fc3c06daccda0711f5ebaffc092f0e5b0e4454e6344e2f97957be4017"]
+        .iter().map(|pk| -> BLSPubkey {
+            hex::decode(pk).unwrap().try_into().unwrap()
+        })
+        .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
+
+        let target = "a31d9a483703cd0da9873e5e76b4de5f7035d0a73d79b3be8667daa4fc7065a1bbb5bf77787fcf2a35bd327eecc4fa6b";
+
+        let ids = vec![
+            bls_id_from_u32(1),
+            bls_id_from_u32(2),
+            bls_id_from_u32(3),
+            bls_id_from_u32(4),
+            bls_id_from_u32(5),
+        ];
+
+        let result = lagrange_interpolation(&pks, &ids);
+
+        assert!(hex::encode(result.unwrap().to_compressed()) == target);
+    }
+
+    #[test]
+    fn test_lagrange_interpolation_out_of_order() {
+        let pks: Vec<G1Affine> = [
+            "b255c8a66fd1a13373537e8a4ba258f4990c141fc3c06daccda0711f5ebaffc092f0e5b0e4454e6344e2f97957be4017",
+            "8da434e68daef9af33e39ab727557a3cd86d7991cd6b545746bf92c8edec37012912cfa2292a21512bce9040a1c0e502",
+            "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
+            "8cbfb6cb7af927cfe5fb17621df7036de539b7ff4aa0620cdc218d6b7fe7f2e714a96bdeddb2a0dc24867a90594427e1",
+            "9892b390d9d3000c7bf04763006fbc617b7ba9c261fff35094aec3f43599f2c254ae667d9ba135747309b77cd02f1fbc",
+            ]
+        .iter().map(|pk| -> BLSPubkey {
+            hex::decode(pk).unwrap().try_into().unwrap()
+        })
+        .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
+
+        let target = "a31d9a483703cd0da9873e5e76b4de5f7035d0a73d79b3be8667daa4fc7065a1bbb5bf77787fcf2a35bd327eecc4fa6b";
+
+        let ids = vec![
+            bls_id_from_u32(5),
+            bls_id_from_u32(1),
+            bls_id_from_u32(2),
+            bls_id_from_u32(3),
+            bls_id_from_u32(4),
+        ];
+
+        let result = lagrange_interpolation(&pks, &ids);
+
+        assert!(hex::encode(result.unwrap().to_compressed()) == target);
+    }
+
+    #[test]
+    fn test_lagrange_interpolation_wrong_order() {
+        let pks: Vec<G1Affine> = [
+            "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
+            "8da434e68daef9af33e39ab727557a3cd86d7991cd6b545746bf92c8edec37012912cfa2292a21512bce9040a1c0e502",
+            "8cbfb6cb7af927cfe5fb17621df7036de539b7ff4aa0620cdc218d6b7fe7f2e714a96bdeddb2a0dc24867a90594427e1",
+            "9892b390d9d3000c7bf04763006fbc617b7ba9c261fff35094aec3f43599f2c254ae667d9ba135747309b77cd02f1fbc",
+            "b255c8a66fd1a13373537e8a4ba258f4990c141fc3c06daccda0711f5ebaffc092f0e5b0e4454e6344e2f97957be4017"]
+        .iter().map(|pk| -> BLSPubkey {
+            hex::decode(pk).unwrap().try_into().unwrap()
+        })
+        .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
+
+        let target = "a31d9a483703cd0da9873e5e76b4de5f7035d0a73d79b3be8667daa4fc7065a1bbb5bf77787fcf2a35bd327eecc4fa6b";
+
+        let ids = vec![
+            bls_id_from_u32(1),
+            bls_id_from_u32(2),
+            bls_id_from_u32(3),
+            bls_id_from_u32(4),
+            bls_id_from_u32(5),
+        ];
+
+        let result = lagrange_interpolation(&pks, &ids);
+
+        assert!(hex::encode(result.unwrap().to_compressed()) != target);
+    }
+
+    #[test]
+    fn test_lagrange_interpolation_wrong_base_keys() {
+        let pks: Vec<G1Affine> = [
+            "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
+            "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
+            "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
+            "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
+            "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903"]
+        .iter().map(|pk| -> BLSPubkey {
+            hex::decode(pk).unwrap().try_into().unwrap()
+        })
+        .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
+
+        let target = "a31d9a483703cd0da9873e5e76b4de5f7035d0a73d79b3be8667daa4fc7065a1bbb5bf77787fcf2a35bd327eecc4fa6b";
+
+        let ids = vec![
+            bls_id_from_u32(1),
+            bls_id_from_u32(2),
+            bls_id_from_u32(3),
+            bls_id_from_u32(4),
+            bls_id_from_u32(5),
+        ];
+
+        let result = lagrange_interpolation(&pks, &ids);
+
+        assert!(hex::encode(result.unwrap().to_compressed()) != target);
     }
 }

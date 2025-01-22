@@ -2,10 +2,10 @@ use sp1_sdk::{include_elf, utils, ProverClient, SP1Stdin};
 pub const SHARE_PROVER_ELF: &[u8] = include_elf!("share_exchange_prove");
 pub const FINALE_PROVER_ELF: &[u8] = include_elf!("finalization_prove");
 
-use std::env;
 use clap::{Parser, ValueEnum};
 use dvt_abi;
 use dvt_abi_host::ProverSerialize;
+use std::env;
 
 #[derive(Debug, Clone, ValueEnum)]
 enum CommandType {
@@ -36,60 +36,65 @@ fn main() {
 
     utils::setup_logger();
 
-
     let mut stdin = SP1Stdin::new();
 
     // Depending on the command type, we could do different things here.
     // For now, both variants handle the data similarly.
-    let report = 
-        match args.command_type {
-            CommandType::Share => {
+    let report = match args.command_type {
+        CommandType::Share => {
+            let data =
+                dvt_abi::read_data_from_json_file::<dvt_abi::DvtBlsSharedData>(&args.input_file)
+                    .unwrap_or_else(|e| {
+                        eprintln!("Error parsing JSON: {}", e);
+                        std::process::exit(1);
+                    });
 
-                let data = dvt_abi::read_data_from_json_file::<dvt_abi::DvtBlsSharedData>(&args.input_file).unwrap_or_else(|e| {
-                    eprintln!("Error parsing JSON: {}", e);
-                    std::process::exit(1);
-                });
-            
-                let abi_data = data.to_abi().unwrap_or_else(|e| {
-                    eprintln!("Error converting to ABI data: {}", e);
-                    std::process::exit(1);
-                });
-            
-                abi_data.write(&mut stdin);
-                let client = ProverClient::new();
-                let (_public_values, report) = client.execute(SHARE_PROVER_ELF, stdin).run().unwrap_or_else(|e| {
+            let abi_data = data.to_abi().unwrap_or_else(|e| {
+                eprintln!("Error converting to ABI data: {}", e);
+                std::process::exit(1);
+            });
+
+            abi_data.write(&mut stdin);
+            let client = ProverClient::new();
+            let (_public_values, report) = client
+                .execute(SHARE_PROVER_ELF, stdin)
+                .run()
+                .unwrap_or_else(|e| {
                     eprintln!("Failed to prove: {}", e);
                     std::process::exit(1);
                 });
-                report
-            }
-            CommandType::Finalization => {
-                print!("finalization\n");
+            report
+        }
+        CommandType::Finalization => {
+            print!("finalization\n");
 
-                let data = dvt_abi::read_data_from_json_file::<dvt_abi::DvtFinalizationData>(&args.input_file).unwrap_or_else(|e| {
-                    eprintln!("Error parsing JSON: {}", e);
-                    std::process::exit(1);
-                });
-            
-                let abi_data = data.to_abi().unwrap_or_else(|e| {
-                    eprintln!("Error converting to ABI data: {}", e);
-                    std::process::exit(1);
-                });
-            
-                abi_data.write(&mut stdin);
-                let client = ProverClient::new();
-                let (_public_values, report) = client.execute(FINALE_PROVER_ELF, stdin).run().unwrap_or_else(|e| {
+            let data =
+                dvt_abi::read_data_from_json_file::<dvt_abi::DvtFinalizationData>(&args.input_file)
+                    .unwrap_or_else(|e| {
+                        eprintln!("Error parsing JSON: {}", e);
+                        std::process::exit(1);
+                    });
+
+            let abi_data = data.to_abi().unwrap_or_else(|e| {
+                eprintln!("Error converting to ABI data: {}", e);
+                std::process::exit(1);
+            });
+
+            abi_data.write(&mut stdin);
+            let client = ProverClient::new();
+            let (_public_values, report) = client
+                .execute(FINALE_PROVER_ELF, stdin)
+                .run()
+                .unwrap_or_else(|e| {
                     eprintln!("Failed to prove: {}", e);
                     std::process::exit(1);
                 });
-                report
-            }
-        };
+            report
+        }
+    };
 
     if args.show_report {
         println!("report: {}", args.show_report);
-        println!("executed: {}", report);    
+        println!("executed: {}", report);
     }
-
-    
 }
