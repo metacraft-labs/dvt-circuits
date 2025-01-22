@@ -1,0 +1,129 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        "base_hashes": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "pattern": "^[A-f0-9]{64}$"
+            }
+        },
+        "initial_commitment": {
+            "type": "object",
+            "properties": {
+                "settings": {
+                    "type": "object",
+                    "properties": {
+                        "n": {
+                            "type": "integer"
+                        },
+                        "k": {
+                            "type": "integer"
+                        },
+                        "gen_id": {
+                            "type": "string",
+                            "pattern": "^[A-f0-9]{32}$"
+                        }
+                    },
+                    "required": [
+                        "n",
+                        "k",
+                        "gen_id"
+                    ]
+                },
+                "vvector": {
+                    "type": "object",
+                    "properties": {
+                        "base_pubkeys": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "pattern": "^[A-f0-9]{96}$"
+                            }
+                        }
+                    },
+                    "required": [
+                        "base_pubkeys"
+                    ]
+                },
+                "hash": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "settings",
+                "vvector",
+                "hash"
+            ]
+        },
+        "seeds_exchange_commitment": {
+            "type": "object",
+            "properties": {
+                "initial_commitment_hash": {
+                    "type": "string",
+                    "pattern": "^[A-f0-9]{64}$"
+                },
+                "ssecret": {
+                    "type": "object",
+                    "properties": {
+                        "shared_secret": {
+                            "type": "string",
+                            "pattern": "^[A-f0-9]{64}$"
+                        },
+                        "dst_base_hash": {
+                            "type": "string",
+                            "pattern": "^[A-f0-9]{64}$"
+                        },
+                        "src_share_id": {
+                            "type": "string",
+                            "pattern": "^[A-f0-9]{64}$"
+                        },
+                        "dst_share_id": {
+                            "type": "string",
+                            "pattern": "^[A-f0-9]{64}$"
+                        }
+                    },
+                    "required": [
+                        "shared_secret",
+                        "dst_base_hash",
+                        "src_share_id",
+                        "dst_share_id"
+                    ]
+                },
+                "commitment": {
+                    "type": "object",
+                    "properties": {
+                        "hash": {
+                            "type": "string",
+                            "pattern": "^[A-f0-9]{64}$"
+                        },
+                        "pubkey": {
+                            "type": "string",
+                            "pattern": "^[A-f0-9]{96}$"
+                        },
+                        "signature": {
+                            "type": "string",
+                            "pattern": "^[A-f0-9]{192}$"
+                        }
+                    },
+                    "required": [
+                        "hash",
+                        "pubkey",
+                        "signature"
+                    ]
+                }
+            },
+            "required": [
+                "initial_commitment_hash",
+                "ssecret",
+                "commitment"
+            ]
+        }
+    },
+    "required": [
+        "base_hashes",
+        "initial_commitment",
+        "seeds_exchange_commitment"
+    ]
+}
