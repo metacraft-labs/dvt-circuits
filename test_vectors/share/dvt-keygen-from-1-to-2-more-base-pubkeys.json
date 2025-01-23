@@ -1,0 +1,45 @@
+{
+    "params": {
+        "cmd_extra_args": "--type=share",
+        "expected_exit_code": 1
+    },
+    "scenario": {
+        "base_hashes": [
+            "0e17a5caf76e3a32463f43988710ba2d85a729387847f5f30487a213b76a3610",
+            "7a7d9cb2388a9c35a00ed72d26fb0f754d7b058d6c6612ef4db60c3bfd894b4a",
+            "aab55053176028063a024e6dba0e7e37bb8c01765b68bdd828475a3ed2de90ee",
+            "acaa302da559f993badf18aa4a20efa9e0ead9a18628a46b3935f0dcac3c199a",
+            "dd9c1415e6edf174c5daf7e5ab95d180d97f350f58625c92327803c3a9173de7"
+        ],
+        "initial_commitment": {
+            "settings": {
+                "n": 5,
+                "k": 4,
+                "gen_id": "89f0996b33ca953e0cf9b70a5f84cb50"
+            },
+            "vvector": {
+                "base_pubkeys": [
+                    "b2ed5a0f141f24d10ba90ecf3b6b444a504087eec002dd03dfeec9b626e13965a7c70b6f1db4930be38bda88012c9543",
+                    "b7052db58a90d300373aed2137a0d08c93b54863cc05d7b802a01d9178fd101c271cf98d14dce81186d48406c4d36a82",
+                    "921b3907ad4c1d707137d0988f8db0c3bd49e619dabd621e37bb10b0eb09ad2fe8745c14605a4125c8111bde069733f0",
+                    "b2ed5a0f141f24d10ba90ecf3b6b444a504087eec002dd03dfeec9b626e13965a7c70b6f1db4930be38bda88012c9543"
+                ]
+            },
+            "hash": "b6e9c5cc25a93cd98d0960703e2db61a669a97397bec318815ca610e2942561b"
+        },
+        "seeds_exchange_commitment": {
+            "initial_commitment_hash": "b6e9c5cc25a93cd98d0960703e2db61a669a97397bec318815ca610e2942561b",
+            "ssecret": {
+                "shared_secret": "5effda15144ee06ab2541bcc1dbb60347a5eda7ead02a2b387d047b7a4b245f6",
+                "dst_base_hash": "7a7d9cb2388a9c35a00ed72d26fb0f754d7b058d6c6612ef4db60c3bfd894b4a",
+                "src_share_id": "0100000000000000000000000000000000000000000000000000000000000000",
+                "dst_share_id": "0200000000000000000000000000000000000000000000000000000000000000"
+            },
+            "commitment": {
+                "hash": "232fde930d26b6390e3c2ddb022ea68a40f0aca9a4cac680b514d579b4f2c6bb",
+                "pubkey": "a5bb44bc57124bf138572365870180400440581c519b6893796983a263fe2efe9f16fdb935e4990cfb0a03cb115ef8dc",
+                "signature": "8d95fe755fabe06e6640d191e3dc0c2d3f820eef1bbb7ef98fc1d331d4d73dd08b75334952812ef0ef0756a14b6188d505a099525c7f1a183bce48f9f37dc98d6d43a4f0022ad8844ac366936d4429fca13749aea380ad0c611827fa3ba62de9"
+            }
+        }
+    }
+}

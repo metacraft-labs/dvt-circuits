@@ -1,0 +1,37 @@
+{
+    "params": {
+        "cmd_extra_args": "--type=share",
+        "expected_exit_code": 1
+    },
+    "scenario": {
+        "initial_commitment": {
+            "settings": {
+                "n": 2,
+                "k": 0,
+                "gen_id": "89f0996b33ca953e0cf9b70a5f84cb50"
+            },
+            "vvector": {
+                "base_pubkeys": [
+                    "b2ed5a0f141f24d10ba90ecf3b6b444a504087eec002dd03dfeec9b626e13965a7c70b6f1db4930be38bda88012c9543",
+                    "b7052db58a90d300373aed2137a0d08c93b54863cc05d7b802a01d9178fd101c271cf98d14dce81186d48406c4d36a82",
+                    "921b3907ad4c1d707137d0988f8db0c3bd49e619dabd621e37bb10b0eb09ad2fe8745c14605a4125c8111bde069733f0"
+                ]
+            },
+            "hash": "51c6f738399a2d058b25bbd7b5824dfe28a2acba72afb1ea413dce591279104b"
+        },
+        "seeds_exchange_commitment": {
+            "initial_commitment_hash": "51c6f738399a2d058b25bbd7b5824dfe28a2acba72afb1ea413dce591279104b",
+            "ssecret": {
+                "shared_secret": "5effda15144ee06ab2541bcc1dbb60347a5eda7ead02a2b387d047b7a4b245f6",
+                "dst_base_hash": "7a7d9cb2388a9c35a00ed72d26fb0f754d7b058d6c6612ef4db60c3bfd894b4a",
+                "src_share_id": "0100000000000000000000000000000000000000000000000000000000000000",
+                "dst_share_id": "0200000000000000000000000000000000000000000000000000000000000000"
+            },
+            "commitment": {
+                "hash": "d13eecdcdaa11818309164325fd12290141680e7e1375a7b00c97c5be19b300e",
+                "pubkey": "a5bb44bc57124bf138572365870180400440581c519b6893796983a263fe2efe9f16fdb935e4990cfb0a03cb115ef8dc",
+                "signature": "af92fa2c1dfd0c07132f47a7372d377f32343b2ad19a9d39ffe9e7575d6746f39afa58b39a73fff5f74dd643daacd199118f02e6f2703695bd152425f2c5d1e5682913b50c2107391dc83b310f0eb3f20efbf029e5cbc931c6ad5173b70a7b41"
+            }
+        }
+    }
+}
