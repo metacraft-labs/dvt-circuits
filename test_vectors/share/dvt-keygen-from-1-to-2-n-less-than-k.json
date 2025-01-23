@@ -1,0 +1,44 @@
+{
+    "params": {
+        "cmd_extra_args": "--type=share",
+        "expected_exit_code": 1
+    },
+    "scenario": {
+        "base_hashes": [
+            "0e17a5caf76e3a32463f43988710ba2d85a729387847f5f30487a213b76a3610",
+            "7a7d9cb2388a9c35a00ed72d26fb0f754d7b058d6c6612ef4db60c3bfd894b4a",
+            "aab55053176028063a024e6dba0e7e37bb8c01765b68bdd828475a3ed2de90ee",
+            "acaa302da559f993badf18aa4a20efa9e0ead9a18628a46b3935f0dcac3c199a",
+            "dd9c1415e6edf174c5daf7e5ab95d180d97f350f58625c92327803c3a9173de7"
+        ],
+        "initial_commitment": {
+            "settings": {
+                "n": 2,
+                "k": 3,
+                "gen_id": "89f0996b33ca953e0cf9b70a5f84cb50"
+            },
+            "vvector": {
+                "base_pubkeys": [
+                    "b2ed5a0f141f24d10ba90ecf3b6b444a504087eec002dd03dfeec9b626e13965a7c70b6f1db4930be38bda88012c9543",
+                    "b7052db58a90d300373aed2137a0d08c93b54863cc05d7b802a01d9178fd101c271cf98d14dce81186d48406c4d36a82",
+                    "921b3907ad4c1d707137d0988f8db0c3bd49e619dabd621e37bb10b0eb09ad2fe8745c14605a4125c8111bde069733f0"
+                ]
+            },
+            "hash": "5d3be9c57e3db3d2bd86865878f2d31e3cc691ef3bf91a0fd29af9dd92c8ebdd"
+        },
+        "seeds_exchange_commitment": {
+            "initial_commitment_hash": "5d3be9c57e3db3d2bd86865878f2d31e3cc691ef3bf91a0fd29af9dd92c8ebdd",
+            "ssecret": {
+                "shared_secret": "5effda15144ee06ab2541bcc1dbb60347a5eda7ead02a2b387d047b7a4b245f6",
+                "dst_base_hash": "7a7d9cb2388a9c35a00ed72d26fb0f754d7b058d6c6612ef4db60c3bfd894b4a",
+                "src_share_id": "0100000000000000000000000000000000000000000000000000000000000000",
+                "dst_share_id": "0200000000000000000000000000000000000000000000000000000000000000"
+            },
+            "commitment": {
+                "hash": "6d74dab596f531b4d120d72bedf1618b8bc9f4b66405256756020f3bb7902fd2",
+                "pubkey": "a5bb44bc57124bf138572365870180400440581c519b6893796983a263fe2efe9f16fdb935e4990cfb0a03cb115ef8dc",
+                "signature": "b931ff64f24d2a7f5780cc8da5ff007d92edf83921fd4797f450380197a4e093e2d1561c86480585506a9fa8cb2aff2c04f8cc4a5c768b4038b860215542c9bf7560f1aafb654ffc6ae5047c4495af82538aab8c4ff8bdc6bf9b241f3c1e2c83"
+            }
+        }
+    }
+}

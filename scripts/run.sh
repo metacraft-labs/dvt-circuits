@@ -52,10 +52,12 @@ run_tests_in_dir() {
         return
     fi
 
+    skipped_tests=()
+
     for test_file in "${test_files[@]}"; do
         # Apply the filter if provided
         if [[ -n "$FILTER" && ! $(basename "$test_file") =~ $FILTER ]]; then
-            echo -e "${YELLOW}Skipping test file: $test_file${RESET}"
+            skipped_tests+=("$test_file")  
             ((skip_count++))
             continue
         fi
@@ -68,25 +70,33 @@ run_tests_in_dir() {
         disabled=$(jq -r '.params.disabled' "$test_file")
 
         if [[ $disabled == "true" ]]; then
-            echo -e "${BLUE}Disabled test: $test_name${RESET}"
+            skipped_tests+=("$test_file")
             ((disabled_count++))
             continue
         fi
+
         echo $scenario > scenario.json
         target/release/dvt_prover_host --input-file scenario.json $cmd_args
         exit_code=$?
 
         ((execution_count++))
         if [ $exit_code -eq $expected_exit_code ]; then
-            echo -e "${GREEN}[PASS]${RESET} $test_name"
+            echo -e "${GREEN}[PASS]${RESET}${BOLD} $test_file${RESET}"
             ((pass_count++))
         else
-            echo -e "${RED}[FAIL]${RESET} $test_name (expected exit code: $expected_exit_code, got $exit_code)"
+            echo -e "${RED}[FAIL]${RESET}${BOLD} $test_file (expected exit code: $expected_exit_code, got $exit_code) ${RESET}"
             ((fail_count++))
         fi
 
         rm scenario.json
     done
+
+    if [[ ${#skipped_tests[@]} -gt 0 ]]; then
+        echo -e "\n${YELLOW}Skipped tests:${RESET}"
+        for skipped_test in "${skipped_tests[@]}"; do
+            echo "- $skipped_test"
+        done
+    fi
 }
 
 cargo  build --release

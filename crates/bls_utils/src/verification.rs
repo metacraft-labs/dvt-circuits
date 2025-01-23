@@ -7,39 +7,17 @@ use crate::bls::{
     bls_id_from_u32, bls_verify, evaluate_polynomial, lagrange_interpolation, PublicKey, SecretKey,
 };
 
-pub enum ProveResult {
-    Ok,
-    SlashableError,
-    UnslashableError,
-}
-
 #[derive(Debug)]
 pub enum VerificationErrors {
-    InvalidCommitment(String),
-    InvalidSharedSecret(String),
-    InvalidSignature(String),
-    InvalidVerificationVector(String),
-    InvalidCommitmentHash(String),
-    InvalidSignatureHash(String),
+    SlashableError(String),
+    UnslashableError(String),
 }
 
 impl std::fmt::Display for VerificationErrors {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            VerificationErrors::InvalidCommitment(msg) => write!(f, "Invalid commitment: {}", msg),
-            VerificationErrors::InvalidSharedSecret(msg) => {
-                write!(f, "Invalid shared secret: {}", msg)
-            }
-            VerificationErrors::InvalidSignature(msg) => write!(f, "Invalid signature: {}", msg),
-            VerificationErrors::InvalidVerificationVector(msg) => {
-                write!(f, "Invalid verification vector: {}", msg)
-            }
-            VerificationErrors::InvalidCommitmentHash(msg) => {
-                write!(f, "Invalid commitment hash: {}", msg)
-            }
-            VerificationErrors::InvalidSignatureHash(msg) => {
-                write!(f, "Invalid signature hash: {}", msg)
-            }
+            VerificationErrors::SlashableError(e) => write!(f, "{}", e),
+            VerificationErrors::UnslashableError(e) => write!(f, "{}", e),
         }
     }
 }
@@ -89,7 +67,7 @@ pub fn verify_seed_exchange_commitment(
     verification_hashes: &dvt_abi::AbiVerificationHashes,
     seed_exchange: &dvt_abi::AbiSeedExchangeCommitment,
     initial_commitment: &dvt_abi::AbiInitialCommitment,
-) -> ProveResult {
+) -> Result<(), Box<dyn std::error::Error>> {
     let commitment = &seed_exchange.commitment;
     let shared_secret = &seed_exchange.shared_secret;
 
@@ -102,26 +80,37 @@ pub fn verify_seed_exchange_commitment(
             .unwrap(),
         &commitment.hash,
     ) {
-        print!("Failed to verify seed exchange commitment\n");
-        return ProveResult::UnslashableError;
+        // Return unslashable error
+        return Err(Box::new(VerificationErrors::UnslashableError(
+            String::from(format!(
+                "Invalid field seeds_exchange_commitment.commitment.signature {}\n",
+                hex::encode(commitment.signature)
+            )),
+        )));
     }
 
-    if SecretKey::from_bytes(&shared_secret.secret).is_err() {
-        print!("Invalid field seeds_exchange_commitment.shared_secret.secret\n");
-        return ProveResult::SlashableError;
+    let sk = SecretKey::from_bytes(&shared_secret.secret);
+    if sk.is_err() {
+        return Err(Box::new(VerificationErrors::SlashableError(String::from(
+            format!(
+                "Invalid field seeds_exchange_commitment.shared_secret.secret: {} \n",
+                sk.unwrap_err()
+            ),
+        ))));
     }
 
-    let sk = SecretKey::from_bytes(&shared_secret.secret).unwrap();
+    let sk = sk.unwrap();
 
     let computed_commitment_hash = compute_seed_exchange_hash(seed_exchange);
 
     if computed_commitment_hash.to_vec() != seed_exchange.commitment.hash {
-        print!(
-            "Invalid field seeds_exchange_commitment.commitment.hash. Expected: {:?}, got hash: {:?}\n",
-            hex::encode(seed_exchange.commitment.hash),
-            hex::encode(computed_commitment_hash.to_vec())
-        );
-        return ProveResult::SlashableError;
+        return Err(Box::new(VerificationErrors::SlashableError(
+            String::from(format!(
+                "Invalid field seeds_exchange_commitment.commitment.hash. Expected: {:?}, got hash: {:?}\n",
+                hex::encode(seed_exchange.commitment.hash),
+                hex::encode(computed_commitment_hash.to_vec())
+            )),
+        )));
     }
 
     let dest_id = get_index_in_commitments(
@@ -130,8 +119,12 @@ pub fn verify_seed_exchange_commitment(
     );
 
     if dest_id.is_err() {
-        print!("Invalid field seeds_exchange_commitment.shared_secret.dst_id\n");
-        return ProveResult::SlashableError;
+        return Err(Box::new(VerificationErrors::SlashableError(String::from(
+            format!(
+                "Invalid field seeds_exchange_commitment.shared_secret.dst_id: {} \n",
+                dest_id.unwrap_err()
+            ),
+        ))));
     }
 
     let unwraped = dest_id.unwrap() + 1;
@@ -147,24 +140,26 @@ pub fn verify_seed_exchange_commitment(
     let id = Scalar::from_bytes(&le_bytes).unwrap();
 
     if id != test_id {
-        print!("Invalid field seeds_exchange_commitment.shared_secret.dst_id\n");
-        return ProveResult::SlashableError;
+        return Err(Box::new(VerificationErrors::SlashableError(String::from(
+            "Invalid field seeds_exchange_commitment.shared_secret.dst_id\n",
+        ))));
     }
     let eval_result = evaluate_polynomial(cfst, id);
 
     if !sk.to_public_key().eq(&eval_result) {
-        print!(
-            "Bad secret field : {:?}, got pk: {:?}\n",
-            PublicKey::from_g1(&eval_result),
-            sk.to_public_key()
-        );
-        return ProveResult::SlashableError;
+        return Err(Box::new(VerificationErrors::SlashableError(String::from(
+            format!(
+                "Bad secret field : Expected secret with public key: {:?}, got public key: {:?}\n",
+                PublicKey::from_g1(&eval_result),
+                sk.to_public_key()
+            ),
+        ))));
     }
 
-    ProveResult::Ok
+    Ok(())
 }
 
-pub fn verify_initial_commitment(commitment: &dvt_abi::AbiInitialCommitment) -> ProveResult {
+pub fn verify_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitment) -> bool {
     let mut hasher = Sha256::new();
 
     hasher.update([commitment.settings.n]);
@@ -173,12 +168,8 @@ pub fn verify_initial_commitment(commitment: &dvt_abi::AbiInitialCommitment) -> 
     for pubkey in &commitment.verification_vector.pubkeys {
         hasher.update(&pubkey);
     }
-
-    if hasher.finalize().to_vec() != commitment.hash {
-        return ProveResult::UnslashableError;
-    }
-
-    ProveResult::Ok
+    let computed_hash = hasher.finalize().to_vec();
+    computed_hash == commitment.hash
 }
 
 fn verify_generation_sig(
@@ -224,7 +215,6 @@ fn print_vec_g1_as_hex(v: &Vec<G1Affine>) {
 
 fn compute_agg_key_from_dvt(
     verification_vectors: Vec<dvt_abi::AbiVerificationVector>,
-    settings: &dvt_abi::AbiGenerateSettings,
     ids: &Vec<Scalar>,
 ) -> Result<G1Affine, Box<dyn std::error::Error>> {
     let verification_vectors: Vec<Vec<G1Affine>> = verification_vectors
@@ -240,12 +230,6 @@ fn compute_agg_key_from_dvt(
 
     let mut all_pts = Vec::new();
 
-    print!("n = {}, k = {}\n", settings.n, settings.k);
-    print!(
-        "shares = {}, vectors = {}\n",
-        verification_vectors.len(),
-        verification_vectors.len()
-    );
     for i in 0..verification_vectors.len() {
         let mut pts = Vec::new();
         let share_id = ids[i];
@@ -265,9 +249,6 @@ fn compute_agg_key_from_dvt(
         final_keys.push(key);
     }
 
-    print!("Final keys: \n");
-    print_vec_g1_as_hex(&final_keys);
-
     let agg_key = lagrange_interpolation(&final_keys, &ids)?;
     return Ok(agg_key);
 }
@@ -277,6 +258,14 @@ pub fn verify_generations(
     settings: &dvt_abi::AbiGenerateSettings,
     agg_key: &dvt_abi::BLSPubkey,
 ) -> Result<(), Box<dyn std::error::Error>> {
+
+    if generations.len() != settings.n as usize {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Invalid number of generations",
+        )));
+    }
+
     let mut sorted = generations.to_vec();
     sorted.sort_by(|a, b| a.base_hash.cmp(&b.base_hash));
 
@@ -295,7 +284,7 @@ pub fn verify_generations(
         .map(|(i, _)| -> Scalar { bls_id_from_u32((i + 1) as u32) })
         .collect();
 
-    let computed_key = compute_agg_key_from_dvt(verification_vectors, settings, &ids)?;
+    let computed_key = compute_agg_key_from_dvt(verification_vectors, &ids)?;
 
     if computed_key != G1Affine::from_compressed(agg_key).into_option().unwrap() {
         return Err(Box::new(std::io::Error::new(
@@ -325,21 +314,14 @@ pub fn verify_generations(
     for (_, generation) in generations.iter().enumerate() {
         verify_generation_sig(generation)?;
         let initial_commitment = generate_initial_commitment(generation, &settings);
-        let ok = verify_initial_commitment(&initial_commitment);
-        match ok {
-            ProveResult::SlashableError => {
-                return Err(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "Slashable error while verifying initial commitment",
-                )));
-            }
-            ProveResult::UnslashableError => {
-                return Err(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "Unslashable error while verifying initial commitment",
-                )));
-            }
-            ProveResult::Ok => (),
+        let ok = verify_initial_commitment_hash(&initial_commitment);
+        if !ok {
+            return Err(Box::new(VerificationErrors::UnslashableError(
+                String::from(format!(
+                    "Invalid initial commitment hash {}\n",
+                    hex::encode(initial_commitment.hash)
+                )),
+            )));
         }
     }
     Ok(())
