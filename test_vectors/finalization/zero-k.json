@@ -1,0 +1,71 @@
+{
+    "params": {
+        "cmd_extra_args": "--type=finalization --json-schema-file=spec/finalization_spec.json",
+        "expected_exit_code": 1
+    },
+    "scenario": {
+        "settings": {
+            "n": 5,
+            "k": 0,
+            "gen_id": "89f0996b33ca953e0cf9b70a5f84cb50"
+        },
+        "generations": [
+            {
+                "base_pubkeys": [
+                    "a1da3158e0a5305eb258b969dcfd24a4e5ea4d6665524619017a6a1ce7710cca1ccce4370d051fd55d401ba58b12a3b5",
+                    "a51fd02773126ede1ad38afcd257c5f5b081995539f26bdc2011286cc62557ba0d375f46e193b4e216c31f16dd79847a",
+                    "a6cbadf14b777d22aed8697d9f41e45fd870a46286f6aae93d0c5e924d74f2cac339863e7ad1d9bf3f9e82164e1ea2ee"
+                ],
+                "base_hash": "2438b43279a7420444af83aa840e381f4e9a79c87f82c125d1475152ce42e57f",
+                "partial_pubkey": "b18bf51b1dcb8689f7b1b5ac5d58b291c525516287f75c562a689e7b2f91633a30fa56740eb7c0e83603cf0f2eb91117",
+                "message_cleartext": "24610b589ba77b506b3383798cc0fc1f7be64b777fee6bdab14775e1a0ade524",
+                "message_signature": "8b59de1b727bd246e9a3fac4d753d096dc64b53d3d4093662f72e73fdc696f9fd2d637999cba289c2c5ab65eab3fd0df000ced0e0bb6503a0b805d864d2a56e1e5df1009b076a15e37d61ca00d30db1d216ba0ca7176dfb23005a9d67e5d18fc"
+            },
+            {
+                "base_pubkeys": [
+                    "aecd2f577ec702eea283509932d7a326c67dad9c855a8449b110eff282dcc5ca238a33275e68d13c448f3832305d3a64",
+                    "8f23a43d59befd88446a60b1a07e0936798c5bc0e8ff3ba9b014c40c6af05765fc6ba5da1056fb923122651212135408",
+                    "9987347a1c9bd2a0a9f570c38e52a19f7b70d93a4b24a25dbf7cbaee1fcd4831521a0ffab46d066d7cdbc6f4f88364db"
+                ],
+                "base_hash": "24611a5ee2ba7b6cfb08f67999198f0c7b14614bffee78a75f17751e881d1924",
+                "partial_pubkey": "acce3b29357595b9827a4471df73b96587df525b8ea5476cee6d85146ab2008e78a4a58d40890e4c166a5a34c17b2955",
+                "message_cleartext": "24610b589ba77b506b3383798cc0fc1f7be64b777fee6bdab14775e1a0ade524",
+                "message_signature": "889284c45f33033ae131f6bcbcea7bc21a068f1c203cca0e4cf18d44738bd7870c13d33a0108f29758f3256b371a21ba0158b97b44d0af503f5cd55588311368be5994088e20d0c26752f5b06a91bf483ca3cafde5b471345d597cfc245909d8"
+            },
+            {
+                "base_pubkeys": [
+                    "96de876b5ddfb0166fff60c301d5ef341203d611305b6a765b9e5ba412f7fe5847ae8603f61e01491ccd2c9649d06979",
+                    "928d9467050dc2aeb3ae02aaba43e242bc6723a3e8870cba3877fac2f2cc7d6eacf1d0b39bfc7e49201c0c32360bcf3d",
+                    "8c2cbe9e71ea75225a360b3451e8e876af5005fb8c4a02c2606dac1f54c76714e59982d5944e752dab40a5c1a76a1c07"
+                ],
+                "base_hash": "60010b5dc9747b508924f9fb8ce98021d3e693d0d5d36b2dc5df30e19d139680",
+                "partial_pubkey": "a704f7774c7028fc39093b640d3018bc55f1251d27194c506a5a41c96168f8dd8ff69118b8fd789f7897759006184686",
+                "message_cleartext": "24610b589ba77b506b3383798cc0fc1f7be64b777fee6bdab14775e1a0ade524",
+                "message_signature": "b85d4eeb42ce695ec5e77c4cc331b78cd3d4dc6fb46443e8894f690d6ef71d25e7a95036e5ac82315819db7c652056f0110ec66777516f38f714c865755f7f92d151d73f3bb523a7c2dd8e18f8936f79144cdc11eea0fc2dccadd70e786da7e4"
+            },
+            {
+                "base_pubkeys": [
+                    "b69dc72c248437bd0be7d47554dd50221c0ac29be805e3c2d8e4f21bef4f2b6b60cd9a109559d5df4cae5da635c7879a",
+                    "aa293fe7860e32db8a3e2c9578feeb554131aaa72d6993872780ac554735874fa8f3dbced82cfc6bf677ca79ce3c7340",
+                    "ab10e5407fa7680f660cdca8b75f8e40dcd098b8b5b0f88525e3f2389dc6ffb470c9b6d377c3d1e30715283a713b07c2"
+                ],
+                "base_hash": "6d6573585c6852d96b241e8d13c002db19dd4beb950537dab7570949a0816d1c",
+                "partial_pubkey": "92683da0e3c25b8872f6371f4e98deeba6693b3778fd4d1818e13e16acf9bd6ad88d5f1b3514a7894afd538335bafdfa",
+                "message_cleartext": "24610b589ba77b506b3383798cc0fc1f7be64b777fee6bdab14775e1a0ade524",
+                "message_signature": "abf6c2c2593052744af15be101bfe78c2db57b263426a0fc9d3f679b74a712822d900fe024919d302a89adb61980320f03f6041224177f4e6528a9c13bd1e749de29fef2d7062259bf89cbe7f6ef509dbb632c872aea5b42d538a72490270dea"
+            },
+            {
+                "base_pubkeys": [
+                    "95d1e771b6df3d1a33ecf2c49cedea4b1eeb0477b89cc6debf397b79d64bd6f6c9d3d2dd86fd0e8f803a3825bfc3fb67",
+                    "8a9413aed9e746000747c10ea1d9fe1287aa86511569a941948590b97dd624d3f642118f0a39d5d11eebadd19ee24751",
+                    "b5566edea3b7bd7d30efa402dc7d3047530dacc67a2fd808caf7700897664166c45cc57a7a08278fff1f4265d20c72fb"
+                ],
+                "base_hash": "ade24f5d9b58c6808d33dd373c8ffc0283c7ad77cc480745b175a69de3ad9bfb",
+                "partial_pubkey": "89584e99056382c7a9adcf43f0848f50729605bb3e2f4b750e66163f6d4c5d5f45ce94a450bff03f39c4225b689a8f2e",
+                "message_cleartext": "24610b589ba77b506b3383798cc0fc1f7be64b777fee6bdab14775e1a0ade524",
+                "message_signature": "8f1128a29b431e9035fcf35d04d8671a749040043987cc927f4bb929df963d02057c9cc83ea787189786c6683dcea0070db7892555e8b67766e62d335ca67d5534fbb8019430bd2b976aab78ae8d26b140c8277c1450ded65194142c5c4a1332"
+            }
+        ],
+        "aggregate_pubkey": "88c9ee145c355e09eeedcda02b1d3df449e3c4a4ee1d975779ad07697fd7343b8ca5050d0241724b5afd325daa6e0224"
+    }
+}

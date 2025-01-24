@@ -56,7 +56,7 @@ run_tests_in_dir() {
 
     for test_file in "${test_files[@]}"; do
         # Apply the filter if provided
-        if [[ -n "$FILTER" && ! $(basename "$test_file") =~ $FILTER ]]; then
+        if [[ -n "$FILTER" && ! $test_file =~ $FILTER ]]; then
             skipped_tests+=("$test_file")  
             ((skip_count++))
             continue

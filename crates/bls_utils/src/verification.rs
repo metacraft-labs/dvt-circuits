@@ -286,10 +286,20 @@ pub fn verify_generations(
 
     let computed_key = compute_agg_key_from_dvt(verification_vectors, &ids)?;
 
-    if computed_key != G1Affine::from_compressed(agg_key).into_option().unwrap() {
+    let agg_key = G1Affine::from_compressed(agg_key).into_option();
+
+    if agg_key.is_none() {
         return Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             "Invalid aggregate public key",
+        )));
+    }
+
+    let agg_key = agg_key.unwrap();
+    if computed_key != agg_key {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("Computed key {} does not match aggregate public key {}", hex::encode(computed_key.to_compressed()), hex::encode(agg_key.to_compressed())),
         )));
     }
 
@@ -304,10 +314,10 @@ pub fn verify_generations(
 
     let computed_key = lagrange_interpolation(&partial_keys, &ids)?;
 
-    if computed_key != G1Affine::from_compressed(agg_key).into_option().unwrap() {
+    if computed_key != agg_key {
         return Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            "Invalid aggregate public key",
+            format!("Computed key {} does not match aggregate public key {}", hex::encode(computed_key.to_compressed()), hex::encode(agg_key.to_compressed())),
         )));
     }
 
