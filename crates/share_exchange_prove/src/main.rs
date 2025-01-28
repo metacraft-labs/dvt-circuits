@@ -4,23 +4,29 @@ sp1_zkvm::entrypoint!(main);
 
 use core::panic;
 
-use bls_utils;
+use bls_utils::{self, VerificationErrors};
 
 pub fn main() {
     let data = bls_utils::read_bls_shared_data_from_host();
 
-    match bls_utils::verify_initial_commitment(&data.initial_commitment) {
-        bls_utils::ProveResult::SlashableError => {
-            print!("Slashable error while verifying initial commitment\n");
-            return;
-        }
-        bls_utils::ProveResult::UnslashableError => {
-            print!("Unslashable error while verifying initial commitment\n");
-            panic!();
-        }
-        bls_utils::ProveResult::Ok => {
-            print!("OK while verifying initial commitment\n");
-        }
+    if data.verification_hashes.len() == data.initial_commitment.settings.n as usize  {
+        panic!("The number of verification hashes does not match the number of keys\n");
+    }
+
+    if data.initial_commitment.settings.n < data.initial_commitment.settings.k {
+        panic!("N should be greater than or equal to k\n");
+    }
+
+    let found = data.verification_hashes.iter().find(|h| {
+        h == &&data.initial_commitment.hash
+    });
+
+    if found.is_none() {
+        panic!("The seed exchange commitment is not part of the verification hashes\n");
+    }
+
+    if !bls_utils::verify_initial_commitment_hash(&data.initial_commitment) {
+        panic!("Unsalshable error while verifying commitment hash\n");
     }
 
     match bls_utils::verify_seed_exchange_commitment(
@@ -28,16 +34,24 @@ pub fn main() {
         &data.seeds_exchange_commitment,
         &data.initial_commitment,
     ) {
-        bls_utils::ProveResult::SlashableError => {
-            print!("Slashable error while verifying seed exchange commitment\n");
-            return;
+        Ok(()) => {
+            println!("OK while verifying initial commitment");
         }
-        bls_utils::ProveResult::UnslashableError => {
-            print!("Unslashable error while verifying seed exchange commitment\n");
-            panic!();
-        }
-        bls_utils::ProveResult::Ok => {
-            print!("OK while verifying seed exchange commitment\n");
+        Err(e) => {
+            if let Some(verification_error) = e.downcast_ref::<VerificationErrors>() {
+                match verification_error {
+                    VerificationErrors::SlashableError(err) => {
+                        println!("Slashable error while verifying initial: {}", err);
+                        return;
+                    }
+                    VerificationErrors::UnslashableError(err) => {
+                        println!("Unslashable error while verifying: {}", err);
+                        panic!();
+                    }
+                }
+            } else {
+                panic!("Unknown error while verifying initial: {}", e);
+            }
         }
     }
 
