@@ -35,25 +35,30 @@ pub fn main() {
         &data.initial_commitment,
     ) {
         Ok(()) => {
-            println!("OK while verifying initial commitment");
+            println!("The share is valid. We can't prove participant share is corrupted.");
         }
+        
         Err(e) => {
             if let Some(verification_error) = e.downcast_ref::<VerificationErrors>() {
                 match verification_error {
                     VerificationErrors::SlashableError(err) => {
-                        println!("Slashable error while verifying initial: {}", err);
+                        println!("Slashable error seed exchange commitment: {}", err);
+                        
+                        for h in data.verification_hashes.iter() {
+                            println!("Verification hash: {}", hex::encode(h));
+                            sp1_zkvm::io::commit(h);
+                        }
+                        
                         return;
                     }
                     VerificationErrors::UnslashableError(err) => {
-                        println!("Unslashable error while verifying: {}", err);
-                        panic!();
+                        panic!("Unslashable error seed exchange commitment: {}", err);
                     }
                 }
             } else {
-                panic!("Unknown error while verifying initial: {}", e);
+                panic!("Unknown error seed exchange commitment: {}", e);
             }
         }
     }
-
-    panic!("The seed exchange commitment is valid");
+    //panic!("The seed exchange commitment is valid");
 }

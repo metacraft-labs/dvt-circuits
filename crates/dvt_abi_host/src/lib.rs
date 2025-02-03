@@ -100,3 +100,13 @@ impl ProverSerialize for dvt_abi::AbiFinalizationData {
         write_array_to_prover(stdin, &self.aggregate_pubkey);
     }
 }
+
+impl ProverSerialize for dvt_abi::AbiWrongFinalKeyGeneration {
+    fn write(&self, stdin: &mut SP1Stdin) {
+        self.settings.write(stdin);
+        for i in 0..self.generations.len() {
+            self.generations[i].write(stdin);
+        }
+        write_array_to_prover(stdin, &self.perpatrator_hash);
+    }
+}

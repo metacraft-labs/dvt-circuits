@@ -160,3 +160,14 @@ pub fn read_finalization_data() -> dvt_abi::AbiFinalizationData {
         aggregate_pubkey: aggregate_pubkey,
     }
 }
+
+pub fn read_wrong_final_key_generation_data() -> dvt_abi::AbiWrongFinalKeyGeneration {
+    let settings = read_settings_from_host();
+    let generations = read_generation_data(settings.n, settings.k);
+    let perpatrator_hash = read_hash_from_host();
+    dvt_abi::AbiWrongFinalKeyGeneration {
+        settings: settings,
+        generations: generations,
+        perpatrator_hash: perpatrator_hash,
+    }
+}

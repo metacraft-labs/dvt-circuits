@@ -103,6 +103,13 @@ pub struct DvtFinalizationData {
     aggregate_pubkey: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct DvtWrongFinalKeyGeneration {
+    settings: DvtGenerateSettings,
+    generations: Vec<DvtGeneration>,
+    perpatrator_hash: String,
+}
+
 #[derive(Debug)]
 pub struct AbiVerificationVector {
     pub pubkeys: Vec<BLSPubkey>,
@@ -167,6 +174,13 @@ pub struct AbiFinalizationData {
     pub settings: AbiGenerateSettings,
     pub generations: Vec<AbiGeneration>,
     pub aggregate_pubkey: BLSPubkey,
+}
+
+#[derive(Debug)]
+pub struct AbiWrongFinalKeyGeneration {
+    pub settings: AbiGenerateSettings,
+    pub generations: Vec<AbiGeneration>,
+    pub perpatrator_hash: SHA256,
 }
 
 fn decode_hex<const N: usize>(input: &str) -> Result<[u8; N], Box<dyn Error>> {
@@ -326,6 +340,25 @@ impl DvtFinalizationData {
                 .collect::<Result<Vec<AbiGeneration>, _>>()?,
             aggregate_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.aggregate_pubkey)
                 .map_err(|e| format!("Invalid aggregate_pubkey: {}", e))?,
+        })
+    }
+}
+
+impl DvtWrongFinalKeyGeneration {
+    pub fn to_abi(&self) -> Result<AbiWrongFinalKeyGeneration, Box<dyn std::error::Error>> {
+        Ok(AbiWrongFinalKeyGeneration {
+            settings: self
+                .settings
+                .to_abi()
+                .map_err(|e| format!("Invalid settings: {}", e))?,
+            generations: self
+                .generations
+                .iter()
+                .map(|g| g.to_abi())
+                .collect::<Result<Vec<AbiGeneration>, _>>()?,
+            perpatrator_hash: decode_hex::<SHA256_SIZE>(&self.perpatrator_hash)
+                .map_err(|e| format!("Invalid perpatrator_hash: {}", e))?,
+            
         })
     }
 }
