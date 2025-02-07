@@ -9,7 +9,7 @@ use bls_utils::{self, VerificationErrors};
 pub fn main() {
     let data = bls_utils::read_bls_shared_data_from_host();
 
-    if data.verification_hashes.len() == data.initial_commitment.settings.n as usize  {
+    if data.verification_hashes.len() != data.initial_commitment.settings.n as usize  {
         panic!("The number of verification hashes does not match the number of keys\n");
     }
 
@@ -60,5 +60,5 @@ pub fn main() {
             }
         }
     }
-    //panic!("The seed exchange commitment is valid");
+    panic!("The seed exchange commitment is valid");
 }

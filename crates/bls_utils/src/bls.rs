@@ -39,6 +39,21 @@ pub fn evaluate_polynomial(cfs: Vec<G1Affine>, x: Scalar) -> G1Affine {
     }
 }
 
+pub fn evaluate_polynomial_g1_projection(cfs: &Vec<G1Projective>, x: Scalar) -> G1Projective {   
+    let count = cfs.len();
+    if count == 0 {
+        return G1Projective::identity();
+    } else if count == 1 {
+        return G1Projective::from(cfs[0]);
+    } else {
+        let mut y = cfs[count - 1];
+        for i in 2..(count + 1) {
+            y = y * x + cfs[count - i];
+        }
+        return y;
+    }
+}
+
 pub fn lagrange_interpolation(
     y_vec: &Vec<G1Affine>,
     x_vec: &Vec<Scalar>,
@@ -89,20 +104,21 @@ pub fn lagrange_interpolation(
     Ok(G1Affine::from(r))
 }
 
-pub fn hash_message_to_g2(msg: &[u8], domain: &[u8]) -> G2Projective {
-    <G2Projective as HashToCurve<ExpandMsgXmd<Sha256>>>::hash_to_curve([msg], domain)
+pub fn hash_message_to_g2(msg: &[u8]) -> G2Projective {
+    let domain = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
+    <G2Projective as HashToCurve<ExpandMsgXmd<Sha256>>>::hash_to_curve(msg, domain)
 }
 
-pub fn bls_verify(pubkey: &G1Affine, signature: &G2Affine, message: &[u8]) -> bool {
-    let domain = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
-    let pk_projective = G1Projective::from(pubkey);
-    let sig_projective = G2Projective::from(signature);
-
-    let hashed_msg = hash_message_to_g2(message, domain);
-    let left = pairing(&G1Affine::from(pk_projective), &G2Affine::from(hashed_msg));
-    let right = pairing(&G1Affine::generator(), &G2Affine::from(sig_projective));
-
+pub fn bls_verify_precomputed_hash(pubkey: &G1Affine, signature: &G2Affine, hashed_msg: &G2Affine) -> bool {
+    let left = pairing(&pubkey, &hashed_msg);
+    let right = pairing(&G1Affine::generator(), &signature);
+    
     left == right
+}
+pub fn bls_verify(pubkey: &G1Affine, signature: &G2Affine, message: &[u8]) -> bool {
+    let hashed_msg = hash_message_to_g2(message);
+    let msg_affine = G2Affine::from(hashed_msg);
+    bls_verify_precomputed_hash(pubkey, signature, &msg_affine)
 }
 
 pub fn bls_id_from_u32(id: u32) -> Scalar {

@@ -142,7 +142,7 @@ fn read_generation_data(n: u8, k: u8) -> Vec<dvt_abi::AbiGeneration> {
 pub fn read_bls_shared_data_from_host() -> dvt_abi::AbiBlsSharedData {
     let inital_commitment = read_initial_commitment_from_host();
     let seeds_exchange_commitment = read_seeds_exchange_commitment_from_host();
-    let verification_hashes = read_vec_from_host(inital_commitment.settings.k);
+    let verification_hashes = read_vec_from_host(inital_commitment.settings.n);
     dvt_abi::AbiBlsSharedData {
         verification_hashes: verification_hashes,
         initial_commitment: inital_commitment,
