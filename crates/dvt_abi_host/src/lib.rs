@@ -62,6 +62,9 @@ impl ProverSerialize for dvt_abi::AbiBlsSharedData {
     fn write(&self, stdin: &mut SP1Stdin) {
         self.initial_commitment.write(stdin);
         self.seeds_exchange_commitment.write(stdin);
+        if (self.initial_commitment.settings.n as usize) != self.verification_hashes.len() {
+            panic!("k != verification_hashes.len() {}", self.verification_hashes.len());
+        }
         self.verification_hashes.write(stdin);
     }
 }
@@ -94,6 +97,10 @@ impl ProverSerialize for dvt_abi::AbiGeneration {
 impl ProverSerialize for dvt_abi::AbiFinalizationData {
     fn write(&self, stdin: &mut SP1Stdin) {
         self.settings.write(stdin);
+        if self.settings.n as usize != self.generations.len() {
+            panic!("k != generations.len() {}", self.generations.len());
+        }
+        
         for i in 0..self.generations.len() {
             self.generations[i].write(stdin);
         }
