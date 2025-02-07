@@ -1,6 +1,6 @@
 {
     "params": {
-        "cmd_extra_args": "--type=finalization --json-schema-file=spec/finalization_spec.json",
+        "cmd_extra_args": "--type=finalization --json-schema-file=spec/finalization_spec.json --mode=execute",
         "expected_exit_code": 0
     },
     "scenario": {
