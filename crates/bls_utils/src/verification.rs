@@ -233,13 +233,11 @@ fn agg_final_keys(
         }
         final_cfs.push(sum);
     }
-    let mut ff = Vec::new();
+    let mut final_keys = Vec::new();
     for i in 0..ids.len() {
         let tmp = evaluate_polynomial_g1_projection(&final_cfs, ids[i]);
-        println!("tmp[{}]: {:?}\n",i, hex::encode(tmp.to_bytes()));
-        ff.push(tmp)
+        final_keys.push(tmp);
     }  
-    let final_keys = ff;
     final_keys.iter().map(|x| G1Affine::from(x)).collect()
 }
 
