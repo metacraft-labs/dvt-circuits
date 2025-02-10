@@ -1,7 +1,7 @@
 {
     "params": {
         "cmd_extra_args": "--type=share --mode=execute",
-        "expected_exit_code": 1
+        "expected_exit_code": 101
     },
     "scenario": {
         "base_hashes": [
