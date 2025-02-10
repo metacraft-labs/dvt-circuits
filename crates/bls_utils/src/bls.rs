@@ -39,7 +39,7 @@ pub fn evaluate_polynomial(cfs: Vec<G1Affine>, x: Scalar) -> G1Affine {
     }
 }
 
-pub fn evaluate_polynomial_g1_projection(cfs: &Vec<G1Projective>, x: Scalar) -> G1Projective {   
+pub fn evaluate_polynomial_g1_projection(cfs: &Vec<G1Projective>, x: Scalar) -> G1Projective {
     let count = cfs.len();
     if count == 0 {
         return G1Projective::identity();
@@ -109,10 +109,14 @@ pub fn hash_message_to_g2(msg: &[u8]) -> G2Projective {
     <G2Projective as HashToCurve<ExpandMsgXmd<Sha256>>>::hash_to_curve(msg, domain)
 }
 
-pub fn bls_verify_precomputed_hash(pubkey: &G1Affine, signature: &G2Affine, hashed_msg: &G2Affine) -> bool {
+pub fn bls_verify_precomputed_hash(
+    pubkey: &G1Affine,
+    signature: &G2Affine,
+    hashed_msg: &G2Affine,
+) -> bool {
     let left = pairing(&pubkey, &hashed_msg);
     let right = pairing(&G1Affine::generator(), &signature);
-    
+
     left == right
 }
 pub fn bls_verify(pubkey: &G1Affine, signature: &G2Affine, message: &[u8]) -> bool {

@@ -1,12 +1,12 @@
 use bls12_381::{G1Affine, G1Projective, G2Affine, Scalar};
 
 use dvt_abi::{self};
-use group::GroupEncoding;
 use sha2::{Digest, Sha256};
-use sp1_zkvm;
 
 use crate::bls::{
-    bls_id_from_u32, bls_verify, bls_verify_precomputed_hash, evaluate_polynomial, evaluate_polynomial_g1_projection, hash_message_to_g2, lagrange_interpolation, PublicKey, SecretKey
+    bls_id_from_u32, bls_verify_precomputed_hash, evaluate_polynomial,
+    evaluate_polynomial_g1_projection, hash_message_to_g2, lagrange_interpolation, PublicKey,
+    SecretKey,
 };
 
 #[derive(Debug)]
@@ -73,7 +73,6 @@ pub fn to_g1_projection(pubkey: &dvt_abi::BLSPubkey) -> G1Projective {
     G1Projective::from(to_g1_affine(pubkey))
 }
 
-
 pub fn verify_seed_exchange_commitment(
     verification_hashes: &dvt_abi::AbiVerificationHashes,
     seed_exchange: &dvt_abi::AbiSeedExchangeCommitment,
@@ -84,16 +83,14 @@ pub fn verify_seed_exchange_commitment(
 
     let g1_pubkey = to_g1_affine(&commitment.pubkey);
 
-
-    let g2_sig = &G2Affine::from_compressed(&commitment.signature)
-    .into_option();
+    let g2_sig = &G2Affine::from_compressed(&commitment.signature).into_option();
     if g2_sig.is_none() {
         return Err(Box::new(VerificationErrors::UnslashableError(
             String::from(format!(
-                "Invalid field seeds_exchange_commitment.commitment.signature {}\n", 
+                "Invalid field seeds_exchange_commitment.commitment.signature {}\n",
                 hex::encode(commitment.signature)
-            ))
-        )))
+            )),
+        )));
     }
     if !bls_verify_precomputed_hash(
         &g1_pubkey,
@@ -112,7 +109,6 @@ pub fn verify_seed_exchange_commitment(
     let sk = SecretKey::from_bytes(&shared_secret.secret);
     if sk.is_err() {
         return Err(Box::new(VerificationErrors::SlashableError(String::from(
-            
             format!(
                 "Invalid field seeds_exchange_commitment.shared_secret.secret: {} \n",
                 sk.unwrap_err()
@@ -226,7 +222,7 @@ fn agg_final_keys(
         .collect();
 
     let mut final_cfs = Vec::new();
-    for i in 0..verification_vectors[0].len() {      
+    for i in 0..verification_vectors[0].len() {
         let mut sum = G1Projective::identity();
         for j in 0..verification_vectors.len() {
             sum = sum + verification_vectors[j][i];
@@ -237,7 +233,7 @@ fn agg_final_keys(
     for i in 0..ids.len() {
         let tmp = evaluate_polynomial_g1_projection(&final_cfs, ids[i]);
         final_keys.push(tmp);
-    }  
+    }
     final_keys.iter().map(|x| G1Affine::from(x)).collect()
 }
 
@@ -275,7 +271,9 @@ pub fn verify_generation_hashes(
         // opcode count for n=5 924_860_863
         let ok = bls_verify_precomputed_hash(
             &to_g1_affine(&generation.partial_pubkey),
-            &G2Affine::from_compressed(&generation.message_signature).into_option().unwrap(),
+            &G2Affine::from_compressed(&generation.message_signature)
+                .into_option()
+                .unwrap(),
             &hashed_msg,
         );
 
@@ -366,7 +364,7 @@ pub fn verify_generations(
         })
         .collect();
 
-     let computed_key = lagrange_interpolation(&partial_keys, &ids)?;
+    let computed_key = lagrange_interpolation(&partial_keys, &ids)?;
 
     if computed_key != agg_key {
         return Err(Box::new(std::io::Error::new(

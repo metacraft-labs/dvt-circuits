@@ -9,7 +9,7 @@ use bls_utils::{self, VerificationErrors};
 pub fn main() {
     let data = bls_utils::read_bls_shared_data_from_host();
 
-    if data.verification_hashes.len() != data.initial_commitment.settings.n as usize  {
+    if data.verification_hashes.len() != data.initial_commitment.settings.n as usize {
         panic!("The number of verification hashes does not match the number of keys\n");
     }
 
@@ -17,9 +17,10 @@ pub fn main() {
         panic!("N should be greater than or equal to k\n");
     }
 
-    let found = data.verification_hashes.iter().find(|h| {
-        h == &&data.initial_commitment.hash
-    });
+    let found = data
+        .verification_hashes
+        .iter()
+        .find(|h| h == &&data.initial_commitment.hash);
 
     if found.is_none() {
         panic!("The seed exchange commitment is not part of the verification hashes\n");
@@ -37,18 +38,18 @@ pub fn main() {
         Ok(()) => {
             println!("The share is valid. We can't prove participant share is corrupted.");
         }
-        
+
         Err(e) => {
             if let Some(verification_error) = e.downcast_ref::<VerificationErrors>() {
                 match verification_error {
                     VerificationErrors::SlashableError(err) => {
                         println!("Slashable error seed exchange commitment: {}", err);
-                        
+
                         for h in data.verification_hashes.iter() {
                             println!("Verification hash: {}", hex::encode(h));
                             sp1_zkvm::io::commit(h);
                         }
-                        
+
                         return;
                     }
                     VerificationErrors::UnslashableError(err) => {
