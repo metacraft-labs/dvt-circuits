@@ -1,11 +1,6 @@
-use sp1_sdk::{include_elf, utils, ProverClient, SP1Stdin};
-pub const SHARE_PROVER_ELF: &[u8] = include_elf!("share_exchange_prove");
-pub const FINALE_PROVER_ELF: &[u8] = include_elf!("finalization_prove");
-pub const WRONG_FINAL_KEY_GENERATION_ELF: &[u8] = include_elf!("wrong_final_key_generation_prove");
-
 use clap::{Parser, ValueEnum};
-use dvt_abi;
 use dvt_abi_host::ProverSerialize;
+use sp1_sdk::{include_elf, utils, ProverClient, SP1Stdin};
 use std::env;
 
 use jsonschema::JSONSchema;
@@ -13,17 +8,24 @@ use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 
+pub const SHARE_PROVER_ELF: &[u8] = include_elf!("share_exchange_prove");
+pub const FINALE_PROVER_ELF: &[u8] = include_elf!("finalization_prove");
+pub const WRONG_FINAL_KEY_GENERATION_PROVER_ELF: &[u8] =
+    include_elf!("wrong_final_key_generation_prove");
+pub const BAD_ENCRYPTED_SHARE_PROVER_ELF: &[u8] = include_elf!("bad_encrypted_share_prove");
+
 #[derive(Debug, Clone, ValueEnum)]
 enum CommandType {
     Finalization,
     Share,
     WrongFinalKeyGeneration,
+    BadEcryptedShareProve,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
 enum Mode {
     Execute,
-    Prove
+    Prove,
 }
 
 #[derive(Parser, Debug)]
@@ -53,42 +55,41 @@ fn read_text_file(filename: &str) -> Result<String, Box<dyn Error>> {
     Ok(contents)
 }
 
-fn execute<T>(data: &T, elf: &[u8], show_report: bool) where T: ProverSerialize {
-
+fn execute<T>(data: &T, elf: &[u8], show_report: bool)
+where
+    T: ProverSerialize,
+{
     print!("executing....");
     let mut stdin = SP1Stdin::new();
     data.write(&mut stdin);
     let client = ProverClient::new();
-    let (_public_values, report) = client
-        .execute(elf, stdin)
-        .run()
-        .unwrap_or_else(|e| {
-            eprintln!("Failed to prove: {}", e);
-            std::process::exit(1);
-        });
-    
+    let (_public_values, report) = client.execute(elf, stdin).run().unwrap_or_else(|e| {
+        eprintln!("Failed to prove: {}", e);
+        std::process::exit(1);
+    });
+
     print!("executed");
     if show_report {
         println!("executed: {}", report);
     }
 }
 
-fn prove<T>(data: &T, elf: &[u8]) where T: ProverSerialize {
+fn prove<T>(data: &T, elf: &[u8])
+where
+    T: ProverSerialize,
+{
     let mut stdin = SP1Stdin::new();
     data.write(&mut stdin);
     let client = ProverClient::new();
 
-    let (pk, vk) = client.setup(elf);
+    let (pk, _) = client.setup(elf);
 
     print!("proving....");
-    let proof = client
-        .prove(&pk, stdin)
-        .run()
-        .unwrap_or_else(|e| {
-            eprintln!("Failed to prove: {}", e);
-            std::process::exit(1);
-        });
-    
+    let proof = client.prove(&pk, stdin).run().unwrap_or_else(|e| {
+        eprintln!("Failed to prove: {}", e);
+        std::process::exit(1);
+    });
+
     print!("saving file");
     proof.save("proof.bin").unwrap();
     print!("file was saved")
@@ -200,12 +201,39 @@ fn main() {
 
             match args.mode {
                 Mode::Prove => {
-                    prove(&abi_data, WRONG_FINAL_KEY_GENERATION_ELF);
+                    prove(&abi_data, WRONG_FINAL_KEY_GENERATION_PROVER_ELF);
                 }
                 Mode::Execute => {
-                    execute(&abi_data, WRONG_FINAL_KEY_GENERATION_ELF, args.show_report);
+                    execute(
+                        &abi_data,
+                        WRONG_FINAL_KEY_GENERATION_PROVER_ELF,
+                        args.show_report,
+                    );
                 }
             }
         }
-    };
+        CommandType::BadEcryptedShareProve => {
+            let data = dvt_abi::read_data_from_json_file::<dvt_abi::DvtBadEncryptedShare>(
+                &args.input_file,
+            )
+            .unwrap_or_else(|e| {
+                eprintln!("Error parsing JSON: {}", e);
+                std::process::exit(1);
+            });
+
+            let abi_data = data.to_abi().unwrap_or_else(|e| {
+                eprintln!("Error converting to ABI data: {}", e);
+                std::process::exit(1);
+            });
+
+            match args.mode {
+                Mode::Prove => {
+                    prove(&abi_data, BAD_ENCRYPTED_SHARE_PROVER_ELF);
+                }
+                Mode::Execute => {
+                    execute(&abi_data, BAD_ENCRYPTED_SHARE_PROVER_ELF, args.show_report);
+                }
+            };
+        }
+    }
 }

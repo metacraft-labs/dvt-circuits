@@ -110,6 +110,11 @@ pub struct DvtWrongFinalKeyGeneration {
     perpatrator_hash: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct DvtBadEncryptedShare {
+    // TODO: implement
+}
+
 #[derive(Debug)]
 pub struct AbiVerificationVector {
     pub pubkeys: Vec<BLSPubkey>,
@@ -181,6 +186,11 @@ pub struct AbiWrongFinalKeyGeneration {
     pub settings: AbiGenerateSettings,
     pub generations: Vec<AbiGeneration>,
     pub perpatrator_hash: SHA256,
+}
+
+#[derive(Debug)]
+pub struct AbiBadEncryptedShare {
+    // TODO: implement
 }
 
 fn decode_hex<const N: usize>(input: &str) -> Result<[u8; N], Box<dyn Error>> {
@@ -358,7 +368,14 @@ impl DvtWrongFinalKeyGeneration {
                 .collect::<Result<Vec<AbiGeneration>, _>>()?,
             perpatrator_hash: decode_hex::<SHA256_SIZE>(&self.perpatrator_hash)
                 .map_err(|e| format!("Invalid perpatrator_hash: {}", e))?,
-            
+        })
+    }
+}
+
+impl DvtBadEncryptedShare {
+    pub fn to_abi(&self) -> Result<AbiBadEncryptedShare, Box<dyn std::error::Error>> {
+        Ok(AbiBadEncryptedShare {
+            // TODO: implement
         })
     }
 }

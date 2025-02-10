@@ -171,3 +171,7 @@ pub fn read_wrong_final_key_generation_data() -> dvt_abi::AbiWrongFinalKeyGenera
         perpatrator_hash: perpatrator_hash,
     }
 }
+
+pub fn read_bad_encrypted_share() -> dvt_abi::AbiBadEncryptedShare {
+    dvt_abi::AbiBadEncryptedShare {}
+}
