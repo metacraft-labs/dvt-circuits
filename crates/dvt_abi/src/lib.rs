@@ -8,6 +8,7 @@ use std::fs::File;
 use std::io::Read;
 
 use std::error::Error;
+use std::path::Path;
 
 pub const BLS_SIGNATURE_SIZE: usize = 96;
 pub const BLS_PUBKEY_SIZE: usize = 48;
@@ -380,14 +381,27 @@ impl DvtBadEncryptedShare {
     }
 }
 
-pub fn read_data_from_json_file<T>(filename: &str) -> Result<T, Box<dyn Error>>
-where
-    T: DeserializeOwned,
-{
+pub fn check_if_file_exist(path: &str) {
+    if !Path::new(&path).exists() {
+        panic!("Error: File '{}' does not exist.", path);
+    }
+}
+
+pub fn read_text_file(filename: &str) -> Result<String, Box<dyn Error>> {
+    check_if_file_exist(filename);
     let mut file = File::open(filename).map_err(|e| format!("Error opening file: {}", e))?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)
         .map_err(|e| format!("Error reading file: {}", e))?;
+    Ok(contents)
+}
+
+pub fn read_data_from_json_file<T>(filename: &str) -> Result<T, Box<dyn Error>>
+where
+    T: DeserializeOwned,
+{
+    check_if_file_exist(filename);
+    let contents = read_text_file(filename)?;
 
     let data: T = serde_json::from_str(&contents)?;
     Ok(data)
