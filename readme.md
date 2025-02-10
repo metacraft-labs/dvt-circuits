@@ -49,4 +49,7 @@ Shows that certain participants provided an invalid final share, though the algo
 
 Reveals that some participants have sent improperly encrypted data that is either incorrect or malicious, violating the algorithm's invariants.
 
+### GIT hooks 
+
+```make install-git-hooks```
 
