@@ -50,6 +50,14 @@ pub fn main() {
                             sp1_zkvm::io::commit(h);
                         }
 
+                        println!(
+                            "Perpetrator public key: {}",
+                            hex::encode(data.seeds_exchange_commitment.commitment.pubkey)
+                        );
+                        for byte in data.seeds_exchange_commitment.commitment.pubkey {
+                            sp1_zkvm::io::commit(&byte);
+                        }
+
                         return;
                     }
                     VerificationErrors::UnslashableError(err) => {

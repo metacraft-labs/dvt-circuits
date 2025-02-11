@@ -188,14 +188,13 @@ impl SecretKey {
 
         let sk = Scalar::from_bytes(&le_bytes);
 
-        if sk.is_none().into() {
-            return Err(Box::new(std::io::Error::new(
+        match sk.into_option() {
+            Some(sk) => Ok(SecretKey { key: sk }),
+            None => Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Invalid secret key",
-            )));
+            ))),
         }
-
-        Ok(SecretKey { key: sk.unwrap() })
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {

@@ -83,21 +83,23 @@ pub fn verify_seed_exchange_commitment(
 
     let g1_pubkey = to_g1_affine(&commitment.pubkey);
 
-    let g2_sig = &G2Affine::from_compressed(&commitment.signature).into_option();
-    if g2_sig.is_none() {
-        return Err(Box::new(VerificationErrors::UnslashableError(
-            String::from(format!(
-                "Invalid field seeds_exchange_commitment.commitment.signature {}\n",
-                hex::encode(commitment.signature)
-            )),
-        )));
-    }
+    let g2_sig = match G2Affine::from_compressed(&commitment.signature).into_option() {
+        Some(g2_sig) => g2_sig,
+        None => {
+            return Err(Box::new(VerificationErrors::UnslashableError(
+                String::from(format!(
+                    "Invalid field seeds_exchange_commitment.commitment.signature {}\n",
+                    hex::encode(commitment.signature)
+                )),
+            )))
+        }
+    };
+
     if !bls_verify_precomputed_hash(
         &g1_pubkey,
-        &g2_sig.unwrap(),
+        &g2_sig,
         &G2Affine::from(&hash_message_to_g2(&commitment.hash)),
     ) {
-        // Return unslashable error
         return Err(Box::new(VerificationErrors::UnslashableError(
             String::from(format!(
                 "Invalid field seeds_exchange_commitment.commitment.signature {}\n",
@@ -106,17 +108,17 @@ pub fn verify_seed_exchange_commitment(
         )));
     }
 
-    let sk = SecretKey::from_bytes(&shared_secret.secret);
-    if sk.is_err() {
-        return Err(Box::new(VerificationErrors::SlashableError(String::from(
-            format!(
-                "Invalid field seeds_exchange_commitment.shared_secret.secret: {} \n",
-                sk.unwrap_err()
-            ),
-        ))));
-    }
-
-    let sk = sk.unwrap();
+    let sk = match SecretKey::from_bytes(&shared_secret.secret) {
+        Ok(sk) => sk,
+        Err(e) => {
+            return Err(Box::new(VerificationErrors::SlashableError(String::from(
+                format!(
+                    "Invalid field seeds_exchange_commitment.shared_secret.secret: {} \n",
+                    e
+                ),
+            ))));
+        }
+    };
 
     let computed_commitment_hash = compute_seed_exchange_hash(seed_exchange);
 
@@ -130,22 +132,24 @@ pub fn verify_seed_exchange_commitment(
         )));
     }
 
-    let dest_id = get_index_in_commitments(
+    let dest_id = match get_index_in_commitments(
         verification_hashes,
         &seed_exchange.shared_secret.dst_base_hash,
-    );
+    ) {
+        Ok(id) => id,
+        Err(e) => {
+            return Err(Box::new(VerificationErrors::SlashableError(String::from(
+                format!(
+                    "Invalid field seeds_exchange_commitment.shared_secret.dst_base_hash: {} \n",
+                    e
+                ),
+            ))));
+        }
+    };
 
-    if dest_id.is_err() {
-        return Err(Box::new(VerificationErrors::SlashableError(String::from(
-            format!(
-                "Invalid field seeds_exchange_commitment.shared_secret.dst_id: {} \n",
-                dest_id.unwrap_err()
-            ),
-        ))));
-    }
-
-    let unwraped = dest_id.unwrap() + 1;
-    let test_id = bls_id_from_u32(unwraped);
+    // F(0) is aways reserved for the aggregated key so we need to start from 1
+    let dest_id = dest_id + 1;
+    let test_id = bls_id_from_u32(dest_id);
 
     let mut cfst: Vec<G1Affine> = Vec::new();
     for pubkey in &initial_commitment.verification_vector.pubkeys {
@@ -334,16 +338,16 @@ pub fn verify_generations(
 
     let computed_key = compute_agg_key_from_dvt(&verification_vectors, &ids)?;
 
-    let agg_key = G1Affine::from_compressed(agg_key).into_option();
+    let agg_key = match G1Affine::from_compressed(agg_key).into_option() {
+        Some(k) => k,
+        None => {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Invalid aggregate public key",
+            )));
+        }
+    };
 
-    if agg_key.is_none() {
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Invalid aggregate public key",
-        )));
-    }
-
-    let agg_key = agg_key.unwrap();
     if computed_key != agg_key {
         return Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
@@ -395,14 +399,15 @@ pub fn prove_wrong_final_key_generation(
         }
     }
 
-    if perpetrator_index.is_none() {
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Perpetrator not found",
-        )));
-    }
-
-    let perpetrator_index = perpetrator_index.unwrap();
+    let perpetrator_index = match perpetrator_index {
+        Some(i) => i,
+        None => {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Perpetrator not found",
+            )));
+        }
+    };
 
     let perpetrator_bls_id = bls_id_from_u32((perpetrator_index + 1) as u32);
 
