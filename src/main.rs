@@ -29,19 +29,33 @@ enum Mode {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    #[arg(long = "show-report", default_value_t = false)]
+    #[arg(
+        long = "show-report",
+        default_value_t = false,
+        help = "Show the report after execution."
+    )]
     show_report: bool,
 
-    #[arg(long = "input-file")]
+    #[arg(long = "input-file", short = 'i', help = "Path to the input file.")]
     input_file: String,
 
     #[arg(long = "type", value_enum)]
     command_type: CommandType,
 
-    #[arg(long = "json-schema-file")]
+    #[arg(
+        long = "json-schema-file",
+        help = "Path to the JSON validation schema file."
+    )]
     json_schema: Option<String>,
 
-    #[arg(long = "mode", value_enum, default_value_t = Mode::Prove)]
+    #[arg(
+        long = "output-file-path",
+        short = 'o',
+        help = "Path where the prove will be saved."
+    )]
+    output_file_path: Option<String>,
+
+    #[arg(long = "mode", value_enum, default_value_t = Mode::Prove, help = "Execution mode (default: Prove).")]
     mode: Mode,
 }
 
@@ -49,7 +63,6 @@ fn execute<T>(data: &T, elf: &[u8], show_report: bool)
 where
     T: ProverSerialize,
 {
-    print!("executing....");
     let mut stdin = SP1Stdin::new();
     data.write(&mut stdin);
     let client = ProverClient::new();
@@ -58,13 +71,12 @@ where
         .run()
         .unwrap_or_else(|e| panic!("Failed to prove: {}", e));
 
-    print!("executed");
     if show_report {
-        println!("executed: {}", report);
+        println!("executed: \n {}", report);
     }
 }
 
-fn prove<T>(data: &T, elf: &[u8])
+fn prove<T>(data: &T, elf: &[u8], output_file_path: Option<String>)
 where
     T: ProverSerialize,
 {
@@ -78,7 +90,14 @@ where
         panic!("Failed to prove: {}", e);
     });
 
-    proof.save("proof.bin").unwrap();
+    match output_file_path {
+        Some(path) => {
+            proof.save(path).unwrap();
+        }
+        None => {
+            proof.save("proof.bin").unwrap();
+        }
+    }
 }
 
 fn validate_json(schema_path: &str, json_path: &str) -> Result<(), Box<dyn Error>> {
@@ -134,7 +153,7 @@ fn main() {
             });
             match args.mode {
                 Mode::Prove => {
-                    prove(&abi_data, SHARE_PROVER_ELF);
+                    prove(&abi_data, SHARE_PROVER_ELF, args.output_file_path);
                 }
                 Mode::Execute => {
                     execute(&abi_data, SHARE_PROVER_ELF, args.show_report);
@@ -154,7 +173,7 @@ fn main() {
 
             match args.mode {
                 Mode::Prove => {
-                    prove(&abi_data, FINALE_PROVER_ELF);
+                    prove(&abi_data, FINALE_PROVER_ELF, args.output_file_path);
                 }
                 Mode::Execute => {
                     execute(&abi_data, FINALE_PROVER_ELF, args.show_report);
@@ -175,7 +194,11 @@ fn main() {
 
             match args.mode {
                 Mode::Prove => {
-                    prove(&abi_data, WRONG_FINAL_KEY_GENERATION_PROVER_ELF);
+                    prove(
+                        &abi_data,
+                        WRONG_FINAL_KEY_GENERATION_PROVER_ELF,
+                        args.output_file_path,
+                    );
                 }
                 Mode::Execute => {
                     execute(
@@ -200,7 +223,11 @@ fn main() {
 
             match args.mode {
                 Mode::Prove => {
-                    prove(&abi_data, BAD_ENCRYPTED_SHARE_PROVER_ELF);
+                    prove(
+                        &abi_data,
+                        BAD_ENCRYPTED_SHARE_PROVER_ELF,
+                        args.output_file_path,
+                    );
                 }
                 Mode::Execute => {
                     execute(&abi_data, BAD_ENCRYPTED_SHARE_PROVER_ELF, args.show_report);
