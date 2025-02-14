@@ -42,15 +42,15 @@ pub fn evaluate_polynomial(cfs: Vec<G1Affine>, x: Scalar) -> G1Affine {
 pub fn evaluate_polynomial_g1_projection(cfs: &Vec<G1Projective>, x: Scalar) -> G1Projective {
     let count = cfs.len();
     if count == 0 {
-        return G1Projective::identity();
+        G1Projective::identity()
     } else if count == 1 {
-        return G1Projective::from(cfs[0]);
+        G1Projective::from(cfs[0])
     } else {
         let mut y = cfs[count - 1];
         for i in 2..(count + 1) {
             y = y * x + cfs[count - i];
         }
-        return y;
+        y
     }
 }
 
@@ -97,7 +97,7 @@ pub fn lagrange_interpolation(
                 b *= v;
             }
         }
-        let li0 = a * b.invert().unwrap();
+        let li0 = a * b.invert().expect("invalid valid point");
         let tmp = y_vec[i] * li0;
         r = r + tmp;
     }
@@ -129,7 +129,7 @@ pub fn bls_id_from_u32(id: u32) -> Scalar {
     let unwrapped_le: [u8; 4] = (id as u32).to_le_bytes();
     let mut bytes = [0u8; 32];
     bytes[..4].copy_from_slice(&unwrapped_le);
-    Scalar::from_bytes(&bytes).unwrap()
+    Scalar::from_bytes(&bytes).expect("Invalid id")
 }
 
 #[derive(PartialEq)]
@@ -165,7 +165,9 @@ impl PublicKey {
     pub fn verify_signature(&self, message: &[u8], signature: &dvt_abi::BLSSignature) -> bool {
         bls_verify(
             &self.key,
-            &G2Affine::from_compressed(signature).into_option().unwrap(),
+            &G2Affine::from_compressed(signature)
+                .into_option()
+                .expect("Invalid signature"),
             message,
         )
     }

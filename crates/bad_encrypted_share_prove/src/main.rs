@@ -10,7 +10,7 @@ use chacha20::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
 use chacha20::ChaCha20;
 
 pub fn main() {
-    let data = bls_utils::read_wrong_final_key_generation_data();
+    let data = bls_utils::read_bad_partial_share_data();
     print!("{:?}", data);
 
     let ok = bls_utils::prove_wrong_final_key_generation(&data);

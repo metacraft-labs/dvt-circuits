@@ -105,10 +105,24 @@ pub struct DvtFinalizationData {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct DvtWrongFinalKeyGeneration {
+pub struct DvtBadPartialShareGeneration {
+    #[serde(rename(deserialize = "base_pubkeys"))]
+    verification_vector: Vec<String>,
+    base_hash: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DvtBadPartialShare {
+    pub settings: DvtGenerateSettings,
+    pub data: DvtGeneration,
+    pub commitment: DvtCommitment,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DvtBadPartialShareData {
     settings: DvtGenerateSettings,
-    generations: Vec<DvtGeneration>,
-    perpatrator_hash: String,
+    generations: Vec<DvtBadPartialShareGeneration>,
+    bad_partial: DvtBadPartialShare,
 }
 
 #[derive(Debug, Deserialize)]
@@ -121,7 +135,7 @@ pub struct AbiVerificationVector {
     pub pubkeys: Vec<BLSPubkey>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AbiGenerateSettings {
     pub n: u8,
     pub k: u8,
@@ -182,11 +196,24 @@ pub struct AbiFinalizationData {
     pub aggregate_pubkey: BLSPubkey,
 }
 
+#[derive(Debug, Clone)]
+pub struct AbiBadPartialShareGeneration {
+    pub verification_vector: Vec<BLSPubkey>,
+    pub base_hash: SHA256,
+}
+
 #[derive(Debug)]
-pub struct AbiWrongFinalKeyGeneration {
+pub struct AbiBadPartialShare {
     pub settings: AbiGenerateSettings,
-    pub generations: Vec<AbiGeneration>,
-    pub perpatrator_hash: SHA256,
+    pub data: AbiGeneration,
+    pub commitment: AbiCommitment,
+}
+
+#[derive(Debug)]
+pub struct AbiBadPartialShareData {
+    pub settings: AbiGenerateSettings,
+    pub generations: Vec<AbiBadPartialShareGeneration>,
+    pub bad_partial: AbiBadPartialShare,
 }
 
 #[derive(Debug)]
@@ -355,9 +382,43 @@ impl DvtFinalizationData {
     }
 }
 
-impl DvtWrongFinalKeyGeneration {
-    pub fn to_abi(&self) -> Result<AbiWrongFinalKeyGeneration, Box<dyn std::error::Error>> {
-        Ok(AbiWrongFinalKeyGeneration {
+impl DvtBadPartialShareGeneration {
+    pub fn to_abi(&self) -> Result<AbiBadPartialShareGeneration, Box<dyn std::error::Error>> {
+        Ok(AbiBadPartialShareGeneration {
+            verification_vector: self
+                .verification_vector
+                .iter()
+                .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
+                .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
+                .map_err(|e| format!("Invalid pubkey: {}", e))?,
+            base_hash: decode_hex::<SHA256_SIZE>(&self.base_hash)
+                .map_err(|e| format!("Invalid base_hash: {}", e))?,
+        })
+    }
+}
+
+impl DvtBadPartialShare {
+    pub fn to_abi(&self) -> Result<AbiBadPartialShare, Box<dyn std::error::Error>> {
+        Ok(AbiBadPartialShare {
+            settings: self
+                .settings
+                .to_abi()
+                .map_err(|e| format!("Invalid settings: {}", e))?,
+            data: self
+                .data
+                .to_abi()
+                .map_err(|e| format!("Invalid partial_data: {}", e))?,
+            commitment: self
+                .commitment
+                .to_abi()
+                .map_err(|e| format!("Invalid commitment: {}", e))?,
+        })
+    }
+}
+
+impl DvtBadPartialShareData {
+    pub fn to_abi(&self) -> Result<AbiBadPartialShareData, Box<dyn std::error::Error>> {
+        Ok(AbiBadPartialShareData {
             settings: self
                 .settings
                 .to_abi()
@@ -366,9 +427,11 @@ impl DvtWrongFinalKeyGeneration {
                 .generations
                 .iter()
                 .map(|g| g.to_abi())
-                .collect::<Result<Vec<AbiGeneration>, _>>()?,
-            perpatrator_hash: decode_hex::<SHA256_SIZE>(&self.perpatrator_hash)
-                .map_err(|e| format!("Invalid perpatrator_hash: {}", e))?,
+                .collect::<Result<Vec<AbiBadPartialShareGeneration>, _>>()?,
+            bad_partial: self
+                .bad_partial
+                .to_abi()
+                .map_err(|e| format!("Invalid bad_partial: {}", e))?,
         })
     }
 }

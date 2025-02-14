@@ -4,7 +4,7 @@ use dvt_abi::{self};
 use sha2::{Digest, Sha256};
 
 use crate::bls::{
-    bls_id_from_u32, bls_verify_precomputed_hash, evaluate_polynomial,
+    bls_id_from_u32, bls_verify, bls_verify_precomputed_hash, evaluate_polynomial,
     evaluate_polynomial_g1_projection, hash_message_to_g2, lagrange_interpolation, PublicKey,
     SecretKey,
 };
@@ -36,7 +36,7 @@ pub fn compute_seed_exchange_hash(
     let shared_secret = &seed_exchange.shared_secret;
     let mut hasher = Sha256::new();
 
-    let sk = SecretKey::from_bytes(&shared_secret.secret).unwrap();
+    let sk = SecretKey::from_bytes(&shared_secret.secret).expect("Invalid secret key");
 
     hasher.update(&seed_exchange.initial_commitment_hash);
     hasher.update(&sk.to_bytes());
@@ -44,7 +44,11 @@ pub fn compute_seed_exchange_hash(
     hasher.update(&shared_secret.src_id);
     hasher.update(&shared_secret.dst_id);
 
-    hasher.finalize().to_vec().try_into().unwrap()
+    hasher
+        .finalize()
+        .to_vec()
+        .try_into()
+        .expect("Can't produce SHA256")
 }
 
 pub fn get_index_in_commitments(
@@ -66,7 +70,9 @@ pub fn get_index_in_commitments(
 }
 
 pub fn to_g1_affine(pubkey: &dvt_abi::BLSPubkey) -> G1Affine {
-    G1Affine::from_compressed(&pubkey).into_option().unwrap()
+    G1Affine::from_compressed(&pubkey)
+        .into_option()
+        .expect("G1 point is not torsion free.")
 }
 
 pub fn to_g1_projection(pubkey: &dvt_abi::BLSPubkey) -> G1Projective {
@@ -86,12 +92,10 @@ pub fn verify_seed_exchange_commitment(
     let g2_sig = match G2Affine::from_compressed(&commitment.signature).into_option() {
         Some(g2_sig) => g2_sig,
         None => {
-            return Err(Box::new(VerificationErrors::UnslashableError(
-                String::from(format!(
-                    "Invalid field seeds_exchange_commitment.commitment.signature {}\n",
-                    hex::encode(commitment.signature)
-                )),
-            )))
+            return Err(Box::new(VerificationErrors::UnslashableError(format!(
+                "Invalid field seeds_exchange_commitment.commitment.signature {}\n",
+                hex::encode(commitment.signature)
+            ))))
         }
     };
 
@@ -100,22 +104,17 @@ pub fn verify_seed_exchange_commitment(
         &g2_sig,
         &G2Affine::from(&hash_message_to_g2(&commitment.hash)),
     ) {
-        return Err(Box::new(VerificationErrors::UnslashableError(
-            String::from(format!(
-                "Invalid field seeds_exchange_commitment.commitment.signature {}\n",
-                hex::encode(commitment.signature)
-            )),
-        )));
+        return Err(Box::new(VerificationErrors::UnslashableError(format!(
+            "Invalid field seeds_exchange_commitment.commitment.signature {}\n",
+            hex::encode(commitment.signature)
+        ))));
     }
 
     let sk = match SecretKey::from_bytes(&shared_secret.secret) {
         Ok(sk) => sk,
         Err(e) => {
-            return Err(Box::new(VerificationErrors::SlashableError(String::from(
-                format!(
-                    "Invalid field seeds_exchange_commitment.shared_secret.secret: {} \n",
-                    e
-                ),
+            return Err(Box::new(VerificationErrors::SlashableError(format!(
+                "Invalid field seeds_exchange_commitment.shared_secret.secret: {e} \n"
             ))));
         }
     };
@@ -124,11 +123,11 @@ pub fn verify_seed_exchange_commitment(
 
     if computed_commitment_hash.to_vec() != seed_exchange.commitment.hash {
         return Err(Box::new(VerificationErrors::SlashableError(
-            String::from(format!(
+            format!(
                 "Invalid field seeds_exchange_commitment.commitment.hash. Expected: {:?}, got hash: {:?}\n",
                 hex::encode(seed_exchange.commitment.hash),
                 hex::encode(computed_commitment_hash.to_vec())
-            )),
+            ),
         )));
     }
 
@@ -138,16 +137,13 @@ pub fn verify_seed_exchange_commitment(
     ) {
         Ok(id) => id,
         Err(e) => {
-            return Err(Box::new(VerificationErrors::SlashableError(String::from(
-                format!(
-                    "Invalid field seeds_exchange_commitment.shared_secret.dst_base_hash: {} \n",
-                    e
-                ),
+            return Err(Box::new(VerificationErrors::SlashableError(format!(
+                "Invalid field seeds_exchange_commitment.shared_secret.dst_base_hash: {e} \n"
             ))));
         }
     };
 
-    // F(0) is aways reserved for the aggregated key so we need to start from 1
+    // F(0) is always reserved for the aggregated key so we need to start from 1
     let dest_id = dest_id + 1;
     let test_id = bls_id_from_u32(dest_id);
 
@@ -158,7 +154,7 @@ pub fn verify_seed_exchange_commitment(
 
     let le_bytes = seed_exchange.shared_secret.dst_id.clone();
 
-    let id = Scalar::from_bytes(&le_bytes).unwrap();
+    let id = Scalar::from_bytes(&le_bytes).expect("Invalid id");
 
     if id != test_id {
         return Err(Box::new(VerificationErrors::SlashableError(String::from(
@@ -168,12 +164,10 @@ pub fn verify_seed_exchange_commitment(
     let eval_result = evaluate_polynomial(cfst, id);
 
     if !sk.to_public_key().eq(&eval_result) {
-        return Err(Box::new(VerificationErrors::SlashableError(String::from(
-            format!(
-                "Bad secret field : Expected secret with public key: {:?}, got public key: {:?}\n",
-                PublicKey::from_g1(&eval_result),
-                sk.to_public_key()
-            ),
+        return Err(Box::new(VerificationErrors::SlashableError(format!(
+            "Bad secret field : Expected secret with public key: {:?}, got public key: {:?}\n",
+            PublicKey::from_g1(&eval_result),
+            sk.to_public_key()
         ))));
     }
 
@@ -277,28 +271,24 @@ pub fn verify_generation_hashes(
             &to_g1_affine(&generation.partial_pubkey),
             &G2Affine::from_compressed(&generation.message_signature)
                 .into_option()
-                .unwrap(),
+                .expect("Invalid signature"),
             &hashed_msg,
         );
 
         if !ok {
-            return Err(Box::new(VerificationErrors::UnslashableError(
-                String::from(format!(
-                    "Invalid signature {}",
-                    hex::encode(generation.message_signature)
-                )),
-            )));
+            return Err(Box::new(VerificationErrors::UnslashableError(format!(
+                "Invalid signature {}",
+                hex::encode(generation.message_signature)
+            ))));
         }
 
         let initial_commitment = generate_initial_commitment(generation, &settings);
         let ok = verify_initial_commitment_hash(&initial_commitment);
         if !ok {
-            return Err(Box::new(VerificationErrors::UnslashableError(
-                String::from(format!(
-                    "Invalid initial commitment hash {}",
-                    hex::encode(initial_commitment.hash)
-                )),
-            )));
+            return Err(Box::new(VerificationErrors::UnslashableError(format!(
+                "Invalid initial commitment hash {}",
+                hex::encode(initial_commitment.hash)
+            ))));
         }
     }
     Ok(())
@@ -364,7 +354,7 @@ pub fn verify_generations(
         .map(|generation| -> G1Affine {
             G1Affine::from_compressed(&generation.partial_pubkey)
                 .into_option()
-                .unwrap()
+                .expect("Invalid public key")
         })
         .collect();
 
@@ -384,17 +374,73 @@ pub fn verify_generations(
     Ok(())
 }
 
+pub fn compute_partial_share_hash(
+    settings: &dvt_abi::AbiGenerateSettings,
+    partial_share: &dvt_abi::AbiBadPartialShare,
+) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    hasher.update(&[settings.n]);
+    hasher.update(&[settings.k]);
+    hasher.update(&settings.gen_id);
+
+    for pubkey in &partial_share.data.verification_vector {
+        hasher.update(&pubkey);
+    }
+
+    hasher.update(&partial_share.data.base_hash);
+    hasher.update(&partial_share.data.partial_pubkey);
+    hasher.update(&partial_share.data.message_cleartext);
+    hasher.update(&partial_share.data.message_signature);
+
+    hasher.finalize().to_vec()
+}
+
 pub fn prove_wrong_final_key_generation(
-    data: &dvt_abi::AbiWrongFinalKeyGeneration,
+    data: &dvt_abi::AbiBadPartialShareData,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    verify_generation_hashes(&data.generations, &data.settings)?;
+    let computed_hash = compute_partial_share_hash(&data.settings, &data.bad_partial);
+    if computed_hash != data.bad_partial.commitment.hash {
+        return Err(Box::new(VerificationErrors::UnslashableError(format!(
+            "Invalid commitment hash expect {}, got {}",
+            hex::encode(&data.bad_partial.commitment.hash),
+            hex::encode(&computed_hash)
+        ))));
+    }
+
+    let key = G1Affine::from_compressed(&data.bad_partial.commitment.pubkey)
+        .expect("Invalid bad_partial.commitment.pubkey");
+    let sig: G2Affine = G2Affine::from_compressed(&data.bad_partial.commitment.signature)
+        .expect("Invalid bad_partial.commitment.signature");
+    if !bls_verify(&key, &sig, &data.bad_partial.commitment.hash) {
+        return Err(Box::new(VerificationErrors::UnslashableError(format!(
+            "Invalid commitment signature {} and key {}",
+            hex::encode(&data.bad_partial.commitment.signature),
+            hex::encode(&data.bad_partial.commitment.pubkey)
+        ))));
+    }
+
+    for (_, generation) in data.generations.iter().enumerate() {
+        let ok = verify_initial_commitment_hash(&dvt_abi::AbiInitialCommitment {
+            hash: generation.base_hash,
+            settings: data.settings.clone(),
+            verification_vector: dvt_abi::AbiVerificationVector {
+                pubkeys: generation.verification_vector.clone(),
+            },
+        });
+        if !ok {
+            return Err(Box::new(VerificationErrors::UnslashableError(format!(
+                "Invalid generation base hash {}",
+                hex::encode(&generation.base_hash)
+            ))));
+        }
+    }
 
     let mut sorted = data.generations.to_vec();
     sorted.sort_by(|a, b| a.base_hash.cmp(&b.base_hash));
 
     let mut perpetrator_index = None;
     for i in 0..sorted.len() {
-        if sorted[i].base_hash == data.perpatrator_hash {
+        if sorted[i].base_hash == data.bad_partial.data.base_hash {
             perpetrator_index = Some(i);
         }
     }
@@ -402,12 +448,32 @@ pub fn prove_wrong_final_key_generation(
     let perpetrator_index = match perpetrator_index {
         Some(i) => i,
         None => {
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Perpetrator not found",
-            )));
+            return Err(Box::new(VerificationErrors::UnslashableError(format!(
+                "Could not find perpetrator generation {}",
+                hex::encode(&data.bad_partial.data.base_hash)
+            ))));
         }
     };
+
+    // Verify the partial signature
+    let key = G1Affine::from_compressed(&data.bad_partial.data.partial_pubkey)
+        .expect("To be able to uncompress key");
+    let sig: G2Affine = G2Affine::from_compressed(&data.bad_partial.data.message_signature)
+        .expect("To be able to uncompress signature");
+    println!(
+        "message cleartext: {}",
+        hex::encode(&data.bad_partial.data.message_cleartext)
+    );
+
+    // The commitment is correct and the base_hash is part of the verification vectors set
+    // So there is no reason to have invalid partial signatures
+    if !bls_verify(&key, &sig, &data.bad_partial.data.message_cleartext) {
+        return Err(Box::new(VerificationErrors::SlashableError(format!(
+            "Invalid partial signature {} from key {}",
+            hex::encode(&data.bad_partial.data.message_signature),
+            hex::encode(&data.bad_partial.data.partial_pubkey)
+        ))));
+    }
 
     let perpetrator_bls_id = bls_id_from_u32((perpetrator_index + 1) as u32);
 
@@ -430,24 +496,22 @@ pub fn prove_wrong_final_key_generation(
 
     let expected_key = evaluate_polynomial(computed_key, perpetrator_bls_id);
 
-    if expected_key
-        == G1Affine::from_compressed(&sorted[perpetrator_index].partial_pubkey)
-            .into_option()
-            .unwrap()
-    {
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
+    let bad_partial_key = G1Affine::from_compressed(&data.bad_partial.data.partial_pubkey)
+        .into_option()
+        .expect(
             format!(
-                "Computed key {} does not match expected key {}",
-                hex::encode(expected_key.to_compressed()),
-                hex::encode(
-                    G1Affine::from_compressed(&sorted[perpetrator_index].partial_pubkey)
-                        .into_option()
-                        .unwrap()
-                        .to_compressed()
-                )
-            ),
-        )));
+                "Can't uncompress key {}",
+                hex::encode(&data.bad_partial.data.partial_pubkey)
+            )
+            .as_str(),
+        );
+
+    if expected_key != bad_partial_key {
+        return Err(Box::new(VerificationErrors::SlashableError(format!(
+            "Computed key {} does not match expected key {}",
+            hex::encode(expected_key.to_compressed()),
+            hex::encode(bad_partial_key.to_compressed())
+        ))));
     }
 
     Ok(())

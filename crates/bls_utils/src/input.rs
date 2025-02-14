@@ -119,22 +119,26 @@ fn read_seeds_exchange_commitment_from_host() -> dvt_abi::AbiSeedExchangeCommitm
     }
 }
 
+fn read_signle_generation(k: u8) -> dvt_abi::AbiGeneration {
+    let verification_vector = read_vec_from_host(k);
+    let base_hash = read_hash_from_host();
+    let partial_pubkey = read_pubkey_from_host();
+    let message = read_byte_vec_from_host();
+    let message_signature = read_signature_from_host();
+
+    dvt_abi::AbiGeneration {
+        verification_vector: verification_vector,
+        base_hash: base_hash,
+        partial_pubkey: partial_pubkey,
+        message_cleartext: message,
+        message_signature: message_signature,
+    }
+}
+
 fn read_generation_data(n: u8, k: u8) -> Vec<dvt_abi::AbiGeneration> {
     let mut result = Vec::new();
     for _ in 0..n {
-        let verification_vector = read_vec_from_host(k);
-        let base_hash = read_hash_from_host();
-        let partial_pubkey = read_pubkey_from_host();
-        let message = read_byte_vec_from_host();
-        let message_signature = read_signature_from_host();
-
-        result.push(dvt_abi::AbiGeneration {
-            verification_vector: verification_vector,
-            base_hash: base_hash,
-            partial_pubkey: partial_pubkey,
-            message_cleartext: message,
-            message_signature: message_signature,
-        });
+        result.push(read_signle_generation(k));
     }
     result
 }
@@ -161,14 +165,39 @@ pub fn read_finalization_data() -> dvt_abi::AbiFinalizationData {
     }
 }
 
-pub fn read_wrong_final_key_generation_data() -> dvt_abi::AbiWrongFinalKeyGeneration {
+fn read_partial_generation_data(n: u8, k: u8) -> Vec<dvt_abi::AbiBadPartialShareGeneration> {
+    let mut result = Vec::new();
+    for _ in 0..n {
+        let verification_vector = read_vec_from_host(k);
+        let base_hash = read_hash_from_host();
+
+        result.push(dvt_abi::AbiBadPartialShareGeneration {
+            verification_vector: verification_vector,
+            base_hash: base_hash,
+        });
+    }
+    result
+}
+
+fn read_bad_partial_share() -> dvt_abi::AbiBadPartialShare {
     let settings = read_settings_from_host();
-    let generations = read_generation_data(settings.n, settings.k);
-    let perpatrator_hash = read_hash_from_host();
-    dvt_abi::AbiWrongFinalKeyGeneration {
+    let data = read_signle_generation(settings.k);
+    let commitment = read_commitment_from_host();
+    dvt_abi::AbiBadPartialShare {
+        settings: settings,
+        data: data,
+        commitment: commitment,
+    }
+}
+
+pub fn read_bad_partial_share_data() -> dvt_abi::AbiBadPartialShareData {
+    let settings = read_settings_from_host();
+    let generations = read_partial_generation_data(settings.n, settings.k);
+    let bad_partial = read_bad_partial_share();
+    dvt_abi::AbiBadPartialShareData {
         settings: settings,
         generations: generations,
-        perpatrator_hash: perpatrator_hash,
+        bad_partial: bad_partial,
     }
 }
 
