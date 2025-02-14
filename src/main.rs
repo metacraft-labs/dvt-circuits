@@ -181,7 +181,7 @@ fn main() {
             }
         }
         CommandType::WrongFinalKeyGeneration => {
-            let data = dvt_abi::read_data_from_json_file::<dvt_abi::DvtWrongFinalKeyGeneration>(
+            let data = dvt_abi::read_data_from_json_file::<dvt_abi::DvtBadPartialShareData>(
                 &args.input_file,
             )
             .unwrap_or_else(|e| {

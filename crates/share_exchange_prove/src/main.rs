@@ -20,9 +20,9 @@ pub fn main() {
     let found = data
         .verification_hashes
         .iter()
-        .find(|h| h == &&data.initial_commitment.hash);
+        .any(|h| h == &data.initial_commitment.hash);
 
-    if found.is_none() {
+    if !found {
         panic!("The seed exchange commitment is not part of the verification hashes\n");
     }
 

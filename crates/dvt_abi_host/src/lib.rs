@@ -110,13 +110,31 @@ impl ProverSerialize for dvt_abi::AbiFinalizationData {
     }
 }
 
-impl ProverSerialize for dvt_abi::AbiWrongFinalKeyGeneration {
+impl ProverSerialize for dvt_abi::AbiBadPartialShare {
+    fn write(&self, stdin: &mut SP1Stdin) {
+        self.settings.write(stdin);
+        self.data.write(stdin);
+        self.commitment.write(stdin);
+    }
+}
+
+impl ProverSerialize for dvt_abi::AbiBadPartialShareGeneration {
+    fn write(&self, stdin: &mut SP1Stdin) {
+        for i in 0..self.verification_vector.len() {
+            write_array_to_prover(stdin, &self.verification_vector[i]);
+        }
+        write_array_to_prover(stdin, &self.base_hash);
+    }
+}
+
+impl ProverSerialize for dvt_abi::AbiBadPartialShareData {
     fn write(&self, stdin: &mut SP1Stdin) {
         self.settings.write(stdin);
         for i in 0..self.generations.len() {
             self.generations[i].write(stdin);
         }
-        write_array_to_prover(stdin, &self.perpatrator_hash);
+
+        self.bad_partial.write(stdin);
     }
 }
 
