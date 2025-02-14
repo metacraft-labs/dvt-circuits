@@ -39,6 +39,21 @@ pub fn evaluate_polynomial(cfs: Vec<G1Affine>, x: Scalar) -> G1Affine {
     }
 }
 
+pub fn evaluate_polynomial_g1_projection(cfs: &Vec<G1Projective>, x: Scalar) -> G1Projective {
+    let count = cfs.len();
+    if count == 0 {
+        G1Projective::identity()
+    } else if count == 1 {
+        G1Projective::from(cfs[0])
+    } else {
+        let mut y = cfs[count - 1];
+        for i in 2..(count + 1) {
+            y = y * x + cfs[count - i];
+        }
+        y
+    }
+}
+
 pub fn lagrange_interpolation(
     y_vec: &Vec<G1Affine>,
     x_vec: &Vec<Scalar>,
@@ -82,34 +97,39 @@ pub fn lagrange_interpolation(
                 b *= v;
             }
         }
-        let li0 = a * b.invert().unwrap();
+        let li0 = a * b.invert().expect("invalid valid point");
         let tmp = y_vec[i] * li0;
         r = r + tmp;
     }
     Ok(G1Affine::from(r))
 }
 
-pub fn hash_message_to_g2(msg: &[u8], domain: &[u8]) -> G2Projective {
-    <G2Projective as HashToCurve<ExpandMsgXmd<Sha256>>>::hash_to_curve([msg], domain)
+pub fn hash_message_to_g2(msg: &[u8]) -> G2Projective {
+    let domain = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
+    <G2Projective as HashToCurve<ExpandMsgXmd<Sha256>>>::hash_to_curve(msg, domain)
 }
 
-pub fn bls_verify(pubkey: &G1Affine, signature: &G2Affine, message: &[u8]) -> bool {
-    let domain = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
-    let pk_projective = G1Projective::from(pubkey);
-    let sig_projective = G2Projective::from(signature);
-
-    let hashed_msg = hash_message_to_g2(message, domain);
-    let left = pairing(&G1Affine::from(pk_projective), &G2Affine::from(hashed_msg));
-    let right = pairing(&G1Affine::generator(), &G2Affine::from(sig_projective));
+pub fn bls_verify_precomputed_hash(
+    pubkey: &G1Affine,
+    signature: &G2Affine,
+    hashed_msg: &G2Affine,
+) -> bool {
+    let left = pairing(&pubkey, &hashed_msg);
+    let right = pairing(&G1Affine::generator(), &signature);
 
     left == right
+}
+pub fn bls_verify(pubkey: &G1Affine, signature: &G2Affine, message: &[u8]) -> bool {
+    let hashed_msg = hash_message_to_g2(message);
+    let msg_affine = G2Affine::from(hashed_msg);
+    bls_verify_precomputed_hash(pubkey, signature, &msg_affine)
 }
 
 pub fn bls_id_from_u32(id: u32) -> Scalar {
     let unwrapped_le: [u8; 4] = (id as u32).to_le_bytes();
     let mut bytes = [0u8; 32];
     bytes[..4].copy_from_slice(&unwrapped_le);
-    Scalar::from_bytes(&bytes).unwrap()
+    Scalar::from_bytes(&bytes).expect("Invalid id")
 }
 
 #[derive(PartialEq)]
@@ -145,7 +165,9 @@ impl PublicKey {
     pub fn verify_signature(&self, message: &[u8], signature: &dvt_abi::BLSSignature) -> bool {
         bls_verify(
             &self.key,
-            &G2Affine::from_compressed(signature).into_option().unwrap(),
+            &G2Affine::from_compressed(signature)
+                .into_option()
+                .expect("Invalid signature"),
             message,
         )
     }
@@ -168,14 +190,13 @@ impl SecretKey {
 
         let sk = Scalar::from_bytes(&le_bytes);
 
-        if sk.is_none().into() {
-            return Err(Box::new(std::io::Error::new(
+        match sk.into_option() {
+            Some(sk) => Ok(SecretKey { key: sk }),
+            None => Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Invalid secret key",
-            )));
+            ))),
         }
-
-        Ok(SecretKey { key: sk.unwrap() })
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {
