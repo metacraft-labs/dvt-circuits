@@ -8,15 +8,14 @@ use std::error::Error;
 
 pub const SHARE_PROVER_ELF: &[u8] = include_elf!("share_exchange_prove");
 pub const FINALE_PROVER_ELF: &[u8] = include_elf!("finalization_prove");
-pub const WRONG_FINAL_KEY_GENERATION_PROVER_ELF: &[u8] =
-    include_elf!("wrong_final_key_generation_prove");
+pub const BAD_PARTIAL_KEY_PROVER_ELF: &[u8] = include_elf!("bad_parial_key_prove");
 pub const BAD_ENCRYPTED_SHARE_PROVER_ELF: &[u8] = include_elf!("bad_encrypted_share_prove");
 
 #[derive(Debug, Clone, ValueEnum)]
 enum CommandType {
     Finalization,
     Share,
-    WrongFinalKeyGeneration,
+    BadPartialKeyProve,
     BadEcryptedShareProve,
 }
 
@@ -104,8 +103,10 @@ fn validate_json(schema_path: &str, json_path: &str) -> Result<(), Box<dyn Error
     let schema = dvt_abi::read_text_file(schema_path)?;
     let json = dvt_abi::read_text_file(json_path)?;
 
-    let schema = serde_json::from_str(&schema).unwrap();
-    let data = serde_json::from_str(&json).unwrap();
+    let schema = serde_json::from_str(&schema)
+        .map_err(|e| format!("{} invalid schema: {}", schema_path, e))?;
+    let data =
+        serde_json::from_str(&json).map_err(|e| format!("{} invalid json: {} ", json_path, e))?;
 
     let compiled_schema = JSONSchema::compile(&schema);
 
@@ -180,7 +181,7 @@ fn main() {
                 }
             }
         }
-        CommandType::WrongFinalKeyGeneration => {
+        CommandType::BadPartialKeyProve => {
             let data = dvt_abi::read_data_from_json_file::<dvt_abi::DvtBadPartialShareData>(
                 &args.input_file,
             )
@@ -194,18 +195,10 @@ fn main() {
 
             match args.mode {
                 Mode::Prove => {
-                    prove(
-                        &abi_data,
-                        WRONG_FINAL_KEY_GENERATION_PROVER_ELF,
-                        args.output_file_path,
-                    );
+                    prove(&abi_data, BAD_PARTIAL_KEY_PROVER_ELF, args.output_file_path);
                 }
                 Mode::Execute => {
-                    execute(
-                        &abi_data,
-                        WRONG_FINAL_KEY_GENERATION_PROVER_ELF,
-                        args.show_report,
-                    );
+                    execute(&abi_data, BAD_PARTIAL_KEY_PROVER_ELF, args.show_report);
                 }
             }
         }

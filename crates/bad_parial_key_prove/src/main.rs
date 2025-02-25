@@ -8,8 +8,6 @@ use bls_utils::{self, VerificationErrors};
 
 pub fn main() {
     let data = bls_utils::read_bad_partial_share_data();
-    println!("{:?}", data);
-
     match bls_utils::prove_wrong_final_key_generation(&data) {
         Ok(()) => {
             panic!("Can't prove wrong doing");
