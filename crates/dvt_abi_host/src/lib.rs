@@ -1,8 +1,7 @@
-use dvt_abi;
 use sp1_sdk::SP1Stdin;
 fn write_array_to_prover<const N: usize>(stdin: &mut SP1Stdin, data: &[u8; N]) {
-    for i in 0..N {
-        stdin.write(&[data[i]]);
+    for x in data.iter().take(N) {
+        stdin.write(x);
     }
 }
 pub trait ProverSerialize {
@@ -62,14 +61,20 @@ impl ProverSerialize for dvt_abi::AbiBlsSharedData {
     fn write(&self, stdin: &mut SP1Stdin) {
         self.initial_commitment.write(stdin);
         self.seeds_exchange_commitment.write(stdin);
+        if (self.initial_commitment.settings.n as usize) != self.verification_hashes.len() {
+            panic!(
+                "k != verification_hashes.len() {}",
+                self.verification_hashes.len()
+            );
+        }
         self.verification_hashes.write(stdin);
     }
 }
 
 impl ProverSerialize for dvt_abi::AbiVerificationHashes {
     fn write(&self, stdin: &mut SP1Stdin) {
-        for i in 0..self.len() {
-            write_array_to_prover(stdin, &self[i]);
+        for x in self {
+            write_array_to_prover(stdin, x);
         }
     }
 }
@@ -94,9 +99,47 @@ impl ProverSerialize for dvt_abi::AbiGeneration {
 impl ProverSerialize for dvt_abi::AbiFinalizationData {
     fn write(&self, stdin: &mut SP1Stdin) {
         self.settings.write(stdin);
+        if self.settings.n as usize != self.generations.len() {
+            panic!("k != generations.len() {}", self.generations.len());
+        }
+
         for i in 0..self.generations.len() {
             self.generations[i].write(stdin);
         }
         write_array_to_prover(stdin, &self.aggregate_pubkey);
+    }
+}
+
+impl ProverSerialize for dvt_abi::AbiBadPartialShare {
+    fn write(&self, stdin: &mut SP1Stdin) {
+        self.settings.write(stdin);
+        self.data.write(stdin);
+        self.commitment.write(stdin);
+    }
+}
+
+impl ProverSerialize for dvt_abi::AbiBadPartialShareGeneration {
+    fn write(&self, stdin: &mut SP1Stdin) {
+        for i in 0..self.verification_vector.len() {
+            write_array_to_prover(stdin, &self.verification_vector[i]);
+        }
+        write_array_to_prover(stdin, &self.base_hash);
+    }
+}
+
+impl ProverSerialize for dvt_abi::AbiBadPartialShareData {
+    fn write(&self, stdin: &mut SP1Stdin) {
+        self.settings.write(stdin);
+        for i in 0..self.generations.len() {
+            self.generations[i].write(stdin);
+        }
+
+        self.bad_partial.write(stdin);
+    }
+}
+
+impl ProverSerialize for dvt_abi::AbiBadEncryptedShare {
+    fn write(&self, _stdin: &mut SP1Stdin) {
+        // TODO: implement
     }
 }

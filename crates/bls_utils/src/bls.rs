@@ -7,6 +7,8 @@ use dvt_abi::{self};
 use sha2::Sha256;
 use std::fmt;
 
+use bls_org;
+
 // https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
 //
 // In Shamir's secret sharing, a secret is encoded as a n-degree polynomial
@@ -36,6 +38,21 @@ pub fn evaluate_polynomial(cfs: Vec<G1Affine>, x: Scalar) -> G1Affine {
             y = y * x + cfs[count - i];
         }
         return G1Affine::from(y);
+    }
+}
+
+pub fn evaluate_polynomial_g1_projection(cfs: &Vec<G1Projective>, x: Scalar) -> G1Projective {
+    let count = cfs.len();
+    if count == 0 {
+        G1Projective::identity()
+    } else if count == 1 {
+        G1Projective::from(cfs[0])
+    } else {
+        let mut y = cfs[count - 1];
+        for i in 2..(count + 1) {
+            y = y * x + cfs[count - i];
+        }
+        y
     }
 }
 
@@ -82,34 +99,108 @@ pub fn lagrange_interpolation(
                 b *= v;
             }
         }
-        let li0 = a * b.invert().unwrap();
+        let li0 = a * b.invert().expect("invalid valid point");
         let tmp = y_vec[i] * li0;
         r = r + tmp;
     }
     Ok(G1Affine::from(r))
 }
 
-pub fn hash_message_to_g2(msg: &[u8], domain: &[u8]) -> G2Projective {
-    <G2Projective as HashToCurve<ExpandMsgXmd<Sha256>>>::hash_to_curve([msg], domain)
+pub fn hash_message_to_g2(msg: &[u8]) -> G2Projective {
+    let domain = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
+    <G2Projective as HashToCurve<ExpandMsgXmd<Sha256>>>::hash_to_curve(msg, domain)
 }
 
-pub fn bls_verify(pubkey: &G1Affine, signature: &G2Affine, message: &[u8]) -> bool {
-    let domain = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
-    let pk_projective = G1Projective::from(pubkey);
-    let sig_projective = G2Projective::from(signature);
-
-    let hashed_msg = hash_message_to_g2(message, domain);
-    let left = pairing(&G1Affine::from(pk_projective), &G2Affine::from(hashed_msg));
-    let right = pairing(&G1Affine::generator(), &G2Affine::from(sig_projective));
+pub fn bls_verify_precomputed_hash(
+    pubkey: &G1Affine,
+    signature: &G2Affine,
+    hashed_msg: &G2Affine,
+) -> bool {
+    let left = pairing(&pubkey, &hashed_msg);
+    let right = pairing(&G1Affine::generator(), &signature);
 
     left == right
+}
+pub fn bls_verify(pubkey: &G1Affine, signature: &G2Affine, message: &[u8]) -> bool {
+    let hashed_msg = hash_message_to_g2(message);
+    let msg_affine = G2Affine::from(hashed_msg);
+    bls_verify_precomputed_hash(pubkey, signature, &msg_affine)
 }
 
 pub fn bls_id_from_u32(id: u32) -> Scalar {
     let unwrapped_le: [u8; 4] = (id as u32).to_le_bytes();
     let mut bytes = [0u8; 32];
     bytes[..4].copy_from_slice(&unwrapped_le);
-    Scalar::from_bytes(&bytes).unwrap()
+    Scalar::from_bytes(&bytes).expect("Invalid id")
+}
+
+fn uncompress_bls_pubkey_slow(
+    pubkey: &dvt_abi::BLSPubkey,
+) -> Result<[u8; 96], Box<dyn std::error::Error>> {
+    // We use the original bls library to verify the key
+    // Becaus the sp1 library will crash if the key is invalid
+    let key = bls_org::G1Affine::from_compressed(&pubkey);
+
+    return match key.into_option() {
+        Some(key) => Ok(key.to_uncompressed()),
+        None => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Invalid public key",
+        ))),
+    };
+}
+
+fn to_g1_affine_slow(pubkey: &dvt_abi::BLSPubkey) -> Result<G1Affine, Box<dyn std::error::Error>> {
+    let bytes = uncompress_bls_pubkey_slow(&pubkey)?;
+
+    let key = G1Affine::from_uncompressed(&bytes);
+    match key.into_option() {
+        Some(key) => Ok(key),
+        None => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Invalid public key",
+        ))),
+    }
+}
+
+fn uncompress_bls_signature_slow(
+    signature: &dvt_abi::BLSSignature,
+) -> Result<[u8; 192], Box<dyn std::error::Error>> {
+    // We use the original bls library to verify the key
+    // Becaus the sp1 library will crash if the key is invalid
+    let key = bls_org::G2Affine::from_compressed(&signature);
+
+    return match key.into_option() {
+        Some(key) => Ok(key.to_uncompressed()),
+        None => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Invalid signature",
+        ))),
+    };
+}
+fn to_g2_affine_slow(
+    signature: &dvt_abi::BLSSignature,
+) -> Result<G2Affine, Box<dyn std::error::Error>> {
+    let bytes = uncompress_bls_signature_slow(&signature)?;
+
+    let key = G2Affine::from_uncompressed(&bytes);
+    match key.into_option() {
+        Some(key) => Ok(key),
+        None => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Invalid signature",
+        ))),
+    }
+}
+
+pub fn to_g1_affine(pubkey: &dvt_abi::BLSPubkey) -> G1Affine {
+    G1Affine::from_compressed(&pubkey)
+        .into_option()
+        .expect("G1 point is not torsion free.")
+}
+
+pub fn to_g1_projection(pubkey: &dvt_abi::BLSPubkey) -> G1Projective {
+    G1Projective::from(to_g1_affine(pubkey))
 }
 
 #[derive(PartialEq)]
@@ -120,6 +211,41 @@ pub struct PublicKey {
 #[derive(PartialEq)]
 pub struct SecretKey {
     key: Scalar,
+}
+
+#[derive(PartialEq)]
+pub struct Signature {
+    sig: G2Affine,
+}
+
+impl Signature {
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.sig.to_compressed())
+    }
+
+    pub fn from_bytes(
+        bytes: &dvt_abi::BLSSignature,
+    ) -> Result<Signature, Box<dyn std::error::Error>> {
+        let g2 = G2Affine::from_compressed(&bytes).into_option();
+        match g2 {
+            Some(g2) => Ok(Signature { sig: g2 }),
+            None => Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Invalid signature",
+            ))),
+        }
+    }
+
+    pub fn from_bytes_safe(
+        bytes: &dvt_abi::BLSSignature,
+    ) -> Result<Signature, Box<dyn std::error::Error>> {
+        let g2 = to_g2_affine_slow(bytes)?;
+        Ok(Signature { sig: g2 })
+    }
+
+    pub fn from_g2(g2: &G2Affine) -> Signature {
+        Signature { sig: *g2 }
+    }
 }
 
 impl PublicKey {
@@ -138,16 +264,27 @@ impl PublicKey {
         }
     }
 
+    pub fn from_bytes_safe(
+        bytes: &dvt_abi::BLSPubkey,
+    ) -> Result<PublicKey, Box<dyn std::error::Error>> {
+        let g1 = to_g1_affine_slow(bytes)?;
+        Ok(PublicKey { key: g1 })
+    }
+
     pub fn from_g1(g1: &G1Affine) -> PublicKey {
         PublicKey { key: *g1 }
     }
 
-    pub fn verify_signature(&self, message: &[u8], signature: &dvt_abi::BLSSignature) -> bool {
-        bls_verify(
-            &self.key,
-            &G2Affine::from_compressed(signature).into_option().unwrap(),
-            message,
-        )
+    pub fn verify_signature(&self, message: &[u8], signature: &Signature) -> bool {
+        bls_verify(&self.key, &signature.sig, message)
+    }
+
+    pub fn verify_signature_precomputed_hash(
+        &self,
+        hashed_msg: &G2Affine,
+        signature: &Signature,
+    ) -> bool {
+        bls_verify_precomputed_hash(&self.key, &signature.sig, hashed_msg)
     }
 
     pub fn eq(&self, g1: &G1Affine) -> bool {
@@ -168,14 +305,13 @@ impl SecretKey {
 
         let sk = Scalar::from_bytes(&le_bytes);
 
-        if sk.is_none().into() {
-            return Err(Box::new(std::io::Error::new(
+        match sk.into_option() {
+            Some(sk) => Ok(SecretKey { key: sk }),
+            None => Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Invalid secret key",
-            )));
+            ))),
         }
-
-        Ok(SecretKey { key: sk.unwrap() })
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {
@@ -192,6 +328,30 @@ impl fmt::Debug for PublicKey {
 impl fmt::Debug for SecretKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "SecretKey({})", hex::encode(self.to_bytes()))
+    }
+}
+
+impl fmt::Debug for Signature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Signature({})", self.to_hex())
+    }
+}
+
+impl fmt::Display for PublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "PublicKey({})", self.to_hex())
+    }
+}
+
+impl fmt::Display for SecretKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "SecretKey({})", hex::encode(self.to_bytes()))
+    }
+}
+
+impl fmt::Display for Signature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Signature({})", self.to_hex())
     }
 }
 
