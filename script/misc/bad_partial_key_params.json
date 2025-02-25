@@ -1,0 +1,4 @@
+{
+    "cmd_extra_args": "--type=bad-partial-key-prove --json-schema-file=spec/bad_partial_key_spec.json --mode=execute",
+    "expected_exit_code": 101
+}
