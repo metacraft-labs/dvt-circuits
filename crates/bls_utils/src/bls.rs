@@ -7,6 +7,8 @@ use dvt_abi::{self};
 use sha2::Sha256;
 use std::fmt;
 
+use bls_org;
+
 // https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
 //
 // In Shamir's secret sharing, a secret is encoded as a n-degree polynomial
@@ -132,6 +134,75 @@ pub fn bls_id_from_u32(id: u32) -> Scalar {
     Scalar::from_bytes(&bytes).expect("Invalid id")
 }
 
+fn uncompress_bls_pubkey_slow(
+    pubkey: &dvt_abi::BLSPubkey,
+) -> Result<[u8; 96], Box<dyn std::error::Error>> {
+    // We use the original bls library to verify the key
+    // Becaus the sp1 library will crash if the key is invalid
+    let key = bls_org::G1Affine::from_compressed(&pubkey);
+
+    return match key.into_option() {
+        Some(key) => Ok(key.to_uncompressed()),
+        None => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Invalid public key",
+        ))),
+    };
+}
+
+fn to_g1_affine_slow(pubkey: &dvt_abi::BLSPubkey) -> Result<G1Affine, Box<dyn std::error::Error>> {
+    let bytes = uncompress_bls_pubkey_slow(&pubkey)?;
+
+    let key = G1Affine::from_uncompressed(&bytes);
+    match key.into_option() {
+        Some(key) => Ok(key),
+        None => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Invalid public key",
+        ))),
+    }
+}
+
+fn uncompress_bls_signature_slow(
+    signature: &dvt_abi::BLSSignature,
+) -> Result<[u8; 192], Box<dyn std::error::Error>> {
+    // We use the original bls library to verify the key
+    // Becaus the sp1 library will crash if the key is invalid
+    let key = bls_org::G2Affine::from_compressed(&signature);
+
+    return match key.into_option() {
+        Some(key) => Ok(key.to_uncompressed()),
+        None => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Invalid signature",
+        ))),
+    };
+}
+fn to_g2_affine_slow(
+    signature: &dvt_abi::BLSSignature,
+) -> Result<G2Affine, Box<dyn std::error::Error>> {
+    let bytes = uncompress_bls_signature_slow(&signature)?;
+
+    let key = G2Affine::from_uncompressed(&bytes);
+    match key.into_option() {
+        Some(key) => Ok(key),
+        None => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Invalid signature",
+        ))),
+    }
+}
+
+pub fn to_g1_affine(pubkey: &dvt_abi::BLSPubkey) -> G1Affine {
+    G1Affine::from_compressed(&pubkey)
+        .into_option()
+        .expect("G1 point is not torsion free.")
+}
+
+pub fn to_g1_projection(pubkey: &dvt_abi::BLSPubkey) -> G1Projective {
+    G1Projective::from(to_g1_affine(pubkey))
+}
+
 #[derive(PartialEq)]
 pub struct PublicKey {
     key: G1Affine,
@@ -140,6 +211,41 @@ pub struct PublicKey {
 #[derive(PartialEq)]
 pub struct SecretKey {
     key: Scalar,
+}
+
+#[derive(PartialEq)]
+pub struct Signature {
+    sig: G2Affine,
+}
+
+impl Signature {
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.sig.to_compressed())
+    }
+
+    pub fn from_bytes(
+        bytes: &dvt_abi::BLSSignature,
+    ) -> Result<Signature, Box<dyn std::error::Error>> {
+        let g2 = G2Affine::from_compressed(&bytes).into_option();
+        match g2 {
+            Some(g2) => Ok(Signature { sig: g2 }),
+            None => Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Invalid signature",
+            ))),
+        }
+    }
+
+    pub fn from_bytes_safe(
+        bytes: &dvt_abi::BLSSignature,
+    ) -> Result<Signature, Box<dyn std::error::Error>> {
+        let g2 = to_g2_affine_slow(bytes)?;
+        Ok(Signature { sig: g2 })
+    }
+
+    pub fn from_g2(g2: &G2Affine) -> Signature {
+        Signature { sig: *g2 }
+    }
 }
 
 impl PublicKey {
@@ -158,18 +264,27 @@ impl PublicKey {
         }
     }
 
+    pub fn from_bytes_safe(
+        bytes: &dvt_abi::BLSPubkey,
+    ) -> Result<PublicKey, Box<dyn std::error::Error>> {
+        let g1 = to_g1_affine_slow(bytes)?;
+        Ok(PublicKey { key: g1 })
+    }
+
     pub fn from_g1(g1: &G1Affine) -> PublicKey {
         PublicKey { key: *g1 }
     }
 
-    pub fn verify_signature(&self, message: &[u8], signature: &dvt_abi::BLSSignature) -> bool {
-        bls_verify(
-            &self.key,
-            &G2Affine::from_compressed(signature)
-                .into_option()
-                .expect("Invalid signature"),
-            message,
-        )
+    pub fn verify_signature(&self, message: &[u8], signature: &Signature) -> bool {
+        bls_verify(&self.key, &signature.sig, message)
+    }
+
+    pub fn verify_signature_precomputed_hash(
+        &self,
+        hashed_msg: &G2Affine,
+        signature: &Signature,
+    ) -> bool {
+        bls_verify_precomputed_hash(&self.key, &signature.sig, hashed_msg)
     }
 
     pub fn eq(&self, g1: &G1Affine) -> bool {
@@ -213,6 +328,30 @@ impl fmt::Debug for PublicKey {
 impl fmt::Debug for SecretKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "SecretKey({})", hex::encode(self.to_bytes()))
+    }
+}
+
+impl fmt::Debug for Signature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Signature({})", self.to_hex())
+    }
+}
+
+impl fmt::Display for PublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "PublicKey({})", self.to_hex())
+    }
+}
+
+impl fmt::Display for SecretKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "SecretKey({})", hex::encode(self.to_bytes()))
+    }
+}
+
+impl fmt::Display for Signature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Signature({})", self.to_hex())
     }
 }
 
