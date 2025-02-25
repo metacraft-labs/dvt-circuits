@@ -222,7 +222,7 @@ pub struct AbiBadEncryptedShare {
 }
 
 fn decode_hex<const N: usize>(input: &str) -> Result<[u8; N], Box<dyn Error>> {
-    let bytes = decode(input).map_err(|e| format!("Failed to decode input: {}", e))?;
+    let bytes = decode(input).map_err(|e| format!("Failed to decode input: {e}"))?;
 
     // Check the length
     if bytes.len() != N {
@@ -245,7 +245,7 @@ impl DvtVerificationVector {
                 .iter()
                 .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
                 .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
-                .map_err(|e| format!("Invalid pubkey: {}", e))?,
+                .map_err(|e| format!("Invalid pubkey: {e}"))?,
         })
     }
 }
@@ -256,7 +256,7 @@ impl DvtGenerateSettings {
             n: self.n,
             k: self.k,
             gen_id: decode_hex::<GEN_ID_SIZE>(&self.gen_id)
-                .map_err(|e| format!("Invalid gen_id: {}", e))?,
+                .map_err(|e| format!("Invalid gen_id: {e}"))?,
         })
     }
 }
@@ -265,15 +265,15 @@ impl DvtInitialCommitment {
     pub fn to_abi(&self) -> Result<AbiInitialCommitment, Box<dyn std::error::Error>> {
         Ok(AbiInitialCommitment {
             hash: decode_hex::<SHA256_SIZE>(&self.hash)
-                .map_err(|e| format!("Invalid hash: {}", e))?,
+                .map_err(|e| format!("Invalid hash: {e}"))?,
             settings: self
                 .settings
                 .to_abi()
-                .map_err(|e| format!("Invalid settings: {}", e))?,
+                .map_err(|e| format!("Invalid settings: {e}"))?,
             verification_vector: self
                 .verification_vector
                 .to_abi()
-                .map_err(|e| format!("Invalid verification vector: {}", e))?,
+                .map_err(|e| format!("Invalid verification vector: {e}"))?,
         })
     }
 }
@@ -282,13 +282,13 @@ impl DvtExchangedSecret {
     pub fn to_abi(&self) -> Result<AbiExchangedSecret, Box<dyn std::error::Error>> {
         Ok(AbiExchangedSecret {
             src_id: decode_hex::<BLS_ID_SIZE>(&self.src_id)
-                .map_err(|e| format!("Invalid id: {}", e))?,
+                .map_err(|e| format!("Invalid id: {e}"))?,
             dst_id: decode_hex::<BLS_ID_SIZE>(&self.dst_id)
-                .map_err(|e| format!("Invalid id: {}", e))?,
+                .map_err(|e| format!("Invalid id: {e}"))?,
             secret: decode_hex::<BLS_SECRET_SIZE>(&self.secret)
-                .map_err(|e| format!("Invalid secret: {}", e))?,
+                .map_err(|e| format!("Invalid secret: {e}"))?,
             dst_base_hash: decode_hex::<SHA256_SIZE>(&self.dst_base_hash)
-                .map_err(|e| format!("Invalid dst_base_hash: {}", e))?,
+                .map_err(|e| format!("Invalid dst_base_hash: {e}"))?,
         })
     }
 }
@@ -297,11 +297,11 @@ impl DvtCommitment {
     pub fn to_abi(&self) -> Result<AbiCommitment, Box<dyn std::error::Error>> {
         Ok(AbiCommitment {
             hash: decode_hex::<SHA256_SIZE>(&self.hash)
-                .map_err(|e| format!("Invalid hash: {}", e))?,
+                .map_err(|e| format!("Invalid hash: {e}"))?,
             pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.pubkey)
-                .map_err(|e| format!("Invalid pubkey: {}", e))?,
+                .map_err(|e| format!("Invalid pubkey: {e}"))?,
             signature: decode_hex::<BLS_SIGNATURE_SIZE>(&self.signature)
-                .map_err(|e| format!("Invalid signature: {}", e))?,
+                .map_err(|e| format!("Invalid signature: {e}"))?,
         })
     }
 }
@@ -310,15 +310,15 @@ impl DvtShareExchangeCommitment {
     pub fn to_abi(&self) -> Result<AbiSeedExchangeCommitment, Box<dyn std::error::Error>> {
         Ok(AbiSeedExchangeCommitment {
             initial_commitment_hash: decode_hex::<SHA256_SIZE>(&self.initial_commitment_hash)
-                .map_err(|e| format!("Invalid initial_commitment_hash: {}", e))?,
+                .map_err(|e| format!("Invalid initial_commitment_hash: {e}"))?,
             shared_secret: self
                 .shared_secret
                 .to_abi()
-                .map_err(|e| format!("Invalid shared_secret: {}", e))?,
+                .map_err(|e| format!("Invalid shared_secret: {e}"))?,
             commitment: self
                 .commitment
                 .to_abi()
-                .map_err(|e| format!("Invalid commitment: {}", e))?,
+                .map_err(|e| format!("Invalid commitment: {e}"))?,
         })
     }
 }
@@ -331,15 +331,15 @@ impl DvtBlsSharedData {
                 .iter()
                 .map(|h| decode_hex::<SHA256_SIZE>(h))
                 .collect::<Result<Vec<[u8; SHA256_SIZE]>, _>>()
-                .map_err(|e| format!("Invalid hash: {}", e))?,
+                .map_err(|e| format!("Invalid hash: {e}"))?,
             initial_commitment: self
                 .initial_commitment
                 .to_abi()
-                .map_err(|e| format!("Invalid initial_commitment: {}", e))?,
+                .map_err(|e| format!("Invalid initial_commitment: {e}"))?,
             seeds_exchange_commitment: self
                 .seeds_exchange_commitment
                 .to_abi()
-                .map_err(|e| format!("Invalid seeds_exchange_commitment: {}", e))?,
+                .map_err(|e| format!("Invalid seeds_exchange_commitment: {e}"))?,
         })
     }
 }
@@ -352,14 +352,14 @@ impl DvtGeneration {
                 .iter()
                 .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
                 .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
-                .map_err(|e| format!("Invalid pubkey: {}", e))?,
+                .map_err(|e| format!("Invalid pubkey: {e}"))?,
             base_hash: decode_hex::<SHA256_SIZE>(&self.base_hash)
-                .map_err(|e| format!("Invalid base_hash: {}", e))?,
+                .map_err(|e| format!("Invalid base_hash: {e}"))?,
             partial_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.partial_pubkey)
-                .map_err(|e| format!("Invalid partial_pubkey: {}", e))?,
+                .map_err(|e| format!("Invalid partial_pubkey: {e}"))?,
             message_cleartext: self.message_cleartext.as_bytes().to_vec(),
             message_signature: decode_hex::<BLS_SIGNATURE_SIZE>(&self.message_signature)
-                .map_err(|e| format!("Invalid message_signature: {}", e))?,
+                .map_err(|e| format!("Invalid message_signature: {e}"))?,
         })
     }
 }
@@ -370,14 +370,14 @@ impl DvtFinalizationData {
             settings: self
                 .settings
                 .to_abi()
-                .map_err(|e| format!("Invalid settings: {}", e))?,
+                .map_err(|e| format!("Invalid settings: {e}"))?,
             generations: self
                 .generations
                 .iter()
                 .map(|g| g.to_abi())
                 .collect::<Result<Vec<AbiGeneration>, _>>()?,
             aggregate_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.aggregate_pubkey)
-                .map_err(|e| format!("Invalid aggregate_pubkey: {}", e))?,
+                .map_err(|e| format!("Invalid aggregate_pubkey: {e}"))?,
         })
     }
 }
@@ -390,9 +390,9 @@ impl DvtBadPartialShareGeneration {
                 .iter()
                 .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
                 .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
-                .map_err(|e| format!("Invalid pubkey: {}", e))?,
+                .map_err(|e| format!("Invalid pubkey: {e}"))?,
             base_hash: decode_hex::<SHA256_SIZE>(&self.base_hash)
-                .map_err(|e| format!("Invalid base_hash: {}", e))?,
+                .map_err(|e| format!("Invalid base_hash: {e}"))?,
         })
     }
 }
@@ -403,15 +403,15 @@ impl DvtBadPartialShare {
             settings: self
                 .settings
                 .to_abi()
-                .map_err(|e| format!("Invalid settings: {}", e))?,
+                .map_err(|e| format!("Invalid settings: {e}"))?,
             data: self
                 .data
                 .to_abi()
-                .map_err(|e| format!("Invalid partial_data: {}", e))?,
+                .map_err(|e| format!("Invalid partial_data: {e}"))?,
             commitment: self
                 .commitment
                 .to_abi()
-                .map_err(|e| format!("Invalid commitment: {}", e))?,
+                .map_err(|e| format!("Invalid commitment: {e}"))?,
         })
     }
 }
@@ -422,7 +422,7 @@ impl DvtBadPartialShareData {
             settings: self
                 .settings
                 .to_abi()
-                .map_err(|e| format!("Invalid settings: {}", e))?,
+                .map_err(|e| format!("Invalid settings: {e}"))?,
             generations: self
                 .generations
                 .iter()
@@ -431,7 +431,7 @@ impl DvtBadPartialShareData {
             bad_partial: self
                 .bad_partial
                 .to_abi()
-                .map_err(|e| format!("Invalid bad_partial: {}", e))?,
+                .map_err(|e| format!("Invalid bad_partial: {e}"))?,
         })
     }
 }
@@ -452,10 +452,11 @@ pub fn check_if_file_exist(path: &str) {
 
 pub fn read_text_file(filename: &str) -> Result<String, Box<dyn Error>> {
     check_if_file_exist(filename);
-    let mut file = File::open(filename).map_err(|e| format!("Error opening file: {}", e))?;
+    let mut file =
+        File::open(filename).map_err(|e| format!("Error opening file {filename}: {e}"))?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)
-        .map_err(|e| format!("Error reading file: {}", e))?;
+        .map_err(|e| format!("Error reading file {filename}: {e}"))?;
     Ok(contents)
 }
 
