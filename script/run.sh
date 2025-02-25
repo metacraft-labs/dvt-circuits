@@ -27,6 +27,8 @@ total_fail_count=0
 total_skip_count=0
 total_disabled_count=0
 
+all_failed_test=()
+
 # Parse arguments
 FILTER=""
 while [[ $# -gt 0 ]]; do
@@ -86,6 +88,7 @@ run_tests_in_dir() {
         else
             echo -e "${RED}[FAIL]${RESET}${BOLD} $test_file (expected exit code: $expected_exit_code, got $exit_code) ${RESET}"
             ((fail_count++))
+            all_failed_test+=("$test_file (expected exit code: $expected_exit_code, got $exit_code)")
         fi
 
         rm scenario.json
@@ -162,5 +165,7 @@ echo -e "${BOLD}${BLUE}----------------------------------------${RESET}"
 if [ $total_fail_count -eq 0 ]; then
     echo -e "${GREEN}All tests passed!${RESET}"
 else
+    echo -e "${RED}Some tests failed!${RESET}"
+    printf "%s\n" "${all_failed_test[@]}"
     echo -e "${RED}$total_fail_count test(s) failed.${RESET}"
 fi
