@@ -58,7 +58,7 @@ fn read_hash_from_host() -> dvt_abi::SHA256 {
 }
 
 fn read_byte_vec_from_host() -> Vec<u8> {
-    let len = sp1_zkvm::io::read();
+    let len = sp1_zkvm::io::read::<u32>();
     let mut result = Vec::with_capacity(len as usize);
     for _ in 0..len {
         result.push(sp1_zkvm::io::read());
@@ -202,5 +202,12 @@ pub fn read_bad_partial_share_data() -> dvt_abi::AbiBadPartialShareData {
 }
 
 pub fn read_bad_encrypted_share() -> dvt_abi::AbiBadEncryptedShare {
-    dvt_abi::AbiBadEncryptedShare {}
+    let sender_pubkey = read_pubkey_from_host();
+    let receiver_secret_key = read_secret_from_host();
+    let encrypted_message = read_byte_vec_from_host();
+    dvt_abi::AbiBadEncryptedShare {
+        sender_pubkey: sender_pubkey,
+        receiver_secret_key: receiver_secret_key,
+        encrypted_message: encrypted_message,
+    }
 }

@@ -12,5 +12,6 @@ group = "0.13.0"
 serde = "1.0.216"
 dvt_abi = { path = "../dvt_abi" }
 bls_utils = { path = "../bls_utils" }
+bls12_381 = { git = "https://github.com/sp1-patches/bls12_381", tag = "bls12_381-v0.8.0-patch-v1" , features = ["experimental"]}
 hex = "0.4"
 chacha20 = "0.9.1"

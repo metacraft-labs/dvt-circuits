@@ -3,7 +3,8 @@ pub mod input;
 pub mod verification;
 
 pub use input::{
-    read_bad_partial_share_data, read_bls_shared_data_from_host, read_finalization_data,
+    read_bad_encrypted_share, read_bad_partial_share_data, read_bls_shared_data_from_host,
+    read_finalization_data,
 };
 
 pub use verification::{

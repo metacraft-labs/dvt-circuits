@@ -34,6 +34,9 @@ clap = { version = "4", features = ["derive"] }
 dvt_abi = { path = "crates/dvt_abi" }
 dvt_abi_host = { path = "crates/dvt_abi_host" }
 jsonschema = "0.16"
+anyhow = "1.0.96"
+colored = "3.0.0"
+strip-ansi-escapes = "0.2.1"
 
 [build-dependencies]
 sp1-build = "4.0.0"
