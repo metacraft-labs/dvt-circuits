@@ -1,6 +1,6 @@
 {
     "params": {
-        "cmd_extra_args": "--type=bad-partial-key-prove --json-schema-file=spec/bad_partial_key_spec.json --mode=execute",
+        "cmd_extra_args": "execute --type=bad-partial-key --json-schema-file=spec/bad_partial_key_spec.json",
         "expected_exit_code": 0
     },
     "scenario": {

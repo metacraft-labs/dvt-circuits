@@ -1,7 +1,7 @@
 {
     "params": {
-        "cmd_extra_args": "--type=share --mode=execute",
-        "expected_exit_code": 101
+        "cmd_extra_args": "execute --type=share --json-schema-file=spec/share_exchange_spec.json",
+        "expected_exit_code": 1
     },
     "scenario": {
         "initial_commitment": {
