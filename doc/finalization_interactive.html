@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Interactive JSON - Proper Formatting</title>
+    <style>
+        /* Diablo II-inspired styling with proper white-space for indentation */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #6b6980;
+            color: #F5E2C8;
+            font-family: "Times New Roman", serif;
+        }
+
+        h1 {
+            text-align: center;
+            padding: 1rem;
+            font-size: 5rem;
+            color: #eedbb7;
+        }
+
+        p {
+            margin: 0 1rem 1rem 1rem;
+            font-size: 1.5rem;
+            color: #c3b7a6;
+        }
+
+        .container {
+            display: flex;
+            gap: 1rem;
+            margin: 0 1rem 1rem 1rem;
+        }
+
+        /* Left column with the JSON display */
+        #jsonColumn {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid #211e1a;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 0 10px rgba(0,0,0,0.6);
+        }
+
+        /* Right column coverage info */
+        #infoColumn {
+            width: 53%;
+            min-width: 250px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid #262523;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 0 10px rgba(0,0,0,0.6);
+        }
+        #infoColumn h2 {
+            margin-top: 0;
+            color: #eed9b0;
+        }
+        #coverageInfo {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #e2d9ca;
+        }
+
+        pre {
+            margin: 0;
+            background: none;
+            border: none;
+            padding: 0;
+            font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+            font-size: 1.1rem;
+            line-height: 1.4;
+            color: #fdf7f1;
+            /* This is critical for preserving indentation */
+            white-space: pre;
+        }
+
+        /* Simple JSON syntax highlighting */
+        .json-key {
+            color: #9f7b70; /* a warm color for keys */
+        }
+        .json-string {
+            color: #d4fceb; /* strings in a greenish color */
+        }
+        .json-number {
+            color: #f4d5ae; /* numbers in gold/orange */
+        }
+        .json-boolean {
+            color: #947b5a;
+        }
+        .json-null {
+            color: #9d696a;
+        }
+        /* punctuation (braces, brackets, commas, colons) styling if desired */
+        .json-punct {
+            color: #C79A49;
+        }
+
+        /* Highlight styles */
+        .highlighted-hash {
+            background-color: #8C1A1A; /* darker red highlight for hash/signature fields */
+            color: #FFF;
+            transition: background-color 0.3s ease;
+        }
+        .highlighted-covered {
+            background-color: #3E5C2C; /* dark green highlight for covered fields */
+            color: #FFF;
+            transition: background-color 0.3s ease;
+        }
+
+        .hoverable {
+            cursor: pointer;
+            text-decoration: underline dotted #9BDABF;
+        }
+
+        #coverageInfo ul {
+            list-style: none;
+            padding-left: 1em;
+        }
+        #coverageInfo li::before {
+            content: "\25BA ";
+            color: #C79A49;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Interactive JSON</h1>
+<p>
+    Hover over a <strong>hash</strong> or <strong>signature</strong> field to see which fields
+    it covers (highlighted in green) and which coverage relationships appear on the right panel.
+</p>
+
+<div class="container">
+    <!-- Left: JSON Display -->
+    <div id="jsonColumn">
+        <pre id="jsonDisplay"></pre>
+    </div>
+
+    <!-- Right: Coverage Info -->
+    <div id="infoColumn">
+        <h2>Coverage Info</h2>
+        <div id="coverageInfo">Hover over an item to see coverage details.</div>
+    </div>
+</div>
+
+<script>
+// ------------------------------------------------------------------------------------
+// 1) Put your JSON document here as a JS object.
+// ------------------------------------------------------------------------------------
+var jsonData = {
+    "settings": {
+        "n": 5,
+        "k": 3,
+        "gen_id": "89f0996b33ca953e0cf9b70a5f84cb50"
+    },
+    "generations": [
+        {
+            "base_pubkeys": [
+                "aa772b2a290804da566759b4162de6ffc8f0a47b70908f8db932a3e8e1dff73eb04f59f7549df8a33219a333bb19659c",
+                "a19e4b16cc1d5de8c6fd87549f9fa1fa7de066c5cb566f610909e1a712780bf8c291e82e98b023121f70d980096e4af5",
+                "84496615716d84d3c1d69fb295c968ed4563acd51d0fd0cc624ccce384af1d479f7adbf0ee5cce74b80f248ff8224dee"
+            ],
+            "base_hash": "0bcbd9433dfde67e0dd7c501e255a2bdc31d6968e51b1290e6ef7d264911eb91",
+            "partial_pubkey": "8da434e68daef9af33e39ab727557a3cd86d7991cd6b545746bf92c8edec37012912cfa2292a21512bce9040a1c0e502",
+            "message_cleartext": "test for signing",
+            "message_signature": "8a751bd10706178f9dae64b18ccb758abd0535d9592ca06c3ac44831715c6cb4e66eff0b0248cdae23ec0f921963ae58040feb4862929549b690e2d8073f7b937e971c1a2387feb8d11fdc107390290bb254e941700932e15cc2d63165e09d52"
+        },
+        {
+            "base_pubkeys": [
+                "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
+                "98876a81fe982573ec5f986956bf9bf0bcb5349d95c3c8da0aefd05a49fea6215f59b0696f906547baed90ab245804e8",
+                "ad2c4e5b631fbded449ede4dca2d040b9c7eae58d1e73b3050486c1ba22c15a92d9ff13c05c356f974447e4fca84864a"
+            ],
+            "base_hash": "13602b274436a91ffa3bd3eb16927e011d81fe9e2e9673769a0152acbafe3e33",
+            "partial_pubkey": "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
+            "message_cleartext": "test for signing",
+            "message_signature": "8268c0494f7228cb71472a9c8d05374336ac65b7af2b4fb52292867595d69138a75cfc9a5ff6f102de68a7e173a57f8e13a8378ef9e103adab85b9413b6455d0bb104fc176b0e4859f5c7719ac1f63955fecefbe9eca69a4fa42eadef5b27df5"
+        },
+        {
+            "base_pubkeys": [
+                "91283a9d9826347da8ef73ebe88a013989d2abecf0eb6368cb14e079da25fdf8e90fa2f793ad3566ac613882a93a531c",
+                "b059e3afa1f18c18eabb2be01a491b97b013b493e34bcf4fb288a7975e6a71a0e45d1d6b38d308a89726e99f09a7be85",
+                "a6d720d55aaae5b3a11758ca2dc5900ede471d508243b86d2adc715095c4a1efac82e96b6949763dfc288af555e8a9df"
+            ],
+            "base_hash": "1ae7975df76c5df0c301d390d82180ff536f5dbbf78942e53b4ec9e9e1497a1a",
+            "partial_pubkey": "8cbfb6cb7af927cfe5fb17621df7036de539b7ff4aa0620cdc218d6b7fe7f2e714a96bdeddb2a0dc24867a90594427e1",
+            "message_cleartext": "test for signing",
+            "message_signature": "8b796dd8e8a35a6b97bd740388ad2da0399839f7ce83ae85e8651e23a0d58db44ccaca43e747713624344945ee7f25d803fe0919c669518e9bce2b0ba16e88f4ca05f5568b482b1a0068158468bc3ea8c9764b3dae9c7cb56002fcd5ab2ef25c"
+        },
+        {
+            "base_pubkeys": [
+                "ac70a68387afb0ad4912970b72afc0e1143833091414498ecab27661677f7b2a79aebee35cfbd95731d3b77985b4dc72",
+                "97bcf8fe7f75a87f5b9e4852f4b76fdad62d8af3dc8895f4db74e74d2096b10976f262e2930c89fccc484bc9edf6c0f3",
+                "a04c57e48a2ad82468f702b1d444f37af91fe4a05034d003fd1ff422958d37c30d29760d443e9374aa98bc096abf4d2d"
+            ],
+            "base_hash": "54effb7411607a0c6484cb68cad8a30fd03e24c0fd561c5c8a4c5baa0509f9b3",
+            "partial_pubkey": "9892b390d9d3000c7bf04763006fbc617b7ba9c261fff35094aec3f43599f2c254ae667d9ba135747309b77cd02f1fbc",
+            "message_cleartext": "test for signing",
+            "message_signature": "999e7b24bee2587d687e8f358ed10627ef57ec54935bd7a500bbbb18a57e7aa21b800f8b1f487a980d7c93918fdbd8020b66ce9a9e5788a4826e610ac937d8c2ce0ad9c0ee9a5732cf73052493e9a500cc5100a15bdbf9e5b79104db52dbf07c"
+        },
+        {
+            "base_pubkeys": [
+                "a6e87e5bbed258d82a13c53e04c1c3fb5baa6649a28a0d00e4a934b6473575721a7f1f1c3787145f43a1bf15368619ee",
+                "858276460f23124923c94bf968024dd415a39a0f638d67f1d5f27ce8d8de75273d145cd70177a26bd76c07b8e784c98a",
+                "8174cc034101357048634437473371c7f6b8c39e2a305c2f95fc95c13ed03939a5c3bf2bdbbaab5351e8aa3443949038"
+            ],
+            "base_hash": "dbd8b546ab29bfa87aa9d568e8315037695e8802fa0e0c9ed9009fe8a0fde402",
+            "partial_pubkey": "b255c8a66fd1a13373537e8a4ba258f4990c141fc3c06daccda0711f5ebaffc092f0e5b0e4454e6344e2f97957be4017",
+            "message_cleartext": "test for signing",
+            "message_signature": "b61e78c430eaea45f8b7974c411dd6d50eb8748fde211089838b1ca93ddefd2d9571548c4ee2eb03eec232997dc3818c1917af21083157f19966c998c35e4acf6c59e8e92bf0988692026580e425742a754eb69255e834dc75d9b729cd7ca83a"
+        }
+    ],
+    "aggregate_pubkey": "a31d9a483703cd0da9873e5e76b4de5f7035d0a73d79b3be8667daa4fc7065a1bbb5bf77787fcf2a35bd327eecc4fa6b"
+};
+
+// ------------------------------------------------------------------------------------
+// 2) Define references: which hashes/signatures cover which fields.
+// ------------------------------------------------------------------------------------
+var references = {
+};
+
+k_cover = []
+n_cover = []
+for (g in jsonData.generations) {
+    let covers = []
+
+    let gPath = pathJoin("generations", g)
+    covers = ["settings.n", "settings.k", "settings.gen_id"];
+    for (h in jsonData.generations[g].base_pubkeys) {
+        covers = covers.concat([gPath + ".base_pubkeys[" + h + "]"]);
+        k_cover = [...k_cover, [gPath + ".base_pubkeys[" + h + "]"]]
+    }
+    references[gPath + ".base_hash"] = {covers :covers};
+    references[gPath + ".message_signature"] = {covers : [gPath + ".message_cleartext"]};
+    references[gPath + ".partial_pubkey"] = {covers : [gPath + ".message_signature"]};
+    n_cover = [...n_cover, ...[gPath + ".base_pubkeys"]]
+    
+}
+
+references["settings.k"] = { covers: k_cover }
+references["settings.n"] = { covers: n_cover }
+
+console.log(references)
+// ------------------------------------------------------------------------------------
+// 2b) Descriptions for fields
+// ------------------------------------------------------------------------------------
+var descriptions = {
+    "settings.n": "Total number of participants.",
+    "settings.k": "Threshold number of participants required.",
+    "settings.gen_id": "Identifier for the generation.",
+};
+
+function getDescription(path) {
+    return descriptions[path] || "";
+}
+
+// ------------------------------------------------------------------------------------
+// Build an indented, syntax-highlighted version of the JSON
+// We'll produce a multi-line string with HTML spans for hover references.
+// We'll also add commas after each item except the last.
+// ------------------------------------------------------------------------------------
+function pathJoin(base, key) {
+    if (/^\d+$/.test(key)) {
+        return base + "[" + key + "]";
+    } else if (base === "") {
+        return key;
+    } else {
+        return base + "." + key;
+    }
+}
+
+function buildHtml(obj, path="", indent=0) {
+    if (obj === null) {
+        return spanWrap("json-null", "null", path, indent);
+    }
+    if (typeof obj === "number") {
+        return spanWrap("json-number", String(obj), path, indent);
+    }
+    if (typeof obj === "boolean") {
+        return spanWrap("json-boolean", String(obj), path, indent);
+    }
+    if (typeof obj === "string") {
+        let isHashOrSig = (obj.length > 40); // naive check
+        let className = "json-string" + (isHashOrSig ? " hoverable" : "");
+        // wrap quotes
+        return spanWrap(className, `"${obj}"`, path, indent);
+    }
+
+    // Handle arrays
+    if (Array.isArray(obj)) {
+        if (obj.length === 0) {
+            // empty array
+            return indentLine(indent, `<span class="json-punct">[ ]</span>`);
+        }
+        let lines = [];
+        lines.push(indentLine(indent, `<span class="json-punct">[</span>`));
+        obj.forEach((item, i) => {
+            let childPath = pathJoin(path, i);
+            let isLast = (i === obj.length - 1);
+            let itemHtml = buildHtml(item, childPath, indent + 2);
+            // add a comma if not the last item
+            if (!isLast) {
+                itemHtml += `<span class="json-punct">,</span>`;
+            }
+            lines.push(itemHtml);
+        });
+        lines.push(indentLine(indent, `<span class="json-punct">]</span>`));
+        return lines.join("\n");
+    }
+
+    // Handle objects
+    let keys = Object.keys(obj);
+    if (keys.length === 0) {
+        // empty object
+        return indentLine(indent, `<span class="json-punct">{ }</span>`);
+    }
+
+    let lines = [];
+    // opening brace
+    lines.push(indentLine(indent, `<span class="json-punct">{</span>`));
+
+    keys.forEach((key, i) => {
+        let childPath = pathJoin(path, key);
+        let isLast = (i === keys.length - 1);
+        // key is a "json-key" with data-path
+        let keySpan = `<span class="json-key" data-path="${childPath}" title="${getDescription(childPath)}">"${key}"</span>`;
+        // build value
+        let valHtml = buildHtml(obj[key], childPath, indent + 2);
+        // add comma if not last
+        if (!isLast) {
+            valHtml += `<span class="json-punct">,</span>`;
+        }
+        lines.push(
+            indentLine(indent + 2, keySpan + `<span class="json-punct">: </span>` + valHtml)
+        );
+    });
+
+    // closing brace
+    lines.push(indentLine(indent, `<span class="json-punct">}</span>`));
+    return lines.join("\n");
+}
+
+// Helper to produce indentation + the actual content on one line
+function indentLine(indent, content) {
+    return `${" ".repeat(indent)}${content}`;
+}
+
+// We wrap leaf values in a <span> but also place them on a single line with indentation.
+function spanWrap(cssClass, text, path, indent) {
+    let desc = getDescription(path);
+    let titleAttr = desc ? ` title="${desc}"` : "";
+    let dataAttr = path ? ` data-path="${path}"` : "";
+    return indentLine(indent, `<span class="${cssClass}"${dataAttr}${titleAttr}>${text}</span>`);
+}
+
+// ------------------------------------------------------------------------------------
+// 4) Render the JSON to the <pre> element with indentation
+// ------------------------------------------------------------------------------------
+var jsonContainer = document.getElementById("jsonDisplay");
+var rendered = buildHtml(jsonData, "", 0);
+jsonContainer.innerHTML = rendered;
+
+// ------------------------------------------------------------------------------------
+// 5) Highlighting logic + coverage info in the right panel
+// ------------------------------------------------------------------------------------
+function getRefTargets(path) {
+    let forward = (references[path] && references[path].covers) || [];
+    let backward = (references[path] && references[path].coveredBy) || [];
+    return { covers: forward, coveredBy: backward };
+}
+
+function toggleHighlight(path, className, add) {
+    let selector = '[data-path="' + path + '"]';
+    let elements = document.querySelectorAll(selector);
+    elements.forEach(el => {
+        if (add) {
+            el.classList.add(className);
+        } else {
+            el.classList.remove(className);
+        }
+    });
+}
+
+function showCoverageInfo(path) {
+    let coverageDiv = document.getElementById('coverageInfo');
+    let refInfo = getRefTargets(path);
+
+    let lines = [];
+    lines.push(`<div><strong>Field:</strong> ${path}</div>`);
+
+    if (refInfo.covers.length > 0) {
+        lines.push('<div><strong>Covers:</strong></div><ul>');
+        refInfo.covers.forEach(cPath => {
+            let desc = getDescription(cPath);
+            lines.push(`<li>${cPath}${desc ? ' — ' + desc : ''}</li>`);
+        });
+        lines.push('</ul>');
+    }
+
+    if (refInfo.coveredBy.length > 0) {
+        lines.push('<div><strong>Covered by:</strong></div><ul>');
+        refInfo.coveredBy.forEach(cPath => {
+            let desc = getDescription(cPath);
+            lines.push(`<li>${cPath}${desc ? ' — ' + desc : ''}</li>`);
+        });
+        lines.push('</ul>');
+    }
+
+    if (refInfo.covers.length === 0 && refInfo.coveredBy.length === 0) {
+        lines.push('<p>No coverage relationships found.</p>');
+    }
+
+    coverageDiv.innerHTML = lines.join('\n');
+}
+
+const jsonDisplay = document.getElementById('jsonDisplay');
+jsonDisplay.addEventListener('mouseover', function(e){
+    let target = e.target;
+    if (!target.dataset.path) return;
+    let path = target.dataset.path;
+    let refInfo = getRefTargets(path);
+
+    // highlight
+    if (refInfo.covers.length > 0) {
+        toggleHighlight(path, 'highlighted-hash', true);
+        refInfo.covers.forEach(cPath => toggleHighlight(cPath, 'highlighted-covered', true));
+    }
+    if (refInfo.coveredBy.length > 0) {
+        toggleHighlight(path, 'highlighted-covered', true);
+        refInfo.coveredBy.forEach(cPath => toggleHighlight(cPath, 'highlighted-hash', true));
+    }
+
+    // show coverage info on the right
+    showCoverageInfo(path);
+});
+
+jsonDisplay.addEventListener('mouseout', function(e){
+    let allHighlighted = document.querySelectorAll('.highlighted-hash, .highlighted-covered');
+    allHighlighted.forEach(el => {
+        el.classList.remove('highlighted-hash');
+        el.classList.remove('highlighted-covered');
+    });
+
+    document.getElementById('coverageInfo').innerHTML = 'Hover over an item to see coverage details.';
+});
+</script>
+</body>
+</html>
