@@ -1,15 +1,15 @@
+use hex::decode;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
-
-use validator::Validate;
-
-use hex::decode;
+use std::error::Error;
 use std::fs::File;
 use std::io::Read;
-
-use std::error::Error;
 use std::path::Path;
+use validator::Validate;
 
+/// ---------------------------------------------------------------------------
+/// Constants & Type Aliases
+/// ---------------------------------------------------------------------------
 pub const BLS_SIGNATURE_SIZE: usize = 96;
 pub const BLS_PUBKEY_SIZE: usize = 48;
 pub const BLS_SECRET_SIZE: usize = 32;
@@ -23,6 +23,9 @@ pub type BLSId = [u8; BLS_ID_SIZE];
 pub type BLSSignature = [u8; BLS_SIGNATURE_SIZE];
 pub type SHA256 = [u8; SHA256_SIZE];
 
+/// ---------------------------------------------------------------------------
+/// DVT Data Structures (input side)
+/// ---------------------------------------------------------------------------
 #[derive(Debug, Deserialize)]
 pub struct DvtVerificationVector {
     #[serde(rename(deserialize = "base_pubkeys"))]
@@ -82,33 +85,33 @@ pub struct DvtShare {
 #[derive(Debug, Deserialize)]
 pub struct DvtBlsSharedData {
     #[serde(rename(deserialize = "base_hashes"))]
-    verification_hashes: DvtVerificationHashes,
-    initial_commitment: DvtInitialCommitment,
-    seeds_exchange_commitment: DvtShareExchangeCommitment,
+    pub verification_hashes: DvtVerificationHashes,
+    pub initial_commitment: DvtInitialCommitment,
+    pub seeds_exchange_commitment: DvtShareExchangeCommitment,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct DvtGeneration {
     #[serde(rename(deserialize = "base_pubkeys"))]
-    verification_vector: Vec<String>,
-    base_hash: String,
-    partial_pubkey: String,
-    message_cleartext: String,
-    message_signature: String,
+    pub verification_vector: Vec<String>,
+    pub base_hash: String,
+    pub partial_pubkey: String,
+    pub message_cleartext: String,
+    pub message_signature: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct DvtFinalizationData {
-    settings: DvtGenerateSettings,
-    generations: Vec<DvtGeneration>,
-    aggregate_pubkey: String,
+    pub settings: DvtGenerateSettings,
+    pub generations: Vec<DvtGeneration>,
+    pub aggregate_pubkey: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct DvtBadPartialShareGeneration {
     #[serde(rename(deserialize = "base_pubkeys"))]
-    verification_vector: Vec<String>,
-    base_hash: String,
+    pub verification_vector: Vec<String>,
+    pub base_hash: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -120,16 +123,21 @@ pub struct DvtBadPartialShare {
 
 #[derive(Debug, Deserialize)]
 pub struct DvtBadPartialShareData {
-    settings: DvtGenerateSettings,
-    generations: Vec<DvtBadPartialShareGeneration>,
-    bad_partial: DvtBadPartialShare,
+    pub settings: DvtGenerateSettings,
+    pub generations: Vec<DvtBadPartialShareGeneration>,
+    pub bad_partial: DvtBadPartialShare,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct DvtBadEncryptedShare {
-    // TODO: implement
+    pub sender_pubkey: String,
+    pub receiver_secret_key: String,
+    pub encrypted_message: String,
 }
 
+/// ---------------------------------------------------------------------------
+/// ABI Data Structures (output side)
+/// ---------------------------------------------------------------------------
 #[derive(Debug)]
 pub struct AbiVerificationVector {
     pub pubkeys: Vec<BLSPubkey>,
@@ -218,40 +226,52 @@ pub struct AbiBadPartialShareData {
 
 #[derive(Debug)]
 pub struct AbiBadEncryptedShare {
-    // TODO: implement
+    pub sender_pubkey: BLSPubkey,
+    pub receiver_secret_key: BLSSecret,
+    pub encrypted_message: Vec<u8>,
+}
+
+/// ---------------------------------------------------------------------------
+/// Trait: ToAbi
+///
+/// Allows a "DvtX" type to convert itself to an "AbiX" type.
+/// We'll use associated type T to indicate which ABI type it produces.
+/// ---------------------------------------------------------------------------
+pub trait ToAbi<T> {
+    fn to_abi(&self) -> Result<T, Box<dyn Error>>;
 }
 
 fn decode_hex<const N: usize>(input: &str) -> Result<[u8; N], Box<dyn Error>> {
     let bytes = decode(input).map_err(|e| format!("Failed to decode input: {e}"))?;
-
-    // Check the length
     if bytes.len() != N {
         return Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            format!("Expected length {}, but got {}", N, bytes.len()),
+            format!("Expected length {N}, but got {}", bytes.len()),
         )));
     }
-
     let mut arr = [0u8; N];
     arr.copy_from_slice(&bytes);
     Ok(arr)
 }
 
-impl DvtVerificationVector {
-    pub fn to_abi(&self) -> Result<AbiVerificationVector, Box<dyn std::error::Error>> {
-        Ok(AbiVerificationVector {
-            pubkeys: self
-                .pubkeys
-                .iter()
-                .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
-                .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
-                .map_err(|e| format!("Invalid pubkey: {e}"))?,
-        })
+/// ---------------------------------------------------------------------------
+/// Implementations of ToAbi for each Dvt type -> corresponding Abi type
+/// ---------------------------------------------------------------------------
+impl ToAbi<AbiVerificationVector> for DvtVerificationVector {
+    fn to_abi(&self) -> Result<AbiVerificationVector, Box<dyn Error>> {
+        let pubkeys = self
+            .pubkeys
+            .iter()
+            .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
+            .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
+            .map_err(|e| format!("Invalid pubkey: {e}"))?;
+
+        Ok(AbiVerificationVector { pubkeys })
     }
 }
 
-impl DvtGenerateSettings {
-    pub fn to_abi(&self) -> Result<AbiGenerateSettings, Box<dyn std::error::Error>> {
+impl ToAbi<AbiGenerateSettings> for DvtGenerateSettings {
+    fn to_abi(&self) -> Result<AbiGenerateSettings, Box<dyn Error>> {
         Ok(AbiGenerateSettings {
             n: self.n,
             k: self.k,
@@ -261,8 +281,8 @@ impl DvtGenerateSettings {
     }
 }
 
-impl DvtInitialCommitment {
-    pub fn to_abi(&self) -> Result<AbiInitialCommitment, Box<dyn std::error::Error>> {
+impl ToAbi<AbiInitialCommitment> for DvtInitialCommitment {
+    fn to_abi(&self) -> Result<AbiInitialCommitment, Box<dyn Error>> {
         Ok(AbiInitialCommitment {
             hash: decode_hex::<SHA256_SIZE>(&self.hash)
                 .map_err(|e| format!("Invalid hash: {e}"))?,
@@ -278,13 +298,13 @@ impl DvtInitialCommitment {
     }
 }
 
-impl DvtExchangedSecret {
-    pub fn to_abi(&self) -> Result<AbiExchangedSecret, Box<dyn std::error::Error>> {
+impl ToAbi<AbiExchangedSecret> for DvtExchangedSecret {
+    fn to_abi(&self) -> Result<AbiExchangedSecret, Box<dyn Error>> {
         Ok(AbiExchangedSecret {
             src_id: decode_hex::<BLS_ID_SIZE>(&self.src_id)
-                .map_err(|e| format!("Invalid id: {e}"))?,
+                .map_err(|e| format!("Invalid src_id: {e}"))?,
             dst_id: decode_hex::<BLS_ID_SIZE>(&self.dst_id)
-                .map_err(|e| format!("Invalid id: {e}"))?,
+                .map_err(|e| format!("Invalid dst_id: {e}"))?,
             secret: decode_hex::<BLS_SECRET_SIZE>(&self.secret)
                 .map_err(|e| format!("Invalid secret: {e}"))?,
             dst_base_hash: decode_hex::<SHA256_SIZE>(&self.dst_base_hash)
@@ -293,8 +313,8 @@ impl DvtExchangedSecret {
     }
 }
 
-impl DvtCommitment {
-    pub fn to_abi(&self) -> Result<AbiCommitment, Box<dyn std::error::Error>> {
+impl ToAbi<AbiCommitment> for DvtCommitment {
+    fn to_abi(&self) -> Result<AbiCommitment, Box<dyn Error>> {
         Ok(AbiCommitment {
             hash: decode_hex::<SHA256_SIZE>(&self.hash)
                 .map_err(|e| format!("Invalid hash: {e}"))?,
@@ -306,8 +326,8 @@ impl DvtCommitment {
     }
 }
 
-impl DvtShareExchangeCommitment {
-    pub fn to_abi(&self) -> Result<AbiSeedExchangeCommitment, Box<dyn std::error::Error>> {
+impl ToAbi<AbiSeedExchangeCommitment> for DvtShareExchangeCommitment {
+    fn to_abi(&self) -> Result<AbiSeedExchangeCommitment, Box<dyn Error>> {
         Ok(AbiSeedExchangeCommitment {
             initial_commitment_hash: decode_hex::<SHA256_SIZE>(&self.initial_commitment_hash)
                 .map_err(|e| format!("Invalid initial_commitment_hash: {e}"))?,
@@ -323,15 +343,17 @@ impl DvtShareExchangeCommitment {
     }
 }
 
-impl DvtBlsSharedData {
-    pub fn to_abi(&self) -> Result<AbiBlsSharedData, Box<dyn std::error::Error>> {
+impl ToAbi<AbiBlsSharedData> for DvtBlsSharedData {
+    fn to_abi(&self) -> Result<AbiBlsSharedData, Box<dyn Error>> {
+        let verification_hashes = self
+            .verification_hashes
+            .iter()
+            .map(|h| decode_hex::<SHA256_SIZE>(h))
+            .collect::<Result<Vec<[u8; SHA256_SIZE]>, _>>()
+            .map_err(|e| format!("Invalid verification hash: {e}"))?;
+
         Ok(AbiBlsSharedData {
-            verification_hashes: self
-                .verification_hashes
-                .iter()
-                .map(|h| decode_hex::<SHA256_SIZE>(h))
-                .collect::<Result<Vec<[u8; SHA256_SIZE]>, _>>()
-                .map_err(|e| format!("Invalid hash: {e}"))?,
+            verification_hashes,
             initial_commitment: self
                 .initial_commitment
                 .to_abi()
@@ -344,15 +366,17 @@ impl DvtBlsSharedData {
     }
 }
 
-impl DvtGeneration {
-    pub fn to_abi(&self) -> Result<AbiGeneration, Box<dyn std::error::Error>> {
+impl ToAbi<AbiGeneration> for DvtGeneration {
+    fn to_abi(&self) -> Result<AbiGeneration, Box<dyn Error>> {
+        let verification_vector = self
+            .verification_vector
+            .iter()
+            .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
+            .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
+            .map_err(|e| format!("Invalid pubkey: {e}"))?;
+
         Ok(AbiGeneration {
-            verification_vector: self
-                .verification_vector
-                .iter()
-                .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
-                .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
-                .map_err(|e| format!("Invalid pubkey: {e}"))?,
+            verification_vector,
             base_hash: decode_hex::<SHA256_SIZE>(&self.base_hash)
                 .map_err(|e| format!("Invalid base_hash: {e}"))?,
             partial_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.partial_pubkey)
@@ -364,41 +388,51 @@ impl DvtGeneration {
     }
 }
 
-impl DvtFinalizationData {
-    pub fn to_abi(&self) -> Result<AbiFinalizationData, Box<dyn std::error::Error>> {
+impl ToAbi<AbiFinalizationData> for DvtFinalizationData {
+    fn to_abi(&self) -> Result<AbiFinalizationData, Box<dyn Error>> {
+        let settings = self
+            .settings
+            .to_abi()
+            .map_err(|e| format!("Invalid settings: {e}"))?;
+
+        let generations = self
+            .generations
+            .iter()
+            .map(|g| g.to_abi())
+            .collect::<Result<Vec<AbiGeneration>, _>>()?;
+
+        let aggregate_pubkey = decode_hex::<BLS_PUBKEY_SIZE>(&self.aggregate_pubkey)
+            .map_err(|e| format!("Invalid aggregate_pubkey: {e}"))?;
+
         Ok(AbiFinalizationData {
-            settings: self
-                .settings
-                .to_abi()
-                .map_err(|e| format!("Invalid settings: {e}"))?,
-            generations: self
-                .generations
-                .iter()
-                .map(|g| g.to_abi())
-                .collect::<Result<Vec<AbiGeneration>, _>>()?,
-            aggregate_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.aggregate_pubkey)
-                .map_err(|e| format!("Invalid aggregate_pubkey: {e}"))?,
+            settings,
+            generations,
+            aggregate_pubkey,
         })
     }
 }
 
-impl DvtBadPartialShareGeneration {
-    pub fn to_abi(&self) -> Result<AbiBadPartialShareGeneration, Box<dyn std::error::Error>> {
+impl ToAbi<AbiBadPartialShareGeneration> for DvtBadPartialShareGeneration {
+    fn to_abi(&self) -> Result<AbiBadPartialShareGeneration, Box<dyn Error>> {
+        let verification_vector = self
+            .verification_vector
+            .iter()
+            .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
+            .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
+            .map_err(|e| format!("Invalid pubkey: {e}"))?;
+
+        let base_hash = decode_hex::<SHA256_SIZE>(&self.base_hash)
+            .map_err(|e| format!("Invalid base_hash: {e}"))?;
+
         Ok(AbiBadPartialShareGeneration {
-            verification_vector: self
-                .verification_vector
-                .iter()
-                .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
-                .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
-                .map_err(|e| format!("Invalid pubkey: {e}"))?,
-            base_hash: decode_hex::<SHA256_SIZE>(&self.base_hash)
-                .map_err(|e| format!("Invalid base_hash: {e}"))?,
+            verification_vector,
+            base_hash,
         })
     }
 }
 
-impl DvtBadPartialShare {
-    pub fn to_abi(&self) -> Result<AbiBadPartialShare, Box<dyn std::error::Error>> {
+impl ToAbi<AbiBadPartialShare> for DvtBadPartialShare {
+    fn to_abi(&self) -> Result<AbiBadPartialShare, Box<dyn Error>> {
         Ok(AbiBadPartialShare {
             settings: self
                 .settings
@@ -416,42 +450,57 @@ impl DvtBadPartialShare {
     }
 }
 
-impl DvtBadPartialShareData {
-    pub fn to_abi(&self) -> Result<AbiBadPartialShareData, Box<dyn std::error::Error>> {
+impl ToAbi<AbiBadPartialShareData> for DvtBadPartialShareData {
+    fn to_abi(&self) -> Result<AbiBadPartialShareData, Box<dyn Error>> {
+        let settings = self
+            .settings
+            .to_abi()
+            .map_err(|e| format!("Invalid settings: {e}"))?;
+
+        let generations = self
+            .generations
+            .iter()
+            .map(|g| g.to_abi())
+            .collect::<Result<Vec<AbiBadPartialShareGeneration>, _>>()?;
+
+        let bad_partial = self
+            .bad_partial
+            .to_abi()
+            .map_err(|e| format!("Invalid bad_partial: {e}"))?;
+
         Ok(AbiBadPartialShareData {
-            settings: self
-                .settings
-                .to_abi()
-                .map_err(|e| format!("Invalid settings: {e}"))?,
-            generations: self
-                .generations
-                .iter()
-                .map(|g| g.to_abi())
-                .collect::<Result<Vec<AbiBadPartialShareGeneration>, _>>()?,
-            bad_partial: self
-                .bad_partial
-                .to_abi()
-                .map_err(|e| format!("Invalid bad_partial: {e}"))?,
+            settings,
+            generations,
+            bad_partial,
         })
     }
 }
 
-impl DvtBadEncryptedShare {
-    pub fn to_abi(&self) -> Result<AbiBadEncryptedShare, Box<dyn std::error::Error>> {
+impl ToAbi<AbiBadEncryptedShare> for DvtBadEncryptedShare {
+    fn to_abi(&self) -> Result<AbiBadEncryptedShare, Box<dyn Error>> {
         Ok(AbiBadEncryptedShare {
-            // TODO: implement
+            sender_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.sender_pubkey)
+                .map_err(|e| format!("Invalid sender_pubkey: {e}"))?,
+            receiver_secret_key: decode_hex::<BLS_SECRET_SIZE>(&self.receiver_secret_key)
+                .map_err(|e| format!("Invalid receiver_secret_key: {e}"))?,
+            encrypted_message: decode(&self.encrypted_message)
+                .map_err(|e| format!("Invalid encrypted_share: {e}"))?,
         })
     }
 }
 
-pub fn check_if_file_exist(path: &str) {
-    if !Path::new(&path).exists() {
-        panic!("Error: File '{}' does not exist.", path);
+/// ---------------------------------------------------------------------------
+/// File & JSON Helpers
+/// ---------------------------------------------------------------------------
+fn check_if_file_exists(path: &str) -> Result<(), Box<dyn Error>> {
+    if !Path::new(path).exists() {
+        return Err(format!("File '{}' does not exist.", path).into());
     }
+    Ok(())
 }
 
 pub fn read_text_file(filename: &str) -> Result<String, Box<dyn Error>> {
-    check_if_file_exist(filename);
+    check_if_file_exists(filename)?;
     let mut file =
         File::open(filename).map_err(|e| format!("Error opening file {filename}: {e}"))?;
     let mut contents = String::new();
@@ -464,9 +513,8 @@ pub fn read_data_from_json_file<T>(filename: &str) -> Result<T, Box<dyn Error>>
 where
     T: DeserializeOwned,
 {
-    check_if_file_exist(filename);
     let contents = read_text_file(filename)?;
-
-    let data: T = serde_json::from_str(&contents)?;
+    let data: T = serde_json::from_str(&contents)
+        .map_err(|e| format!("Error parsing JSON in {filename}: {e}"))?;
     Ok(data)
 }

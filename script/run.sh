@@ -78,7 +78,7 @@ run_tests_in_dir() {
         fi
 
         echo $scenario > scenario.json
-        target/release/dvt_prover_host --input-file scenario.json $cmd_args
+        target/release/dvt_prover_host $cmd_args --input-file scenario.json
         exit_code=$?
 
         ((execution_count++))

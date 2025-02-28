@@ -139,7 +139,13 @@ impl ProverSerialize for dvt_abi::AbiBadPartialShareData {
 }
 
 impl ProverSerialize for dvt_abi::AbiBadEncryptedShare {
-    fn write(&self, _stdin: &mut SP1Stdin) {
-        // TODO: implement
+    fn write(&self, stdin: &mut SP1Stdin) {
+        write_array_to_prover(stdin, &self.sender_pubkey);
+        write_array_to_prover(stdin, &self.receiver_secret_key);
+        stdin.write(&(self.encrypted_message.len() as u32));
+
+        for i in 0..self.encrypted_message.len() {
+            stdin.write(&self.encrypted_message[i]);
+        }
     }
 }
