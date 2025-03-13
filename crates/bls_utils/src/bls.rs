@@ -315,7 +315,10 @@ impl SecretKey {
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {
-        self.key.to_bytes()
+        let mut bytes = self.key.to_bytes();
+        // Convert them to big-endian
+        bytes.reverse();
+        return bytes;
     }
 }
 

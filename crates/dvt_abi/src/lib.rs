@@ -130,8 +130,15 @@ pub struct DvtBadPartialShareData {
 
 #[derive(Debug, Deserialize)]
 pub struct DvtBadEncryptedShare {
+    #[serde(rename(deserialize = "sender_pubkey"))]
     pub sender_pubkey: String,
-    pub receiver_secret_key: String,
+    #[serde(rename(deserialize = "receiver_signature"))]
+    pub signature: String,
+    #[serde(rename(deserialize = "receiver_pubkey"))]
+    pub receiver_pubkey: String,
+    #[serde(rename(deserialize = "reseiver_base_secrets_commitment_hash"))]
+    pub receiver_commitment_hash: String,
+    #[serde(rename(deserialize = "encrypted_data"))]
     pub encrypted_message: String,
 }
 
@@ -227,7 +234,9 @@ pub struct AbiBadPartialShareData {
 #[derive(Debug)]
 pub struct AbiBadEncryptedShare {
     pub sender_pubkey: BLSPubkey,
-    pub receiver_secret_key: BLSSecret,
+    pub signature: BLSSignature,
+    pub receiver_pubkey: BLSPubkey,
+    pub receiver_commitment_hash: SHA256,
     pub encrypted_message: Vec<u8>,
 }
 
@@ -481,8 +490,12 @@ impl ToAbi<AbiBadEncryptedShare> for DvtBadEncryptedShare {
         Ok(AbiBadEncryptedShare {
             sender_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.sender_pubkey)
                 .map_err(|e| format!("Invalid sender_pubkey: {e}"))?,
-            receiver_secret_key: decode_hex::<BLS_SECRET_SIZE>(&self.receiver_secret_key)
-                .map_err(|e| format!("Invalid receiver_secret_key: {e}"))?,
+            receiver_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.receiver_pubkey)
+                .map_err(|e| format!("Invalid receiver_pubkey: {e}"))?,
+            signature: decode_hex::<BLS_SIGNATURE_SIZE>(&self.signature)
+                .map_err(|e| format!("Invalid signature: {e}"))?,
+            receiver_commitment_hash: decode_hex::<SHA256_SIZE>(&self.receiver_commitment_hash)
+                .map_err(|e| format!("Invalid receiver_commitment_hash: {e}"))?,
             encrypted_message: decode(&self.encrypted_message)
                 .map_err(|e| format!("Invalid encrypted_share: {e}"))?,
         })

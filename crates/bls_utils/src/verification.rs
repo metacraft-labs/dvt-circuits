@@ -82,8 +82,13 @@ pub fn verify_seed_exchange_commitment(
 
     if !pubkey.verify_signature(&commitment.hash, &signature) {
         return Err(Box::new(VerificationErrors::UnslashableError(format!(
-            "Invalid field seeds_exchange_commitment.commitment.signature {}\n",
-            hex::encode(commitment.signature)
+            "Invalid field seeds_exchange_commitment.commitment.signature {},
+            message: {}
+            pubkey: {},
+            \n",
+            hex::encode(&commitment.signature),
+            hex::encode(&commitment.hash),
+            hex::encode(&commitment.pubkey)
         ))));
     }
 
