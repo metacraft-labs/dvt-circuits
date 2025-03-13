@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Interactive JSON - Proper Formatting</title>
+    <style>
+        /* Diablo II-inspired styling with proper white-space for indentation */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #6b6980;
+            color: #F5E2C8;
+            font-family: "Times New Roman", serif;
+        }
+
+        h1 {
+            text-align: center;
+            padding: 1rem;
+            font-size: 5rem;
+            color: #eedbb7;
+        }
+
+        p {
+            margin: 0 1rem 1rem 1rem;
+            font-size: 1.5rem;
+            color: #c3b7a6;
+        }
+
+        .container {
+            display: flex;
+            gap: 1rem;
+            margin: 0 1rem 1rem 1rem;
+        }
+
+        /* Left column with the JSON display */
+        #jsonColumn {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid #211e1a;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Right column coverage info */
+        #infoColumn {
+            width: 53%;
+            min-width: 250px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid #262523;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+        }
+
+        #infoColumn h2 {
+            margin-top: 0;
+            color: #eed9b0;
+        }
+
+        #coverageInfo {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #e2d9ca;
+        }
+
+        pre {
+            margin: 0;
+            background: none;
+            border: none;
+            padding: 0;
+            font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+            font-size: 1.1rem;
+            line-height: 1.4;
+            color: #fdf7f1;
+            /* This is critical for preserving indentation */
+            white-space: pre;
+        }
+
+        /* Simple JSON syntax highlighting */
+        .json-key {
+            color: #9f7b70;
+            /* a warm color for keys */
+        }
+
+        .json-string {
+            color: #d4fceb;
+            /* strings in a greenish color */
+        }
+
+        .json-number {
+            color: #f4d5ae;
+            /* numbers in gold/orange */
+        }
+
+        .json-boolean {
+            color: #947b5a;
+        }
+
+        .json-null {
+            color: #9d696a;
+        }
+
+        /* punctuation (braces, brackets, commas, colons) styling if desired */
+        .json-punct {
+            color: #C79A49;
+        }
+
+        /* Highlight styles */
+        .highlighted-hash {
+            background-color: #8C1A1A;
+            /* darker red highlight for hash/signature fields */
+            color: #FFF;
+            transition: background-color 0.3s ease;
+        }
+
+        .highlighted-covered {
+            background-color: #3E5C2C;
+            /* dark green highlight for covered fields */
+            color: #FFF;
+            transition: background-color 0.3s ease;
+        }
+
+        .hoverable {
+            cursor: pointer;
+            text-decoration: underline dotted #9BDABF;
+        }
+
+        #coverageInfo ul {
+            list-style: none;
+            padding-left: 1em;
+        }
+
+        #coverageInfo li::before {
+            content: "\25BA ";
+            color: #C79A49;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Interactive JSON</h1>
+    <p>
+        Hover over a <strong>hash</strong> or <strong>signature</strong> field to see which fields
+        it covers (highlighted in green) and which coverage relationships appear on the right panel.
+    </p>
+
+    <div class="container">
+        <!-- Left: JSON Display -->
+        <div id="jsonColumn">
+            <pre id="jsonDisplay"></pre>
+        </div>
+
+        <!-- Right: Coverage Info -->
+        <div id="infoColumn">
+            <h2>Coverage Info</h2>
+            <div id="coverageInfo">Hover over an item to see coverage details.</div>
+        </div>
+    </div>
+
+    <script>
+        // ------------------------------------------------------------------------------------
+        // 1) Put your JSON document here as a JS object.
+        // ------------------------------------------------------------------------------------
+        var jsonData = {
+            "sender_pubkey": "a45c34e1d3a8a559df0d592da07b3b98570b254cfc182eaa1e222c47a78f31184dfa94f4fbdf7992f62ace3cd072fd35",
+            "receiver_signature": "9391bf6f96f3c865074c84346233990bfb5556a2bb2b71ff8dc01c7a2a25ba30c1c7628d0fe89167b3012b62dc65067213f06912a7f516b1c8dadb2bb6cd27f033f95f0c7600c2ffd849a6486c03ab637df0ede07a8ac57d2134b1d81ca6b04b",
+            "encrypted_data": "e5c1a0411cfa8056f3ecb147f0c1b492d2343ca68dbba274ef558eba64...",
+            "reseiver_base_secrets_commitment_hash": "9426750225a5ba3aeb545d421d6ff79a5c229702617937de7162b6b3684ee157",
+            "receiver_pubkey": "8d9fd961e8213cb16359a860e993b2853f6217626501e9efa459407d3a2608560faa2eeae425df2c7dbd4d0bba4880f8"
+        }
+
+        // ------------------------------------------------------------------------------------
+        // 2) Define references: which hashes/signatures cover which fields.
+        // ------------------------------------------------------------------------------------
+        var references = {
+            "receiver_pubkey": {
+                covers: ["receiver_signature"]
+            },
+            "receiver_signature": {
+                covers: ["reseiver_base_secrets_commitment_hash"]
+            },
+        };
+
+        // ------------------------------------------------------------------------------------
+        // 2b) Descriptions for fields
+        // ------------------------------------------------------------------------------------
+        var descriptions = {
+
+        };
+
+        function getDescription(path) {
+            return descriptions[path] || "";
+        }
+
+        // ------------------------------------------------------------------------------------
+        // Build an indented, syntax-highlighted version of the JSON
+        // We'll produce a multi-line string with HTML spans for hover references.
+        // We'll also add commas after each item except the last.
+        // ------------------------------------------------------------------------------------
+        function pathJoin(base, key) {
+            if (/^\d+$/.test(key)) {
+                return base + "[" + key + "]";
+            } else if (base === "") {
+                return key;
+            } else {
+                return base + "." + key;
+            }
+        }
+
+        function buildHtml(obj, path = "", indent = 0) {
+            if (obj === null) {
+                return spanWrap("json-null", "null", path, indent);
+            }
+            if (typeof obj === "number") {
+                return spanWrap("json-number", String(obj), path, indent);
+            }
+            if (typeof obj === "boolean") {
+                return spanWrap("json-boolean", String(obj), path, indent);
+            }
+            if (typeof obj === "string") {
+                let isHashOrSig = (obj.length > 40); // naive check
+                let className = "json-string" + (isHashOrSig ? " hoverable" : "");
+                // wrap quotes
+                return spanWrap(className, `"${obj}"`, path, indent);
+            }
+
+            // Handle arrays
+            if (Array.isArray(obj)) {
+                if (obj.length === 0) {
+                    // empty array
+                    return indentLine(indent, `<span class="json-punct">[ ]</span>`);
+                }
+                let lines = [];
+                lines.push(indentLine(indent, `<span class="json-punct">[</span>`));
+                obj.forEach((item, i) => {
+                    let childPath = pathJoin(path, i);
+                    let isLast = (i === obj.length - 1);
+                    let itemHtml = buildHtml(item, childPath, indent + 2);
+                    // add a comma if not the last item
+                    if (!isLast) {
+                        itemHtml += `<span class="json-punct">,</span>`;
+                    }
+                    lines.push(itemHtml);
+                });
+                lines.push(indentLine(indent, `<span class="json-punct">]</span>`));
+                return lines.join("\n");
+            }
+
+            // Handle objects
+            let keys = Object.keys(obj);
+            if (keys.length === 0) {
+                // empty object
+                return indentLine(indent, `<span class="json-punct">{ }</span>`);
+            }
+
+            let lines = [];
+            // opening brace
+            lines.push(indentLine(indent, `<span class="json-punct">{</span>`));
+
+            keys.forEach((key, i) => {
+                let childPath = pathJoin(path, key);
+                let isLast = (i === keys.length - 1);
+                // key is a "json-key" with data-path
+                let keySpan = `<span class="json-key" data-path="${childPath}" title="${getDescription(childPath)}">"${key}"</span>`;
+                // build value
+                let valHtml = buildHtml(obj[key], childPath, indent + 2);
+                // add comma if not last
+                if (!isLast) {
+                    valHtml += `<span class="json-punct">,</span>`;
+                }
+                lines.push(
+                    indentLine(indent + 2, keySpan + `<span class="json-punct">: </span>` + valHtml)
+                );
+            });
+
+            // closing brace
+            lines.push(indentLine(indent, `<span class="json-punct">}</span>`));
+            return lines.join("\n");
+        }
+
+        // Helper to produce indentation + the actual content on one line
+        function indentLine(indent, content) {
+            return `${" ".repeat(indent)}${content}`;
+        }
+
+        // We wrap leaf values in a <span> but also place them on a single line with indentation.
+        function spanWrap(cssClass, text, path, indent) {
+            let desc = getDescription(path);
+            let titleAttr = desc ? ` title="${desc}"` : "";
+            let dataAttr = path ? ` data-path="${path}"` : "";
+            return indentLine(indent, `<span class="${cssClass}"${dataAttr}${titleAttr}>${text}</span>`);
+        }
+
+        // ------------------------------------------------------------------------------------
+        // 4) Render the JSON to the <pre> element with indentation
+        // ------------------------------------------------------------------------------------
+        var jsonContainer = document.getElementById("jsonDisplay");
+        var rendered = buildHtml(jsonData, "", 0);
+        jsonContainer.innerHTML = rendered;
+
+        // ------------------------------------------------------------------------------------
+        // 5) Highlighting logic + coverage info in the right panel
+        // ------------------------------------------------------------------------------------
+        function getRefTargets(path) {
+            let forward = (references[path] && references[path].covers) || [];
+            let backward = (references[path] && references[path].coveredBy) || [];
+            return { covers: forward, coveredBy: backward };
+        }
+
+        function toggleHighlight(path, className, add) {
+            let selector = '[data-path="' + path + '"]';
+            let elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+                if (add) {
+                    el.classList.add(className);
+                } else {
+                    el.classList.remove(className);
+                }
+            });
+        }
+
+        function showCoverageInfo(path) {
+            let coverageDiv = document.getElementById('coverageInfo');
+            let refInfo = getRefTargets(path);
+
+            let lines = [];
+            lines.push(`<div><strong>Field:</strong> ${path}</div>`);
+
+            if (refInfo.covers.length > 0) {
+                lines.push('<div><strong>Covers:</strong></div><ul>');
+                refInfo.covers.forEach(cPath => {
+                    let desc = getDescription(cPath);
+                    lines.push(`<li>${cPath}${desc ? ' — ' + desc : ''}</li>`);
+                });
+                lines.push('</ul>');
+            }
+
+            if (refInfo.coveredBy.length > 0) {
+                lines.push('<div><strong>Covered by:</strong></div><ul>');
+                refInfo.coveredBy.forEach(cPath => {
+                    let desc = getDescription(cPath);
+                    lines.push(`<li>${cPath}${desc ? ' — ' + desc : ''}</li>`);
+                });
+                lines.push('</ul>');
+            }
+
+            if (refInfo.covers.length === 0 && refInfo.coveredBy.length === 0) {
+                lines.push('<p>No coverage relationships found.</p>');
+            }
+
+            coverageDiv.innerHTML = lines.join('\n');
+        }
+
+        const jsonDisplay = document.getElementById('jsonDisplay');
+        jsonDisplay.addEventListener('mouseover', function (e) {
+            let target = e.target;
+            if (!target.dataset.path) return;
+            let path = target.dataset.path;
+            let refInfo = getRefTargets(path);
+
+            // highlight
+            if (refInfo.covers.length > 0) {
+                toggleHighlight(path, 'highlighted-hash', true);
+                refInfo.covers.forEach(cPath => toggleHighlight(cPath, 'highlighted-covered', true));
+            }
+            if (refInfo.coveredBy.length > 0) {
+                toggleHighlight(path, 'highlighted-covered', true);
+                refInfo.coveredBy.forEach(cPath => toggleHighlight(cPath, 'highlighted-hash', true));
+            }
+
+            // show coverage info on the right
+            showCoverageInfo(path);
+        });
+
+        jsonDisplay.addEventListener('mouseout', function (e) {
+            let allHighlighted = document.querySelectorAll('.highlighted-hash, .highlighted-covered');
+            allHighlighted.forEach(el => {
+                el.classList.remove('highlighted-hash');
+                el.classList.remove('highlighted-covered');
+            });
+
+            document.getElementById('coverageInfo').innerHTML = 'Hover over an item to see coverage details.';
+        });
+    </script>
+</body>
+
+</html>
