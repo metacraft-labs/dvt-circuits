@@ -203,11 +203,15 @@ pub fn read_bad_partial_share_data() -> dvt_abi::AbiBadPartialShareData {
 
 pub fn read_bad_encrypted_share() -> dvt_abi::AbiBadEncryptedShare {
     let sender_pubkey = read_pubkey_from_host();
-    let receiver_secret_key = read_secret_from_host();
+    let signature = read_signature_from_host();
+    let receiver_pubkey = read_pubkey_from_host();
+    let receiver_commitment_hash = read_hash_from_host();
     let encrypted_message = read_byte_vec_from_host();
     dvt_abi::AbiBadEncryptedShare {
         sender_pubkey: sender_pubkey,
-        receiver_secret_key: receiver_secret_key,
+        signature: signature,
+        receiver_pubkey: receiver_pubkey,
+        receiver_commitment_hash: receiver_commitment_hash,
         encrypted_message: encrypted_message,
     }
 }

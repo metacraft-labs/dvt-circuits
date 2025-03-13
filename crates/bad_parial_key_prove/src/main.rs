@@ -31,7 +31,7 @@ pub fn main() {
                         return;
                     }
                     VerificationErrors::UnslashableError(e) => {
-                        panic!("Unslashable error while proving: {}", e);
+                        panic!("Unslashable error while proving: {e}");
                     }
                 }
             }

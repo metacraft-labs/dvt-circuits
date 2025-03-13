@@ -4,6 +4,14 @@ fn write_array_to_prover<const N: usize>(stdin: &mut SP1Stdin, data: &[u8; N]) {
         stdin.write(x);
     }
 }
+
+fn write_vec_to_prover(stdin: &mut SP1Stdin, data: &[u8]) {
+    stdin.write(&[data.len() as u32]);
+    for x in data.iter().take(data.len()) {
+        stdin.write(x);
+    }
+}
+
 pub trait ProverSerialize {
     fn write(&self, stdin: &mut SP1Stdin);
 }
@@ -86,12 +94,7 @@ impl ProverSerialize for dvt_abi::AbiGeneration {
         }
         write_array_to_prover(stdin, &self.base_hash);
         write_array_to_prover(stdin, &self.partial_pubkey);
-        stdin.write(&(self.message_cleartext.len() as u32));
-
-        for i in 0..self.message_cleartext.len() {
-            stdin.write(&self.message_cleartext[i]);
-        }
-        //stdin.write(self.message_cleartext.as_bytes());
+        write_vec_to_prover(stdin, &self.message_cleartext);
         write_array_to_prover(stdin, &self.message_signature);
     }
 }
@@ -141,11 +144,9 @@ impl ProverSerialize for dvt_abi::AbiBadPartialShareData {
 impl ProverSerialize for dvt_abi::AbiBadEncryptedShare {
     fn write(&self, stdin: &mut SP1Stdin) {
         write_array_to_prover(stdin, &self.sender_pubkey);
-        write_array_to_prover(stdin, &self.receiver_secret_key);
-        stdin.write(&(self.encrypted_message.len() as u32));
-
-        for i in 0..self.encrypted_message.len() {
-            stdin.write(&self.encrypted_message[i]);
-        }
+        write_array_to_prover(stdin, &self.signature);
+        write_array_to_prover(stdin, &self.receiver_pubkey);
+        write_array_to_prover(stdin, &self.receiver_commitment_hash);
+        write_vec_to_prover(stdin, &self.encrypted_message);
     }
 }

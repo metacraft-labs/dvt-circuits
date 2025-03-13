@@ -14,6 +14,10 @@ fn style_error(msg: impl AsRef<str>) -> String {
     format!("❌ {}", msg.as_ref()).red().bold().to_string()
 }
 
+fn style_warning(msg: impl AsRef<str>) -> String {
+    format!("⚠️ {}", msg.as_ref()).yellow().bold().to_string()
+}
+
 fn style_success(msg: impl AsRef<str>) -> String {
     format!("✅ {}", msg.as_ref()).green().bold().to_string()
 }
@@ -239,6 +243,21 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
 }
 
 fn main() {
+    let commit_hash = env!("GIT_COMMIT_HASH");
+    let uncommitted = env!("GIT_UNCOMMITTED");
+    let uncommitted_files = env!("GIT_UNCOMMITTED_FILES");
+
+    println!("🔗 Commit Hash: {}", commit_hash);
+
+    if uncommitted == "true" {
+        println!("{}", style_warning("WARNING:Uncommitted Changes"));
+        if !uncommitted_files.is_empty() {
+            println!("📂 Uncommitted Files in ./create:");
+            for file in uncommitted_files.split(',') {
+                println!("  📄 {}", file);
+            }
+        }
+    }
     let cli = Cli::parse();
     match run(cli) {
         Ok(_) => {}
