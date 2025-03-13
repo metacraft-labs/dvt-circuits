@@ -13,3 +13,6 @@ Cargo.lock
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 elf/
+
+# code generated files
+src/git_info.rs

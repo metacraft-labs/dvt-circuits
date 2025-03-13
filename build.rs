@@ -1,48 +1,55 @@
+use std::fs;
+use std::path::Path;
 use std::process::Command;
 
 fn main() {
-    let commit_output = Command::new("git")
+    let commit_hash = Command::new("git")
         .args(["rev-parse", "HEAD"])
         .output()
-        .unwrap_or_else(|_| {
-            panic!("Failed to execute git. Make sure 'git' is installed and you're in a git repository.")
-        });
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
 
-    let commit_hash = String::from_utf8(commit_output.stdout)
-        .expect("Invalid UTF-8 from git rev-parse HEAD")
-        .trim()
-        .to_string();
-
-    let status_output = Command::new("git")
+    let uncommitted_output = Command::new("git")
         .args(["status", "--porcelain"])
         .output()
-        .unwrap_or_else(|_| panic!("Failed to execute git status. Make sure 'git' is installed."));
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        .unwrap_or_else(|_| "".to_string());
 
-    let status_str = String::from_utf8_lossy(&status_output.stdout);
-    let mut uncommitted_files = Vec::new();
-
-    for line in status_str.lines() {
-        if let Some(file) = line.split_whitespace().nth(1) {
-            if file.starts_with("crates/") {
-                uncommitted_files.push(file.to_string());
+    let uncommitted_files: Vec<String> = uncommitted_output
+        .lines()
+        .filter_map(|line| {
+            let file_path = line[3..].to_string(); // Remove git status prefixes (e.g., " M filename.txt")
+            if file_path.starts_with("crates/") {
+                Some(file_path)
+            } else {
+                None
             }
-        }
-    }
+        })
+        .collect();
 
-    let changed = if uncommitted_files.is_empty() {
-        "false"
-    } else {
-        "true"
-    };
+    let uncommitted_flag = !uncommitted_files.is_empty();
 
-    println!("cargo:rustc-env=GIT_COMMIT_HASH={}", commit_hash);
-    println!("cargo:rustc-env=GIT_UNCOMMITTED={}", changed);
-
-    let uncommitted_files_str = uncommitted_files.join(",");
-    println!(
-        "cargo:rustc-env=GIT_UNCOMMITTED_FILES={}",
-        uncommitted_files_str
+    // Convert the file list into a Rust array representation
+    let uncommitted_files_array = format!(
+        "[{}]",
+        uncommitted_files
+            .iter()
+            .map(|file| format!(r#""{}""#, file))
+            .collect::<Vec<String>>()
+            .join(", ")
     );
+
+    let git_info_content = format!(
+        r#"#[rustfmt::skip]
+pub const COMMIT_HASH: &str = "{commit_hash}";
+pub const UNCOMMITTED_CHANGES: bool = {uncommitted_flag};
+pub const UNCOMMITTED_FILES: &[&str] = &{uncommitted_files_array};
+"#
+    );
+
+    let dest_path = Path::new("./src/git_info.rs");
+
+    fs::write(dest_path, git_info_content).expect("Failed to write git_info.rs");
 
     sp1_build::build_program("crates/share_exchange_prove");
     sp1_build::build_program("crates/finalization_prove");

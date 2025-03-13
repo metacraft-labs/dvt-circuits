@@ -9,6 +9,7 @@ use jsonschema::JSONSchema;
 use serde_json::Value;
 use sp1_sdk::{include_elf, proof::SP1ProofWithPublicValues, utils, ProverClient, SP1Stdin};
 use std::{error::Error, process};
+pub mod git_info;
 
 fn style_error(msg: impl AsRef<str>) -> String {
     format!("❌ {}", msg.as_ref()).red().bold().to_string()
@@ -243,19 +244,17 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
 }
 
 fn main() {
-    let commit_hash = env!("GIT_COMMIT_HASH");
-    let uncommitted = env!("GIT_UNCOMMITTED");
-    let uncommitted_files = env!("GIT_UNCOMMITTED_FILES");
+    let commit_hash = git_info::COMMIT_HASH;
+    let uncommitted = git_info::UNCOMMITTED_CHANGES;
+    let uncommitted_files = git_info::UNCOMMITTED_FILES;
 
     println!("🔗 Commit Hash: {}", commit_hash);
 
-    if uncommitted == "true" {
+    if uncommitted {
         println!("{}", style_warning("WARNING:Uncommitted Changes"));
-        if !uncommitted_files.is_empty() {
-            println!("📂 Uncommitted Files in ./create:");
-            for file in uncommitted_files.split(',') {
-                println!("  📄 {}", file);
-            }
+        println!("📂 Uncommitted Files in ./create:");
+        for file in uncommitted_files {
+            println!("  📄 {}", file);
         }
     }
     let cli = Cli::parse();
