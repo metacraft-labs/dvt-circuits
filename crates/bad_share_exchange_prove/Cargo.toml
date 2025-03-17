@@ -1,5 +1,5 @@
 [package]
-name = "share_exchange_prove"
+name = "bad_share_exchange_prove"
 version = "1.1.0"
 edition = "2021"
 publish = false

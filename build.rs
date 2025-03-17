@@ -51,7 +51,7 @@ pub const UNCOMMITTED_FILES: &[&str] = &{uncommitted_files_array};
 
     fs::write(dest_path, git_info_content).expect("Failed to write git_info.rs");
 
-    sp1_build::build_program("crates/share_exchange_prove");
+    sp1_build::build_program("crates/bad_share_exchange_prove");
     sp1_build::build_program("crates/finalization_prove");
     sp1_build::build_program("crates/bad_parial_key_prove");
     sp1_build::build_program("crates/bad_encrypted_share_prove");
