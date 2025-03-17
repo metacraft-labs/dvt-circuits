@@ -29,7 +29,7 @@ fn style_cyan(msg: impl AsRef<str>) -> String {
 
 #[derive(Debug, Clone, ValueEnum)]
 enum CircuitType {
-    Share,
+    BadShare,
     Finalization,
     BadPartialKey,
     BadEncryptedShare,
@@ -80,7 +80,7 @@ struct Cli {
     command: Commands,
 }
 
-pub const SHARE_PROVER_ELF: &[u8] = include_elf!("share_exchange_prove");
+pub const SHARE_PROVER_ELF: &[u8] = include_elf!("bad_share_exchange_prove");
 pub const FINALE_PROVER_ELF: &[u8] = include_elf!("finalization_prove");
 pub const BAD_PARTIAL_KEY_PROVER_ELF: &[u8] = include_elf!("bad_parial_key_prove");
 pub const BAD_ENCRYPTED_SHARE_PROVER_ELF: &[u8] = include_elf!("bad_encrypted_share_prove");
@@ -98,7 +98,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
             validate_if_needed(json_schema.as_deref(), &input_file)?;
 
             match subtype {
-                CircuitType::Share => {
+                CircuitType::BadShare => {
                     let dvt_data = read_data_from_json_file::<DvtBlsSharedData>(&input_file)
                         .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
                     let abi_data: AbiBlsSharedData = dvt_data
@@ -167,7 +167,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
             validate_if_needed(json_schema.as_deref(), &input_file)?;
 
             match subtype {
-                CircuitType::Share => {
+                CircuitType::BadShare => {
                     let dvt_data = read_data_from_json_file::<DvtBlsSharedData>(&input_file)
                         .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
                     let abi_data: AbiBlsSharedData = dvt_data
@@ -225,7 +225,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
             subtype,
             show_report,
         } => match subtype {
-            CircuitType::Share => {
+            CircuitType::BadShare => {
                 verify_proof(SHARE_PROVER_ELF, &proof_file, show_report)?;
             }
             CircuitType::Finalization => {

@@ -1,6 +1,6 @@
 {
     "params": {
-        "cmd_extra_args": "execute --type=share --json-schema-file=spec/share_exchange_spec.json",
+        "cmd_extra_args": "execute --type=bad-share --json-schema-file=spec/share_exchange_spec.json",
         "expected_exit_code": 0
     },
     "scenario": {
