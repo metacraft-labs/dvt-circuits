@@ -1,4 +1,4 @@
 {
-    "cmd_extra_args": "execute --type=bad-encrypted-share --json-schema-file=spec/bad_partial_key_spec.json",
+    "cmd_extra_args": "execute --type=bad-encrypted-share --json-schema-file=spec/bad_encrypted_partial_key_spec.json",
     "expected_exit_code": 1
 }
