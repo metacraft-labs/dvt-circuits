@@ -1,0 +1,48 @@
+{
+  "params": {
+    "cmd_extra_args": "execute --type=finalization --json-schema-file=spec/finalization_spec.json",
+    "expected_exit_code": 1
+  },
+  "scenario": {
+    "settings": {
+      "gen_id": "8d17e61db7b774d16cb165662a8c2c4a",
+      "n": 3,
+      "k": 2
+    },
+    "generations": [
+      {
+        "base_pubkeys": [
+          "a6602d395e8fbf67269a41a208613e42795c9e66d365dd87287162e31484cb0f84efaec36220714022bbd296e5357bc9",
+          "8a64f40fe2e976d01227b4085b42421c8c4c3549f539b8eb7ecad8833b5855ae1994126bfb9b6ff56a5f131f407462d8"
+        ],
+        "base_hash": "2cc6b806b3215210122226629b0d0872484d43754668bb90c4d1b5e401377890",
+        "partial_pubkey": "b6ac8c28c5f722cf095f83005bbfb403364231cd202e0793bfb69cd631e5cbc8d337a8dbe8dcb30615eea0a9dca98746",
+        "message_cleartext": "Sign with new partial key",
+        "message_signature": "b296d5309403d063f172cf97811f19cd1404f7b05f956d7b7ceaed375db1d3e6dc1b9f0544591bb562d25f7596abc9bd123b115dec61673a483ac4e5127959ee9886b94caa78c4c0393537d7ce5c203837f0073a14edde71f27b39af8794eb7b"
+      },
+      {
+        "base_pubkeys": [
+          "b66242ce81deb25d60560c0c8f7e35e4ed9760887d7e877461bc2ded650c7d2728bd0f657baa071842c3ea744e7696f3",
+          "b23adea88f2fec6830a1f5ffb50015d01cd78eb6fe4f13981d23e4b8e2d2b2735729e79acbcecff74cb1571f529fbbce"
+        ],
+        "base_hash": "6568dd285df3bf23d7697217273249841707951516e67c4954243d5d80ad23da",
+        "partial_pubkey": "b8a48c016637c63e746be3d360abc7873463f9cea529be2647a9e2961fa45e9334f668c63be069f59dafb1f085a0be4e",
+        "message_cleartext": "Sign with new partial key",
+        "message_signature": "8c0cb5c32e8e11f3e4f21895714ad1e5b00bfc9787b5dbeb4356111a8001728f7e5c7fdce8098fd7839766d7f848010507cc9336748665c51606f2a6817907aae47708300e5e11aefad2df227faf656c28b9e9805f37db3af1f50e4b609d4d23"
+      },
+      {
+        "base_pubkeys": [
+          "954be017bd960e3208f1661c1e5f372d5d5ec0955d3db00b14438d9b90ebc3f6a67853ee82e29bd5325888cc73e1ed67",
+          "8dc5afd8b102920503849b4a89165d75741163c690f2557d77fd3bad75a142f00197aa9f5fbde27926374bd0b29a7c96"
+        ],
+        "base_hash": "bdf6925e576dc08431ac6a590a64263c5ac3d8e5bd88113ac5777762fabd71a6",
+        "partial_pubkey": "ab0da9f51cf2ecf856e25286622dec8021020a7a75f37dd15210c5cb45be67f8b6ef3db785fd3520e22f7729788a5da3",
+        "message_cleartext": "Sign with new partial key",
+        "message_signature": "8b033b10c5046c47e8eeabe79cf4eb599bc5fe6bc5c7141483e00a571ad037558b064dc8075bf06d5b952dac72777c4a04e0b6b843066af8e9226d0710e26206f8811fd1ab11d11f3eb524f253ecc97f3c92a6899198a88436947f0209c3da4b"
+      }
+    ],
+    "aggregate_pubkey": "a028de2876b1f1b52b6aac69c7edf8de70a77927b58ffccf28eb70f540457afb85cf2d99be07deeeb2b41f51331de2bd",
+    "message_cleartext": "Sign with new partial key",
+    "message_signature": "8665d924397037638b6a39629caf555c39f80b7aa698c13424a1a67b34f47476182b853a8f18bf117bc9c41ef1d645800c63ebe45139d6e9fd2711bdda543a5af3385aed6d844db05a31de86109b390cbb13c08f7342dc09a6156d277a714e34"
+  }
+}
