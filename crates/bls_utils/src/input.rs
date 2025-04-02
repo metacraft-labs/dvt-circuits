@@ -74,12 +74,6 @@ fn read_settings_from_host() -> dvt_abi::AbiGenerateSettings {
     }
 }
 
-fn read_verification_vector_from_host(k: u8) -> dvt_abi::AbiVerificationVector {
-    dvt_abi::AbiVerificationVector {
-        pubkeys: read_vec_from_host(k),
-    }
-}
-
 fn read_commitment_from_host() -> dvt_abi::AbiCommitment {
     dvt_abi::AbiCommitment {
         hash: read_hash_from_host(),
@@ -91,18 +85,16 @@ fn read_commitment_from_host() -> dvt_abi::AbiCommitment {
 fn read_initial_commitment_from_host() -> dvt_abi::AbiInitialCommitment {
     let hash = read_hash_from_host();
     let settings = read_settings_from_host();
-    let verification_vector = read_verification_vector_from_host(settings.k);
+    let base_pubkeys = read_vec_from_host(settings.k);
     dvt_abi::AbiInitialCommitment {
         hash: hash,
         settings: settings,
-        verification_vector: verification_vector,
+        base_pubkeys: base_pubkeys,
     }
 }
 
 fn read_exchange_secret_from_host() -> dvt_abi::AbiExchangedSecret {
     dvt_abi::AbiExchangedSecret {
-        src_id: read_bls_id_from_host(),
-        dst_id: read_bls_id_from_host(),
         secret: read_secret_from_host(),
         dst_base_hash: read_hash_from_host(),
     }
@@ -207,11 +199,17 @@ pub fn read_bad_encrypted_share() -> dvt_abi::AbiBadEncryptedShare {
     let receiver_pubkey = read_pubkey_from_host();
     let receiver_commitment_hash = read_hash_from_host();
     let encrypted_message = read_byte_vec_from_host();
+    let settings = read_settings_from_host();
+    let base_hashes = read_vec_from_host::<dvt_abi::SHA256>(settings.n);
+    let base_pubkeys = read_vec_from_host::<dvt_abi::BLSPubkey>(settings.k);
     dvt_abi::AbiBadEncryptedShare {
         sender_pubkey: sender_pubkey,
         signature: signature,
         receiver_pubkey: receiver_pubkey,
         receiver_commitment_hash: receiver_commitment_hash,
         encrypted_message: encrypted_message,
+        settings: settings,
+        base_hashes: base_hashes,
+        base_pubkeys: base_pubkeys,
     }
 }
