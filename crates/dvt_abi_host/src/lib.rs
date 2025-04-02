@@ -24,26 +24,18 @@ impl ProverSerialize for dvt_abi::AbiGenerateSettings {
     }
 }
 
-impl ProverSerialize for dvt_abi::AbiVerificationVector {
-    fn write(&self, stdin: &mut SP1Stdin) {
-        for i in 0..self.pubkeys.len() {
-            write_array_to_prover(stdin, &self.pubkeys[i]);
-        }
-    }
-}
-
 impl ProverSerialize for dvt_abi::AbiInitialCommitment {
     fn write(&self, stdin: &mut SP1Stdin) {
         write_array_to_prover(stdin, &self.hash);
         self.settings.write(stdin);
-        self.verification_vector.write(stdin);
+        for i in 0..self.base_pubkeys.len() {
+            write_array_to_prover(stdin, &self.base_pubkeys[i]);
+        }
     }
 }
 
 impl ProverSerialize for dvt_abi::AbiExchangedSecret {
     fn write(&self, stdin: &mut SP1Stdin) {
-        write_array_to_prover(stdin, &self.src_id);
-        write_array_to_prover(stdin, &self.dst_id);
         write_array_to_prover(stdin, &self.secret);
         write_array_to_prover(stdin, &self.dst_base_hash);
     }
@@ -148,5 +140,11 @@ impl ProverSerialize for dvt_abi::AbiBadEncryptedShare {
         write_array_to_prover(stdin, &self.receiver_pubkey);
         write_array_to_prover(stdin, &self.receiver_commitment_hash);
         write_vec_to_prover(stdin, &self.encrypted_message);
+        self.settings.write(stdin);
+        self.base_hashes.write(stdin);
+        assert!(self.base_pubkeys.len() == self.settings.k as usize);
+        for i in 0..self.base_pubkeys.len() {
+            write_array_to_prover(stdin, &self.base_pubkeys[i]);
+        }
     }
 }

@@ -10,6 +10,7 @@ use chacha20::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
 use chacha20::{ChaCha20, Key, Nonce};
 
 use bls12_381::{self, G1Affine, G1Projective, G2Affine};
+use dvt_abi::{AbiInitialCommitment, BLS_ID_SIZE};
 use sha2::{Digest, Sha256};
 use std::fmt;
 
@@ -25,7 +26,7 @@ fn new_chacha20_cipher(base: &[u8], key_salt: &str, nonce_salt: &str) -> ChaCha2
     nonce_hasher.update(base);
     //nonce_hasher.update(nonce_salt.as_bytes());
     let nonce_hash = nonce_hasher.finalize();
-    println!("nonce_hash: {}", hex::encode(nonce_hash));
+    println!("nonce_hash: {}", hex::encode(&nonce_hash[..12]));
     let nonce = Nonce::from_slice(&nonce_hash[..12]);
 
     ChaCha20::new(key, nonce)
@@ -125,8 +126,6 @@ impl BinaryStream {
     pub fn read_byte_array<const N: usize>(&mut self) -> Result<[u8; N], ReadError> {
         if self.bytes_left() < N {
             // Slice a portion of the data that remains (up to N or the end)
-            let end = (self.pos + N).min(self.data.len());
-
             return Err(ReadError::NotEnoughBytes {
                 pos: self.pos,
                 needed: N,
@@ -153,104 +152,73 @@ impl BinaryStream {
         println!("Read bytes: {}", hex::encode(bytes));
         Ok(T::from_bytes(bytes))
     }
+
+    pub fn finalize(&mut self) {
+        assert!(self.pos == self.data.len());
+    }
 }
 
-fn parse_message(msg: &[u8]) -> Result<dvt_abi::AbiBlsSharedData, String> {
+fn parse_message(
+    msg: &[u8],
+    settings: dvt_abi::AbiGenerateSettings,
+    base_pubkeys: Vec<dvt_abi::BLSPubkey>,
+    commitment_hashes: Vec<dvt_abi::SHA256>,
+    receiver_commitment_hash: dvt_abi::SHA256,
+) -> Result<dvt_abi::AbiBlsSharedData, String> {
     let mut stream = BinaryStream {
         data: msg.to_vec(),
         pos: 0,
     };
-    let msg_type = stream
-        .read::<u8>()
-        .map_err(|e| format!("Invalid message type: {e}"))?;
 
-    let hash_count = stream
+    let gen_id = stream
+        .read_byte_array::<{ dvt_abi::GEN_ID_SIZE }>()
+        .map_err(|e| format!("Invalid gen_id: {e}"))?;
+    let _msg_type = stream
         .read::<u8>()
-        .map_err(|e| format!("Invalid hash count: {e}"))?;
-    let mut commitment_hashes = Vec::new();
-    for i in 0..hash_count {
-        commitment_hashes.push(
-            stream
-                .read_byte_array::<{ dvt_abi::SHA256_SIZE }>()
-                .map_err(|e| format!("Invalid commitment hash (at index {i}): {e}"))?,
-        );
-    }
+        .map_err(|e| format!("Invalid msg_type: {e}"))?;
+    let secret = stream
+        .read_byte_array::<{ dvt_abi::BLS_SECRET_SIZE }>()
+        .map_err(|e| format!("Invalid secret: {e}"))?;
+    let commitment_hash = stream
+        .read_byte_array::<{ dvt_abi::SHA256_SIZE }>()
+        .map_err(|e| format!("Invalid commitment_hash: {e}"))?;
+    let commitment_pubkey = stream
+        .read_byte_array::<{ dvt_abi::BLS_PUBKEY_SIZE }>()
+        .map_err(|e| format!("Invalid commitment_pubkey: {e}"))?;
+    let commitment_signature = stream
+        .read_byte_array::<{ dvt_abi::BLS_SIGNATURE_SIZE }>()
+        .map_err(|e| format!("Invalid commitment_signature: {e}"))?;
 
-    let n = stream.read::<u8>().map_err(|e| format!("Invalid n: {e}"))?;
-    let k = stream.read::<u8>().map_err(|e| format!("Invalid k: {e}"))?;
-    let settings = dvt_abi::AbiGenerateSettings {
-        n: n,
-        k: k,
-        gen_id: stream
-            .read_byte_array::<{ dvt_abi::GEN_ID_SIZE }>()
-            .map_err(|e| format!("Invalid gen_id: {e}"))?,
+    stream.finalize();
+
+    let mut initial_commitment = dvt_abi::AbiInitialCommitment {
+        settings: settings,
+        base_pubkeys: base_pubkeys,
+        hash: [0u8; dvt_abi::SHA256_SIZE],
     };
 
-    let k = stream.read::<u8>().map_err(|e| format!("Invalid k: {e}"))?;
+    let initial_commitment_hash = bls_utils::compute_initial_commitment_hash(&initial_commitment);
 
-    let mut base_pubkeys = Vec::new();
-    for i in 0..k {
-        base_pubkeys.push(
-            stream
-                .read_byte_array::<{ dvt_abi::BLS_PUBKEY_SIZE }>()
-                .map_err(|e| format!("Invalid base_pubkey (at index {i}): {e}"))?,
-        );
-        println!("base_pubkey: {}", i);
-    }
-
-    let settings_hash_1 = stream
-        .read_byte_array::<{ dvt_abi::SHA256_SIZE }>()
-        .map_err(|e| format!("Invalid settings hash 1: {e}"))?;
-
-    let commitment_shash_2 = stream
-        .read_byte_array::<{ dvt_abi::SHA256_SIZE }>()
-        .map_err(|e| format!("Invalid commitment_shash_2: {e}"))?;
-
-    let shared_secret = stream
-        .read_byte_array::<{ dvt_abi::BLS_SECRET_SIZE }>()
-        .map_err(|e| format!("Invalid shared_secret: {e}"))?;
-    let receiver_base_hash = stream
-        .read_byte_array::<{ dvt_abi::SHA256_SIZE }>()
-        .map_err(|e| format!("Invalid receiver_base_hash: {e}"))?;
-    println!("receiver_base_hash: {}", hex::encode(receiver_base_hash));
-    let sender_share_id = stream
-        .read_byte_array::<{ dvt_abi::BLS_ID_SIZE }>()
-        .map_err(|e| format!("Invalid sender_share_id: {e}"))?;
-    let receiver_share_id = stream
-        .read_byte_array::<{ dvt_abi::BLS_ID_SIZE }>()
-        .map_err(|e| format!("Invalid receiver_share_id: {e}"))?;
-
-    let shared_secret_hash = stream
-        .read_byte_array::<{ dvt_abi::SHA256_SIZE }>()
-        .map_err(|e| format!("Invalid shared_secret_hash: {e}"))?;
-    let sender_pubkey = stream
-        .read_byte_array::<{ dvt_abi::BLS_PUBKEY_SIZE }>()
-        .map_err(|e| format!("Invalid sender_pubkey: {e}"))?;
-    let signature = stream
-        .read_byte_array::<{ dvt_abi::BLS_SIGNATURE_SIZE }>()
-        .map_err(|e| format!("Invalid signature: {e}"))?;
-
+    initial_commitment.hash = initial_commitment_hash.clone();
+    // println!("gen_id {}", hex::encode(&gen_id));
+    // println!("_msg_type {}", hex::encode(&[_msg_type]));
+    // println!("secret {}", hex::encode(&secret));
+    // println!("commitment_hash {}", hex::encode(&commitment_hash));
+    // println!("commitment_pubkey {}", hex::encode(&commitment_pubkey));
+    // println!("commitment_signature {}", hex::encode(&commitment_signature));
     Ok(dvt_abi::AbiBlsSharedData {
         verification_hashes: commitment_hashes,
-        initial_commitment: dvt_abi::AbiInitialCommitment {
-            settings: settings,
-            verification_vector: dvt_abi::AbiVerificationVector {
-                pubkeys: base_pubkeys,
-            },
-            hash: settings_hash_1,
-        },
+        initial_commitment: initial_commitment,
         seeds_exchange_commitment: dvt_abi::AbiSeedExchangeCommitment {
-            initial_commitment_hash: commitment_shash_2,
+            initial_commitment_hash: initial_commitment_hash,
             shared_secret: dvt_abi::AbiExchangedSecret {
-                src_id: sender_share_id,
-                dst_id: receiver_share_id,
-                secret: shared_secret,
-                dst_base_hash: receiver_base_hash,
+                secret: secret,
+                dst_base_hash: receiver_commitment_hash,
             },
             commitment: dvt_abi::AbiCommitment {
-                hash: shared_secret_hash,
-                pubkey: sender_pubkey,
-                signature: signature,
+                hash: commitment_hash,
+                pubkey: commitment_pubkey,
+                signature: commitment_signature,
             },
         },
     })
@@ -258,8 +226,6 @@ fn parse_message(msg: &[u8]) -> Result<dvt_abi::AbiBlsSharedData, String> {
 
 pub fn main() {
     let data = bls_utils::read_bad_encrypted_share();
-    // println!("{:?}", data.signature);
-    // println!("{:?}", data.receiver_pubkey);
 
     let pk = G1Affine::from_compressed(&data.sender_pubkey)
         .into_option()
@@ -270,19 +236,18 @@ pub fn main() {
 
     let p = bls12_381::pairing(&pk, &sig);
 
-    //print!("{:?}", hex::encode(p.to_bytes()));
-
-    println!("pk:: {:?}", hex::encode(pk.to_compressed()));
-    println!("sig:: {:?}", hex::encode(sig.to_compressed()));
-    println!("pairing:: {:?}", hex::encode(p.to_bytes_raw()));
-
     let mut cipher2 = new_chacha20_cipher(p.to_bytes_raw().as_slice(), "", "");
 
     let mut descrypted = data.encrypted_message.clone();
     cipher2.apply_keystream(&mut descrypted);
     println!("decrypted {:?}", hex::encode(&descrypted));
-
-    let data = match parse_message(&descrypted) {
+    let data = match parse_message(
+        &descrypted,
+        data.settings,
+        data.base_pubkeys,
+        data.base_hashes,
+        data.receiver_commitment_hash,
+    ) {
         Ok(data) => data,
         Err(e) => {
             println!("Error: {}", e);
@@ -305,8 +270,13 @@ pub fn main() {
 
     if !found {
         panic!(
-            "The seed exchange commitment is not part of the verification hashes {} \n",
-            hex::encode(data.initial_commitment.hash)
+            "The seed exchange commitment hash {} is not part of the verification hashes  {} \n",
+            hex::encode(data.initial_commitment.hash),
+            data.verification_hashes
+                .iter()
+                .map(hex::encode)
+                .collect::<Vec<String>>()
+                .join(", ")
         );
     }
 

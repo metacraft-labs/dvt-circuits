@@ -145,7 +145,7 @@ fn uncompress_bls_pubkey_slow(
         Some(key) => Ok(key.to_uncompressed()),
         None => Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            "Invalid public key",
+            format!("Invalid public key {}", hex::encode(&pubkey)),
         ))),
     };
 }
@@ -158,7 +158,7 @@ fn to_g1_affine_slow(pubkey: &dvt_abi::BLSPubkey) -> Result<G1Affine, Box<dyn st
         Some(key) => Ok(key),
         None => Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            "Invalid public key",
+            format!("Invalid public key {}", hex::encode(&pubkey)),
         ))),
     }
 }
@@ -259,7 +259,7 @@ impl PublicKey {
             Some(g1) => Ok(PublicKey { key: g1 }),
             None => Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                "Invalid public key",
+                format!("Invalid public key {}", hex::encode(&bytes)),
             ))),
         }
     }

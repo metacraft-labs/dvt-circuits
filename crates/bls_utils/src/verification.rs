@@ -1,6 +1,6 @@
 use bls12_381::{G1Affine, G1Projective, G2Affine, Scalar};
 
-use dvt_abi::{self};
+use dvt_abi::{self, BLSPubkey, SHA256};
 use sha2::{Digest, Sha256};
 
 use crate::bls::{
@@ -40,8 +40,6 @@ pub fn compute_seed_exchange_hash(
     hasher.update(&seed_exchange.initial_commitment_hash);
     hasher.update(&sk.to_bytes());
     hasher.update(&shared_secret.dst_base_hash);
-    hasher.update(&shared_secret.src_id);
-    hasher.update(&shared_secret.dst_id);
 
     hasher
         .finalize()
@@ -76,7 +74,7 @@ pub fn verify_seed_exchange_commitment(
     let commitment = &seed_exchange.commitment;
     let shared_secret = &seed_exchange.shared_secret;
 
-    let pubkey = PublicKey::from_bytes(&commitment.pubkey)?;
+    let pubkey = PublicKey::from_bytes_safe(&commitment.pubkey)?;
 
     let signature = Signature::from_bytes(&commitment.signature)?;
 
@@ -127,25 +125,15 @@ pub fn verify_seed_exchange_commitment(
 
     // F(0) is always reserved for the aggregated key so we need to start from 1
     let dest_id = dest_id + 1;
-    let test_id = bls_id_from_u32(dest_id);
+    let id = bls_id_from_u32(dest_id);
 
     let cfst = initial_commitment
-        .verification_vector
-        .pubkeys
+        .base_pubkeys
         .iter()
         .into_iter()
         .map(to_g1_affine)
         .collect();
 
-    let le_bytes = seed_exchange.shared_secret.dst_id.clone();
-
-    let id = Scalar::from_bytes(&le_bytes).expect("Invalid id");
-
-    if id != test_id {
-        return Err(Box::new(VerificationErrors::SlashableError(String::from(
-            "Invalid field seeds_exchange_commitment.shared_secret.dst_id\n",
-        ))));
-    }
     let eval_result = evaluate_polynomial(cfst, id);
 
     if !sk.to_public_key().eq(&eval_result) {
@@ -159,17 +147,33 @@ pub fn verify_seed_exchange_commitment(
     Ok(())
 }
 
-pub fn verify_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitment) -> bool {
+pub fn compute_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitment) -> SHA256 {
     let mut hasher = Sha256::new();
 
+    hasher.update(commitment.settings.gen_id);
     hasher.update([commitment.settings.n]);
     hasher.update([commitment.settings.k]);
-    hasher.update(commitment.settings.gen_id);
-    for pubkey in &commitment.verification_vector.pubkeys {
+
+    let len = commitment.base_pubkeys.len() as u8;
+    hasher.update([len]);
+
+    for pubkey in &commitment.base_pubkeys {
         hasher.update(&pubkey);
     }
-    let computed_hash = hasher.finalize().to_vec();
-    computed_hash == commitment.hash
+    hasher
+        .finalize()
+        .to_vec()
+        .try_into()
+        .expect("Vec must be exactly 32 bytes")
+}
+
+pub fn verify_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitment) -> bool {
+    print!(
+        "commitment.hash: {:?}, calced: {:?}\n",
+        hex::encode(commitment.hash),
+        hex::encode(compute_initial_commitment_hash(commitment))
+    );
+    compute_initial_commitment_hash(commitment) == commitment.hash
 }
 
 fn generate_initial_commitment(
@@ -183,21 +187,18 @@ fn generate_initial_commitment(
             k: settings.k,
             gen_id: settings.gen_id,
         },
-        verification_vector: dvt_abi::AbiVerificationVector {
-            pubkeys: generation.verification_vector.clone(),
-        },
+        base_pubkeys: generation.verification_vector.clone(),
     }
 }
 
 fn agg_coefficients(
-    verification_vectors: &Vec<dvt_abi::AbiVerificationVector>,
+    verification_vectors: &Vec<Vec<BLSPubkey>>,
     ids: &Vec<Scalar>,
 ) -> Vec<G1Affine> {
     let verification_vectors: Vec<Vec<G1Projective>> = verification_vectors
         .iter()
         .map(|vector| -> Vec<G1Projective> {
             vector
-                .pubkeys
                 .iter()
                 .map(|pk: &[u8; 48]| to_g1_projection(&pk))
                 .collect()
@@ -221,7 +222,7 @@ fn agg_coefficients(
 }
 
 fn compute_agg_key_from_dvt(
-    verification_vectors: &Vec<dvt_abi::AbiVerificationVector>,
+    verification_vectors: &Vec<Vec<BLSPubkey>>,
     ids: &Vec<Scalar>,
 ) -> Result<PublicKey, Box<dyn std::error::Error>> {
     let coefficients = agg_coefficients(&verification_vectors, &ids);
@@ -289,13 +290,9 @@ pub fn verify_generations(
     let mut sorted = generations.to_vec();
     sorted.sort_by(|a, b| a.base_hash.cmp(&b.base_hash));
 
-    let verification_vectors: Vec<dvt_abi::AbiVerificationVector> = sorted
+    let verification_vectors: Vec<Vec<BLSPubkey>> = sorted
         .iter()
-        .map(|generation| -> dvt_abi::AbiVerificationVector {
-            dvt_abi::AbiVerificationVector {
-                pubkeys: generation.verification_vector.clone(),
-            }
-        })
+        .map(|generation| -> Vec<BLSPubkey> { generation.verification_vector.clone() })
         .collect();
 
     let ids: Vec<Scalar> = sorted
@@ -346,9 +343,12 @@ pub fn compute_partial_share_hash(
     partial_share: &dvt_abi::AbiBadPartialShare,
 ) -> Vec<u8> {
     let mut hasher = Sha256::new();
+    hasher.update(&settings.gen_id);
     hasher.update(&[settings.n]);
     hasher.update(&[settings.k]);
-    hasher.update(&settings.gen_id);
+
+    let len = partial_share.data.verification_vector.len() as u8;
+    hasher.update([len]);
 
     for pubkey in &partial_share.data.verification_vector {
         hasher.update(&pubkey);
@@ -356,6 +356,9 @@ pub fn compute_partial_share_hash(
 
     hasher.update(&partial_share.data.base_hash);
     hasher.update(&partial_share.data.partial_pubkey);
+
+    let len = partial_share.data.message_cleartext.len() as u8;
+    hasher.update([len]);
     hasher.update(&partial_share.data.message_cleartext);
     hasher.update(&partial_share.data.message_signature);
 
@@ -372,9 +375,7 @@ pub fn prove_wrong_final_key_generation(
         let ok = verify_initial_commitment_hash(&dvt_abi::AbiInitialCommitment {
             hash: generation.base_hash,
             settings: data.settings.clone(),
-            verification_vector: dvt_abi::AbiVerificationVector {
-                pubkeys: generation.verification_vector.clone(),
-            },
+            base_pubkeys: generation.verification_vector.clone(),
         });
         if !ok {
             return Err(Box::new(VerificationErrors::UnslashableError(format!(
@@ -482,11 +483,7 @@ fn compute_pubkey_share(
 ) -> PublicKey {
     let verification_vectors = sorted
         .iter()
-        .map(|generation| -> dvt_abi::AbiVerificationVector {
-            dvt_abi::AbiVerificationVector {
-                pubkeys: generation.verification_vector.clone(),
-            }
-        })
+        .map(|generation| -> Vec<BLSPubkey> { generation.verification_vector.clone() })
         .collect();
 
     let ids = sorted
