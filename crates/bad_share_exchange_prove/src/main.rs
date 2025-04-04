@@ -4,10 +4,10 @@ sp1_zkvm::entrypoint!(main);
 
 use core::panic;
 
-use bls_utils::{self, VerificationErrors};
+use dvt_common::{self, VerificationErrors};
 
 pub fn main() {
-    let data = bls_utils::read_bls_shared_data_from_host();
+    let data = dvt_common::read_bls_shared_data_from_host();
 
     if data.verification_hashes.len() != data.initial_commitment.settings.n as usize {
         panic!("The number of verification hashes does not match the number of keys\n");
@@ -26,11 +26,11 @@ pub fn main() {
         panic!("The seed exchange commitment is not part of the verification hashes\n");
     }
 
-    if !bls_utils::verify_initial_commitment_hash(&data.initial_commitment) {
+    if !dvt_common::verify_initial_commitment_hash(&data.initial_commitment) {
         panic!("Unsalshable error while verifying commitment hash\n");
     }
 
-    match bls_utils::verify_seed_exchange_commitment(
+    match dvt_common::verify_seed_exchange_commitment(
         &data.verification_hashes,
         &data.seeds_exchange_commitment,
         &data.initial_commitment,

@@ -11,7 +11,7 @@ rand = "0.8.5"
 group = "0.13.0"
 serde = "1.0.216"
 dvt_abi = { path = "../dvt_abi" }
-bls_utils = { path = "../bls_utils" }
+dvt_common = { path = "../dvt_common" }
 bls12_381 = { git = "https://github.com/NDobrev/bls12_381", branch="fp-to-bytes", features = ["experimental"]}
 hex = "0.4"
 chacha20 = "0.9.1"

@@ -26,6 +26,6 @@ test:
 		echo "Error: run_tests.sh not found in repository root."; \
 		exit 1; \
 	fi
-	@cd "$(REPO_ROOT)/crates/bls_utils" && cargo test
+	@cd "$(REPO_ROOT)/crates/dvt_common" && cargo test
 	@cd "$(REPO_ROOT)" && $(TEST_SCRIPT) $(ARGS)
 	
