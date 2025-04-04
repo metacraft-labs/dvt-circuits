@@ -2,12 +2,12 @@
 
 sp1_zkvm::entrypoint!(main);
 
-use bls_utils;
+use dvt_common;
 
 pub fn main() {
-    let data = bls_utils::read_finalization_data();
+    let data = dvt_common::read_finalization_data();
     let ok =
-        bls_utils::verify_generations(&data.generations, &data.settings, &data.aggregate_pubkey);
+        dvt_common::verify_generations(&data.generations, &data.settings, &data.aggregate_pubkey);
     if ok.is_err() {
         panic!("{:?}", ok.unwrap_err().to_string());
     }

@@ -3,10 +3,13 @@ use bls12_381::{G1Affine, G1Projective, G2Affine, Scalar};
 use dvt_abi::{self, BLSPubkey, SHA256};
 use sha2::{Digest, Sha256};
 
-use crate::bls::{
-    bls_id_from_u32, evaluate_polynomial, evaluate_polynomial_g1_projection, hash_message_to_g2,
-    lagrange_interpolation, to_g1_affine, to_g1_projection, PublicKey, SecretKey, Signature,
+use crate::dvt_math::{
+    evaluate_polynomial, evaluate_polynomial_g1_projection, lagrange_interpolation,
 };
+
+use crate::bls_common::{bls_id_from_u32, hash_message_to_g2, to_g1_affine, to_g1_projection};
+
+use crate::bls_keys::*;
 
 #[derive(Debug)]
 pub enum VerificationErrors {
@@ -370,7 +373,6 @@ pub fn prove_wrong_final_key_generation(
 ) -> Result<(), Box<dyn std::error::Error>> {
     verify_commitment_signature(data)?;
     // Verify that the generation base hashes are correct
-
     for (_, generation) in data.generations.iter().enumerate() {
         let ok = verify_initial_commitment_hash(&dvt_abi::AbiInitialCommitment {
             hash: generation.base_hash,
@@ -444,8 +446,8 @@ fn verify_commitment_signature(
     }
     let key = PublicKey::from_bytes(&data.bad_partial.commitment.pubkey)?;
     let sig = Signature::from_bytes(&data.bad_partial.commitment.signature)?;
-    // Verify that the commitment made by the participant has the correct hash and signature
 
+    // Verify that the commitment made by the participant has the correct hash and signature
     if !key.verify_signature(&data.bad_partial.commitment.hash, &sig) {
         return Err(Box::new(VerificationErrors::UnslashableError(format!(
             "Invalid commitment signature {} and key {}",

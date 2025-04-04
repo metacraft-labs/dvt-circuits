@@ -4,11 +4,11 @@ sp1_zkvm::entrypoint!(main);
 
 use core::panic;
 
-use bls_utils::{self, VerificationErrors};
+use dvt_common::{self, VerificationErrors};
 
 pub fn main() {
-    let data = bls_utils::read_bad_partial_share_data();
-    match bls_utils::prove_wrong_final_key_generation(&data) {
+    let data = dvt_common::read_bad_partial_share_data();
+    match dvt_common::prove_wrong_final_key_generation(&data) {
         Ok(()) => {
             panic!("Can't prove wrong doing");
         }

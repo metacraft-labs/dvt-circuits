@@ -4,17 +4,16 @@ sp1_zkvm::entrypoint!(main);
 
 use std::result;
 
-use bls_utils::{self, bls, VerificationErrors};
+use dvt_common::{self, VerificationErrors};
 
-use chacha20::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
+use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20::{ChaCha20, Key, Nonce};
 
-use bls12_381::{self, G1Affine, G1Projective, G2Affine};
-use dvt_abi::{AbiInitialCommitment, BLS_ID_SIZE};
+use bls12_381::{self, G1Affine, G2Affine};
 use sha2::{Digest, Sha256};
 use std::fmt;
 
-fn new_chacha20_cipher(base: &[u8], key_salt: &str, nonce_salt: &str) -> ChaCha20 {
+fn new_chacha20_cipher(base: &[u8], _key_salt: &str, _nonce_salt: &str) -> ChaCha20 {
     let mut key_hasher = Sha256::new();
     key_hasher.update(base);
     //key_hasher.update(key_salt.as_bytes());
@@ -197,7 +196,7 @@ fn parse_message(
         hash: [0u8; dvt_abi::SHA256_SIZE],
     };
 
-    let initial_commitment_hash = bls_utils::compute_initial_commitment_hash(&initial_commitment);
+    let initial_commitment_hash = dvt_common::compute_initial_commitment_hash(&initial_commitment);
 
     initial_commitment.hash = initial_commitment_hash.clone();
     // println!("gen_id {}", hex::encode(&gen_id));
@@ -225,7 +224,7 @@ fn parse_message(
 }
 
 pub fn main() {
-    let data = bls_utils::read_bad_encrypted_share();
+    let data = dvt_common::read_bad_encrypted_share();
 
     let pk = G1Affine::from_compressed(&data.sender_pubkey)
         .into_option()
@@ -251,6 +250,7 @@ pub fn main() {
         Ok(data) => data,
         Err(e) => {
             println!("Error: {}", e);
+            sp1_zkvm::io::commit(&data.encrypted_message);
             return;
         }
     };
@@ -280,11 +280,11 @@ pub fn main() {
         );
     }
 
-    if !bls_utils::verify_initial_commitment_hash(&data.initial_commitment) {
+    if !dvt_common::verify_initial_commitment_hash(&data.initial_commitment) {
         panic!("Unsalshable error while verifying commitment hash\n");
     }
 
-    match bls_utils::verify_seed_exchange_commitment(
+    match dvt_common::verify_seed_exchange_commitment(
         &data.verification_hashes,
         &data.seeds_exchange_commitment,
         &data.initial_commitment,
