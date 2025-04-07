@@ -32,28 +32,20 @@
                         "gen_id"
                     ]
                 },
-                "vvector": {
-                    "type": "object",
-                    "properties": {
-                        "base_pubkeys": {
+                "base_pubkeys": {
                             "type": "array",
                             "items": {
                                 "type": "string",
                                 "pattern": "^[A-f0-9]{96}$"
                             }
-                        }
-                    },
-                    "required": [
-                        "base_pubkeys"
-                    ]
-                },
+                        },
                 "hash": {
                     "type": "string"
                 }
             },
             "required": [
                 "settings",
-                "vvector",
+                "base_pubkeys",
                 "hash"
             ]
         },
@@ -74,21 +66,11 @@
                         "dst_base_hash": {
                             "type": "string",
                             "pattern": "^[A-f0-9]{64}$"
-                        },
-                        "src_share_id": {
-                            "type": "string",
-                            "pattern": "^[A-f0-9]{64}$"
-                        },
-                        "dst_share_id": {
-                            "type": "string",
-                            "pattern": "^[A-f0-9]{64}$"
                         }
                     },
                     "required": [
                         "shared_secret",
-                        "dst_base_hash",
-                        "src_share_id",
-                        "dst_share_id"
+                        "dst_base_hash"
                     ]
                 },
                 "commitment": {
