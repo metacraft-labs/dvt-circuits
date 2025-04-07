@@ -14,7 +14,7 @@
         "type": "string",
         "pattern": "^[A-f0-9]*$"
       },
-      "reseiver_base_secrets_commitment_hash": {
+      "receiver_base_secrets_commitment_hash": {
         "type": "string",
         "pattern": "^[A-f0-9]{64}$"
       },
@@ -27,7 +27,7 @@
       "sender_pubkey",
       "receiver_signature",
       "encrypted_data",
-      "reseiver_base_secrets_commitment_hash",
+      "receiver_base_secrets_commitment_hash",
       "receiver_pubkey"
     ]
   }
