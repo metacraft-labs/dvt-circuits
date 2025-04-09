@@ -1,3 +1,7 @@
+use crypto::{
+    BLSIdRaw, BLSPubkeyRaw, BLSSecretRaw, BLSSignatureRaw, SHA256Raw, BLS_ID_SIZE, BLS_PUBKEY_SIZE,
+    BLS_SECRET_SIZE, BLS_SIGNATURE_SIZE, GEN_ID_SIZE, SHA256_SIZE,
+};
 use dvt_abi::{self};
 use sp1_zkvm;
 
@@ -13,15 +17,15 @@ trait ReadFromHost: Sized {
     fn read_from_host() -> Self;
 }
 
-impl ReadFromHost for dvt_abi::BLSPubkey {
-    fn read_from_host() -> dvt_abi::BLSPubkey {
-        read_byte_array_from_host::<{ dvt_abi::BLS_PUBKEY_SIZE }>()
+impl ReadFromHost for BLSPubkeyRaw {
+    fn read_from_host() -> BLSPubkeyRaw {
+        read_byte_array_from_host::<{ BLS_PUBKEY_SIZE }>()
     }
 }
 
-impl ReadFromHost for dvt_abi::SHA256 {
-    fn read_from_host() -> dvt_abi::SHA256 {
-        read_byte_array_from_host::<{ dvt_abi::SHA256_SIZE }>()
+impl ReadFromHost for SHA256Raw {
+    fn read_from_host() -> SHA256Raw {
+        read_byte_array_from_host::<{ SHA256_SIZE }>()
     }
 }
 
@@ -33,28 +37,28 @@ fn read_vec_from_host<T: ReadFromHost>(cnt: u8) -> Vec<T> {
     result
 }
 
-fn read_gen_id_from_host() -> [u8; dvt_abi::GEN_ID_SIZE] {
-    read_byte_array_from_host::<{ dvt_abi::GEN_ID_SIZE }>()
+fn read_gen_id_from_host() -> [u8; GEN_ID_SIZE] {
+    read_byte_array_from_host::<{ GEN_ID_SIZE }>()
 }
 
-fn read_pubkey_from_host() -> dvt_abi::BLSPubkey {
-    read_byte_array_from_host::<{ dvt_abi::BLS_PUBKEY_SIZE }>()
+fn read_pubkey_from_host() -> BLSPubkeyRaw {
+    read_byte_array_from_host::<{ BLS_PUBKEY_SIZE }>()
 }
 
-fn read_signature_from_host() -> dvt_abi::BLSSignature {
-    read_byte_array_from_host::<{ dvt_abi::BLS_SIGNATURE_SIZE }>()
+fn read_signature_from_host() -> BLSSignatureRaw {
+    read_byte_array_from_host::<{ BLS_SIGNATURE_SIZE }>()
 }
 
-fn read_secret_from_host() -> dvt_abi::BLSSecret {
-    read_byte_array_from_host::<{ dvt_abi::BLS_SECRET_SIZE }>()
+fn read_secret_from_host() -> BLSSecretRaw {
+    read_byte_array_from_host::<{ BLS_SECRET_SIZE }>()
 }
 
-fn read_bls_id_from_host() -> dvt_abi::BLSId {
-    read_byte_array_from_host::<{ dvt_abi::BLS_ID_SIZE }>()
+fn read_bls_id_from_host() -> BLSIdRaw {
+    read_byte_array_from_host::<{ BLS_ID_SIZE }>()
 }
 
-fn read_hash_from_host() -> dvt_abi::SHA256 {
-    read_byte_array_from_host::<{ dvt_abi::SHA256_SIZE }>()
+fn read_hash_from_host() -> SHA256Raw {
+    read_byte_array_from_host::<{ SHA256_SIZE }>()
 }
 
 fn read_byte_vec_from_host() -> Vec<u8> {
@@ -200,8 +204,8 @@ pub fn read_bad_encrypted_share() -> dvt_abi::AbiBadEncryptedShare {
     let receiver_commitment_hash = read_hash_from_host();
     let encrypted_message = read_byte_vec_from_host();
     let settings = read_settings_from_host();
-    let base_hashes = read_vec_from_host::<dvt_abi::SHA256>(settings.n);
-    let base_pubkeys = read_vec_from_host::<dvt_abi::BLSPubkey>(settings.k);
+    let base_hashes = read_vec_from_host::<SHA256Raw>(settings.n);
+    let base_pubkeys = read_vec_from_host::<BLSPubkeyRaw>(settings.k);
     dvt_abi::AbiBadEncryptedShare {
         sender_pubkey: sender_pubkey,
         signature: signature,

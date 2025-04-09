@@ -1,15 +1,18 @@
 use bls12_381::{G1Affine, G1Projective, G2Affine, Scalar};
 
-use dvt_abi::{self, BLSPubkey, SHA256};
+use crypto::ByteConvertible;
+use crypto::{
+    BLSPubkeyRaw, BlsPublicKey, BlsSecretKey, BlsSignature, PublicKey, SHA256Raw, SecretKey,
+    Signature,
+};
+use dvt_abi::{self};
 use sha2::{Digest, Sha256};
 
 use crate::dvt_math::{
     evaluate_polynomial, evaluate_polynomial_g1_projection, lagrange_interpolation,
 };
 
-use crate::bls_common::{bls_id_from_u32, hash_message_to_g2, to_g1_affine, to_g1_projection};
-
-use crate::bls_keys::*;
+use crypto::{bls_id_from_u32, hash_message_to_g2, to_g1_affine, to_g1_projection};
 
 #[derive(Debug)]
 pub enum VerificationErrors {
@@ -32,13 +35,11 @@ impl std::error::Error for VerificationErrors {
     }
 }
 
-pub fn compute_seed_exchange_hash(
-    seed_exchange: &dvt_abi::AbiSeedExchangeCommitment,
-) -> dvt_abi::SHA256 {
+pub fn compute_seed_exchange_hash(seed_exchange: &dvt_abi::AbiSeedExchangeCommitment) -> SHA256Raw {
     let shared_secret = &seed_exchange.shared_secret;
     let mut hasher = Sha256::new();
 
-    let sk = SecretKey::from_bytes(&shared_secret.secret).expect("Invalid secret key");
+    let sk = BlsSecretKey::from_bytes(&shared_secret.secret).expect("Invalid secret key");
 
     hasher.update(&seed_exchange.initial_commitment_hash);
     hasher.update(&sk.to_bytes());
@@ -53,7 +54,7 @@ pub fn compute_seed_exchange_hash(
 
 pub fn get_index_in_commitments(
     commitments: &dvt_abi::AbiVerificationHashes,
-    destination_id: &dvt_abi::SHA256,
+    destination_id: &SHA256Raw,
 ) -> Result<u32, Box<dyn std::error::Error>> {
     let mut sorted = commitments.clone();
     sorted.sort();
@@ -77,9 +78,9 @@ pub fn verify_seed_exchange_commitment(
     let commitment = &seed_exchange.commitment;
     let shared_secret = &seed_exchange.shared_secret;
 
-    let pubkey = PublicKey::from_bytes_safe(&commitment.pubkey)?;
+    let pubkey = BlsPublicKey::from_bytes_safe(&commitment.pubkey)?;
 
-    let signature = Signature::from_bytes(&commitment.signature)?;
+    let signature = BlsSignature::from_bytes(&commitment.signature)?;
 
     if !pubkey.verify_signature(&commitment.hash, &signature) {
         return Err(Box::new(VerificationErrors::UnslashableError(format!(
@@ -93,7 +94,7 @@ pub fn verify_seed_exchange_commitment(
         ))));
     }
 
-    let sk = match SecretKey::from_bytes(&shared_secret.secret) {
+    let sk = match BlsSecretKey::from_bytes(&shared_secret.secret) {
         Ok(sk) => sk,
         Err(e) => {
             return Err(Box::new(VerificationErrors::SlashableError(format!(
@@ -139,7 +140,7 @@ pub fn verify_seed_exchange_commitment(
 
     let eval_result = evaluate_polynomial(cfst, id);
 
-    if !sk.to_public_key().eq(&eval_result) {
+    if !sk.to_public_key().equal(&eval_result) {
         return Err(Box::new(VerificationErrors::SlashableError(format!(
             "Bad secret field : Expected secret with public key: {:?}, got public key: {:?}\n",
             hex::encode(eval_result.to_compressed()),
@@ -150,7 +151,7 @@ pub fn verify_seed_exchange_commitment(
     Ok(())
 }
 
-pub fn compute_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitment) -> SHA256 {
+pub fn compute_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitment) -> SHA256Raw {
     let mut hasher = Sha256::new();
 
     hasher.update(commitment.settings.gen_id);
@@ -195,7 +196,7 @@ fn generate_initial_commitment(
 }
 
 fn agg_coefficients(
-    verification_vectors: &Vec<Vec<BLSPubkey>>,
+    verification_vectors: &Vec<Vec<BLSPubkeyRaw>>,
     ids: &Vec<Scalar>,
 ) -> Vec<G1Affine> {
     let verification_vectors: Vec<Vec<G1Projective>> = verification_vectors
@@ -225,12 +226,12 @@ fn agg_coefficients(
 }
 
 fn compute_agg_key_from_dvt(
-    verification_vectors: &Vec<Vec<BLSPubkey>>,
+    verification_vectors: &Vec<Vec<BLSPubkeyRaw>>,
     ids: &Vec<Scalar>,
-) -> Result<PublicKey, Box<dyn std::error::Error>> {
+) -> Result<BlsPublicKey, Box<dyn std::error::Error>> {
     let coefficients = agg_coefficients(&verification_vectors, &ids);
     let agg_key = lagrange_interpolation(&coefficients, &ids)?;
-    return Ok(PublicKey::from_g1(&agg_key));
+    return Ok(BlsPublicKey::from_g1(&agg_key));
 }
 
 pub fn verify_generation_hashes(
@@ -255,8 +256,8 @@ pub fn verify_generation_hashes(
     let hashed_msg = G2Affine::from(&hash_message_to_g2(&generations[0].message_cleartext));
 
     for (_, generation) in generations.iter().enumerate() {
-        let signature = Signature::from_bytes(&generation.message_signature)?;
-        let key = PublicKey::from_bytes(&generation.partial_pubkey)?;
+        let signature = BlsSignature::from_bytes(&generation.message_signature)?;
+        let key = BlsPublicKey::from_bytes(&generation.partial_pubkey)?;
         if !key.verify_signature_precomputed_hash(&hashed_msg, &signature) {
             return Err(Box::new(VerificationErrors::UnslashableError(format!(
                 "Invalid signature {}",
@@ -279,7 +280,7 @@ pub fn verify_generation_hashes(
 pub fn verify_generations(
     generations: &[dvt_abi::AbiGeneration],
     settings: &dvt_abi::AbiGenerateSettings,
-    agg_key: &dvt_abi::BLSPubkey,
+    agg_key: &BLSPubkeyRaw,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if generations.len() != settings.n as usize {
         return Err(Box::new(std::io::Error::new(
@@ -293,9 +294,9 @@ pub fn verify_generations(
     let mut sorted = generations.to_vec();
     sorted.sort_by(|a, b| a.base_hash.cmp(&b.base_hash));
 
-    let verification_vectors: Vec<Vec<BLSPubkey>> = sorted
+    let verification_vectors: Vec<Vec<BLSPubkeyRaw>> = sorted
         .iter()
-        .map(|generation| -> Vec<BLSPubkey> { generation.verification_vector.clone() })
+        .map(|generation| -> Vec<BLSPubkeyRaw> { generation.verification_vector.clone() })
         .collect();
 
     let ids: Vec<Scalar> = sorted
@@ -305,7 +306,7 @@ pub fn verify_generations(
         .collect();
 
     let computed_key = compute_agg_key_from_dvt(&verification_vectors, &ids)?;
-    let agg_key = PublicKey::from_bytes(agg_key)?;
+    let agg_key = BlsPublicKey::from_bytes(agg_key)?;
 
     if computed_key != agg_key {
         return Err(Box::new(std::io::Error::new(
@@ -326,7 +327,7 @@ pub fn verify_generations(
         })
         .collect();
 
-    let computed_key = PublicKey::from_g1(&lagrange_interpolation(&partial_keys, &ids)?);
+    let computed_key = BlsPublicKey::from_g1(&lagrange_interpolation(&partial_keys, &ids)?);
 
     if computed_key != agg_key {
         return Err(Box::new(std::io::Error::new(
@@ -393,7 +394,7 @@ pub fn prove_wrong_final_key_generation(
     let perpetrator_index =
         find_perpetrator_index(&data.bad_partial.data.base_hash, &sorted_generation)?;
 
-    let key = match PublicKey::from_bytes_safe(&data.bad_partial.data.partial_pubkey) {
+    let key = match BlsPublicKey::from_bytes_safe(&data.bad_partial.data.partial_pubkey) {
         Ok(key) => key,
         Err(e) => {
             return Err(Box::new(VerificationErrors::SlashableError(format!(
@@ -403,7 +404,7 @@ pub fn prove_wrong_final_key_generation(
         }
     };
 
-    let sig = match Signature::from_bytes_safe(&data.bad_partial.data.message_signature) {
+    let sig = match BlsSignature::from_bytes_safe(&data.bad_partial.data.message_signature) {
         Ok(sig) => sig,
         Err(e) => {
             return Err(Box::new(VerificationErrors::SlashableError(format!(
@@ -444,8 +445,8 @@ fn verify_commitment_signature(
             hex::encode(&computed_hash)
         ))));
     }
-    let key = PublicKey::from_bytes(&data.bad_partial.commitment.pubkey)?;
-    let sig = Signature::from_bytes(&data.bad_partial.commitment.signature)?;
+    let key = BlsPublicKey::from_bytes(&data.bad_partial.commitment.pubkey)?;
+    let sig = BlsSignature::from_bytes(&data.bad_partial.commitment.signature)?;
 
     // Verify that the commitment made by the participant has the correct hash and signature
     if !key.verify_signature(&data.bad_partial.commitment.hash, &sig) {
@@ -458,7 +459,7 @@ fn verify_commitment_signature(
 }
 
 fn find_perpetrator_index(
-    perpetrador_hash: &dvt_abi::SHA256,
+    perpetrador_hash: &SHA256Raw,
     sorted_generation: &Vec<dvt_abi::AbiBadPartialShareGeneration>,
 ) -> Result<usize, Box<dyn std::error::Error>> {
     let mut perpetrator_index = None;
@@ -482,10 +483,10 @@ fn find_perpetrator_index(
 fn compute_pubkey_share(
     sorted: Vec<dvt_abi::AbiBadPartialShareGeneration>,
     perpetrator_bls_id: Scalar,
-) -> PublicKey {
+) -> BlsPublicKey {
     let verification_vectors = sorted
         .iter()
-        .map(|generation| -> Vec<BLSPubkey> { generation.verification_vector.clone() })
+        .map(|generation| -> Vec<BLSPubkeyRaw> { generation.verification_vector.clone() })
         .collect();
 
     let ids = sorted
@@ -496,5 +497,5 @@ fn compute_pubkey_share(
 
     let computed_keys = agg_coefficients(&verification_vectors, &ids);
     let expected_key = evaluate_polynomial(computed_keys, perpetrator_bls_id);
-    PublicKey::from_g1(&expected_key)
+    BlsPublicKey::from_g1(&expected_key)
 }
