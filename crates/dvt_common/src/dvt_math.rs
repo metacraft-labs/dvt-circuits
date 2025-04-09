@@ -1,7 +1,5 @@
 use bls12_381::{G1Affine, G1Projective, G2Affine, Scalar};
 
-use crate::bls_common::{bls_id_from_u32, bls_verify};
-
 // https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
 //
 // In Shamir's secret sharing, a secret is encoded as a n-degree polynomial
@@ -101,48 +99,17 @@ pub fn lagrange_interpolation(
 
 #[cfg(test)]
 mod tests {
-    use dvt_abi::{BLSPubkey, BLSSignature};
+    use bls12_381::*;
+    use crypto::*;
 
     use super::*;
-
-    #[test]
-    fn test_bls_id_from_u32() {
-        let mut bytes: [u8; 32] = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0,
-        ];
-        assert_eq!(bls_id_from_u32(0), Scalar::from_bytes(&bytes).unwrap());
-        bytes[0] = 1;
-        assert_eq!(bls_id_from_u32(1), Scalar::from_bytes(&bytes).unwrap());
-        bytes[0] = 2;
-        assert_eq!(bls_id_from_u32(2), Scalar::from_bytes(&bytes).unwrap());
-    }
-
-    #[test]
-    fn test_bls_id_from_u32_to_hex() {
-        let id = bls_id_from_u32(0);
-        assert_eq!(
-            hex::encode(id.to_bytes()),
-            "0000000000000000000000000000000000000000000000000000000000000000"
-        );
-        let id = bls_id_from_u32(1);
-        assert_eq!(
-            hex::encode(id.to_bytes()),
-            "0100000000000000000000000000000000000000000000000000000000000000"
-        );
-        let id = bls_id_from_u32(2);
-        assert_eq!(
-            hex::encode(id.to_bytes()),
-            "0200000000000000000000000000000000000000000000000000000000000000"
-        );
-    }
 
     #[test]
     fn test_verify_signature() {
         let data = hex::decode("2f901d5cec8722e44afd59e94d0a56bf1506a72a0a60709920aad714d1a2ece0")
             .unwrap();
-        let pk: BLSPubkey = hex::decode("90346f9c5f3c09d96ea02acd0220daa8459f03866ed938c798e3716e42c7e033c9a7ef66a10f83af06d5c00b508c6d0f").unwrap().try_into().unwrap();
-        let sig:BLSSignature = hex::decode("a9c08eff13742f78f1e5929888f223b5b5b12b4836b5417c5a135cf24f4e2a4c66a6cdef91be3098b7e7a6a63903b61302e3cf2b8653101da245cf01a8d82b25debe7b18a3a2eb1778f8628fd2c59c8687f6e048a31250fbc2804c20043b8443").unwrap().try_into().unwrap();
+        let pk: BLSPubkeyRaw = hex::decode("90346f9c5f3c09d96ea02acd0220daa8459f03866ed938c798e3716e42c7e033c9a7ef66a10f83af06d5c00b508c6d0f").unwrap().try_into().unwrap();
+        let sig:BLSSignatureRaw = hex::decode("a9c08eff13742f78f1e5929888f223b5b5b12b4836b5417c5a135cf24f4e2a4c66a6cdef91be3098b7e7a6a63903b61302e3cf2b8653101da245cf01a8d82b25debe7b18a3a2eb1778f8628fd2c59c8687f6e048a31250fbc2804c20043b8443").unwrap().try_into().unwrap();
         let pk = G1Affine::from_compressed(&pk).into_option().unwrap();
         let sig = G2Affine::from_compressed(&sig).into_option().unwrap();
         assert!(bls_verify(&pk, &sig, &data));
@@ -150,11 +117,11 @@ mod tests {
         let invalida_data = hex::decode("00").unwrap();
         assert!(!bls_verify(&pk, &sig, &invalida_data));
 
-        let wrong_pk: BLSPubkey = hex::decode("98876a81fe982573ec5f986956bf9bf0bcb5349d95c3c8da0aefd05a49fea6215f59b0696f906547baed90ab245804e8").unwrap().try_into().unwrap();
+        let wrong_pk: BLSPubkeyRaw = hex::decode("98876a81fe982573ec5f986956bf9bf0bcb5349d95c3c8da0aefd05a49fea6215f59b0696f906547baed90ab245804e8").unwrap().try_into().unwrap();
         let wrong_pk = G1Affine::from_compressed(&wrong_pk).into_option().unwrap();
         assert!(!bls_verify(&wrong_pk, &sig, &data));
 
-        let bad_sig: BLSSignature = hex::decode("999e7b24bee2587d687e8f358ed10627ef57ec54935bd7a500bbbb18a57e7aa21b800f8b1f487a980d7c93918fdbd8020b66ce9a9e5788a4826e610ac937d8c2ce0ad9c0ee9a5732cf73052493e9a500cc5100a15bdbf9e5b79104db52dbf07c").unwrap().try_into().unwrap();
+        let bad_sig: BLSSignatureRaw = hex::decode("999e7b24bee2587d687e8f358ed10627ef57ec54935bd7a500bbbb18a57e7aa21b800f8b1f487a980d7c93918fdbd8020b66ce9a9e5788a4826e610ac937d8c2ce0ad9c0ee9a5732cf73052493e9a500cc5100a15bdbf9e5b79104db52dbf07c").unwrap().try_into().unwrap();
         let bad_sig = G2Affine::from_compressed(&bad_sig).into_option().unwrap();
         assert!(!bls_verify(&pk, &bad_sig, &data))
     }
@@ -165,7 +132,7 @@ mod tests {
             "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
             "98876a81fe982573ec5f986956bf9bf0bcb5349d95c3c8da0aefd05a49fea6215f59b0696f906547baed90ab245804e8",
             "ad2c4e5b631fbded449ede4dca2d040b9c7eae58d1e73b3050486c1ba22c15a92d9ff13c05c356f974447e4fca84864a"]
-        .iter().map(|pk| -> BLSPubkey {
+        .iter().map(|pk| -> BLSPubkeyRaw {
             hex::decode(pk).unwrap().try_into().unwrap()
         })
         .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
@@ -185,7 +152,7 @@ mod tests {
             "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
             "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
             "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9"]
-        .iter().map(|pk| -> BLSPubkey {
+        .iter().map(|pk| -> BLSPubkeyRaw {
             hex::decode(pk).unwrap().try_into().unwrap()
         })
         .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
@@ -207,7 +174,7 @@ mod tests {
             "8cbfb6cb7af927cfe5fb17621df7036de539b7ff4aa0620cdc218d6b7fe7f2e714a96bdeddb2a0dc24867a90594427e1",
             "9892b390d9d3000c7bf04763006fbc617b7ba9c261fff35094aec3f43599f2c254ae667d9ba135747309b77cd02f1fbc",
             "b255c8a66fd1a13373537e8a4ba258f4990c141fc3c06daccda0711f5ebaffc092f0e5b0e4454e6344e2f97957be4017"]
-        .iter().map(|pk| -> BLSPubkey {
+        .iter().map(|pk| -> BLSPubkeyRaw {
             hex::decode(pk).unwrap().try_into().unwrap()
         })
         .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
@@ -236,7 +203,7 @@ mod tests {
             "8cbfb6cb7af927cfe5fb17621df7036de539b7ff4aa0620cdc218d6b7fe7f2e714a96bdeddb2a0dc24867a90594427e1",
             "9892b390d9d3000c7bf04763006fbc617b7ba9c261fff35094aec3f43599f2c254ae667d9ba135747309b77cd02f1fbc",
             ]
-        .iter().map(|pk| -> BLSPubkey {
+        .iter().map(|pk| -> BLSPubkeyRaw {
             hex::decode(pk).unwrap().try_into().unwrap()
         })
         .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
@@ -264,7 +231,7 @@ mod tests {
             "8cbfb6cb7af927cfe5fb17621df7036de539b7ff4aa0620cdc218d6b7fe7f2e714a96bdeddb2a0dc24867a90594427e1",
             "9892b390d9d3000c7bf04763006fbc617b7ba9c261fff35094aec3f43599f2c254ae667d9ba135747309b77cd02f1fbc",
             "b255c8a66fd1a13373537e8a4ba258f4990c141fc3c06daccda0711f5ebaffc092f0e5b0e4454e6344e2f97957be4017"]
-        .iter().map(|pk| -> BLSPubkey {
+        .iter().map(|pk| -> BLSPubkeyRaw {
             hex::decode(pk).unwrap().try_into().unwrap()
         })
         .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
@@ -292,7 +259,7 @@ mod tests {
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903"]
-        .iter().map(|pk| -> BLSPubkey {
+        .iter().map(|pk| -> BLSPubkeyRaw {
             hex::decode(pk).unwrap().try_into().unwrap()
         })
         .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();

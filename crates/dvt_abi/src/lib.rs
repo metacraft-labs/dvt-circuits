@@ -1,3 +1,4 @@
+use crypto::*;
 use hex::decode;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
@@ -6,22 +7,6 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use validator::Validate;
-
-/// ---------------------------------------------------------------------------
-/// Constants & Type Aliases
-/// ---------------------------------------------------------------------------
-pub const BLS_SIGNATURE_SIZE: usize = 96;
-pub const BLS_PUBKEY_SIZE: usize = 48;
-pub const BLS_SECRET_SIZE: usize = 32;
-pub const BLS_ID_SIZE: usize = 32;
-pub const GEN_ID_SIZE: usize = 16;
-pub const SHA256_SIZE: usize = 32;
-
-pub type BLSPubkey = [u8; BLS_PUBKEY_SIZE];
-pub type BLSSecret = [u8; BLS_SECRET_SIZE];
-pub type BLSId = [u8; BLS_ID_SIZE];
-pub type BLSSignature = [u8; BLS_SIGNATURE_SIZE];
-pub type SHA256 = [u8; SHA256_SIZE];
 
 /// ---------------------------------------------------------------------------
 /// DVT Data Structures (input side)
@@ -150,31 +135,31 @@ pub struct AbiGenerateSettings {
     pub gen_id: [u8; GEN_ID_SIZE],
 }
 
-pub type AbiVerificationHashes = Vec<SHA256>;
+pub type AbiVerificationHashes = Vec<SHA256Raw>;
 
 #[derive(Debug)]
 pub struct AbiInitialCommitment {
-    pub hash: SHA256,
+    pub hash: SHA256Raw,
     pub settings: AbiGenerateSettings,
-    pub base_pubkeys: Vec<BLSPubkey>,
+    pub base_pubkeys: Vec<BLSPubkeyRaw>,
 }
 
 #[derive(Debug)]
 pub struct AbiExchangedSecret {
-    pub dst_base_hash: SHA256,
-    pub secret: BLSSecret,
+    pub dst_base_hash: SHA256Raw,
+    pub secret: BLSSecretRaw,
 }
 
 #[derive(Debug)]
 pub struct AbiCommitment {
-    pub hash: SHA256,
-    pub pubkey: BLSPubkey,
-    pub signature: BLSSignature,
+    pub hash: SHA256Raw,
+    pub pubkey: BLSPubkeyRaw,
+    pub signature: BLSSignatureRaw,
 }
 
 #[derive(Debug)]
 pub struct AbiSeedExchangeCommitment {
-    pub initial_commitment_hash: SHA256,
+    pub initial_commitment_hash: SHA256Raw,
     pub shared_secret: AbiExchangedSecret,
     pub commitment: AbiCommitment,
 }
@@ -188,24 +173,24 @@ pub struct AbiBlsSharedData {
 
 #[derive(Debug, Clone)]
 pub struct AbiGeneration {
-    pub verification_vector: Vec<BLSPubkey>,
-    pub base_hash: SHA256,
-    pub partial_pubkey: BLSPubkey,
+    pub verification_vector: Vec<BLSPubkeyRaw>,
+    pub base_hash: SHA256Raw,
+    pub partial_pubkey: BLSPubkeyRaw,
     pub message_cleartext: Vec<u8>,
-    pub message_signature: BLSSignature,
+    pub message_signature: BLSSignatureRaw,
 }
 
 #[derive(Debug)]
 pub struct AbiFinalizationData {
     pub settings: AbiGenerateSettings,
     pub generations: Vec<AbiGeneration>,
-    pub aggregate_pubkey: BLSPubkey,
+    pub aggregate_pubkey: BLSPubkeyRaw,
 }
 
 #[derive(Debug, Clone)]
 pub struct AbiBadPartialShareGeneration {
-    pub verification_vector: Vec<BLSPubkey>,
-    pub base_hash: SHA256,
+    pub verification_vector: Vec<BLSPubkeyRaw>,
+    pub base_hash: SHA256Raw,
 }
 
 #[derive(Debug)]
@@ -224,14 +209,14 @@ pub struct AbiBadPartialShareData {
 
 #[derive(Debug)]
 pub struct AbiBadEncryptedShare {
-    pub sender_pubkey: BLSPubkey,
-    pub signature: BLSSignature,
-    pub receiver_pubkey: BLSPubkey,
-    pub receiver_commitment_hash: SHA256,
+    pub sender_pubkey: BLSPubkeyRaw,
+    pub signature: BLSSignatureRaw,
+    pub receiver_pubkey: BLSPubkeyRaw,
+    pub receiver_commitment_hash: SHA256Raw,
     pub encrypted_message: Vec<u8>,
     pub settings: AbiGenerateSettings,
     pub base_hashes: AbiVerificationHashes,
-    pub base_pubkeys: Vec<BLSPubkey>,
+    pub base_pubkeys: Vec<BLSPubkeyRaw>,
 }
 
 /// ---------------------------------------------------------------------------

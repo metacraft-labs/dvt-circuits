@@ -10,6 +10,10 @@ use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20::{ChaCha20, Key, Nonce};
 
 use bls12_381::{self, G1Affine, G2Affine};
+use crypto::{
+    BLSPubkeyRaw, SHA256Raw, BLS_PUBKEY_SIZE, BLS_SECRET_SIZE, BLS_SIGNATURE_SIZE, GEN_ID_SIZE,
+    SHA256_SIZE,
+};
 use sha2::{Digest, Sha256};
 use std::fmt;
 
@@ -160,9 +164,9 @@ impl BinaryStream {
 fn parse_message(
     msg: &[u8],
     settings: dvt_abi::AbiGenerateSettings,
-    base_pubkeys: Vec<dvt_abi::BLSPubkey>,
-    commitment_hashes: Vec<dvt_abi::SHA256>,
-    receiver_commitment_hash: dvt_abi::SHA256,
+    base_pubkeys: Vec<BLSPubkeyRaw>,
+    commitment_hashes: Vec<SHA256Raw>,
+    receiver_commitment_hash: SHA256Raw,
 ) -> Result<dvt_abi::AbiBlsSharedData, String> {
     let mut stream = BinaryStream {
         data: msg.to_vec(),
@@ -170,22 +174,22 @@ fn parse_message(
     };
 
     let gen_id = stream
-        .read_byte_array::<{ dvt_abi::GEN_ID_SIZE }>()
+        .read_byte_array::<{ GEN_ID_SIZE }>()
         .map_err(|e| format!("Invalid gen_id: {e}"))?;
     let _msg_type = stream
         .read::<u8>()
         .map_err(|e| format!("Invalid msg_type: {e}"))?;
     let secret = stream
-        .read_byte_array::<{ dvt_abi::BLS_SECRET_SIZE }>()
+        .read_byte_array::<{ BLS_SECRET_SIZE }>()
         .map_err(|e| format!("Invalid secret: {e}"))?;
     let commitment_hash = stream
-        .read_byte_array::<{ dvt_abi::SHA256_SIZE }>()
+        .read_byte_array::<{ SHA256_SIZE }>()
         .map_err(|e| format!("Invalid commitment_hash: {e}"))?;
     let commitment_pubkey = stream
-        .read_byte_array::<{ dvt_abi::BLS_PUBKEY_SIZE }>()
+        .read_byte_array::<{ BLS_PUBKEY_SIZE }>()
         .map_err(|e| format!("Invalid commitment_pubkey: {e}"))?;
     let commitment_signature = stream
-        .read_byte_array::<{ dvt_abi::BLS_SIGNATURE_SIZE }>()
+        .read_byte_array::<{ BLS_SIGNATURE_SIZE }>()
         .map_err(|e| format!("Invalid commitment_signature: {e}"))?;
 
     stream.finalize();
@@ -193,7 +197,7 @@ fn parse_message(
     let mut initial_commitment = dvt_abi::AbiInitialCommitment {
         settings: settings,
         base_pubkeys: base_pubkeys,
-        hash: [0u8; dvt_abi::SHA256_SIZE],
+        hash: [0u8; SHA256_SIZE],
     };
 
     let initial_commitment_hash = dvt_common::compute_initial_commitment_hash(&initial_commitment);

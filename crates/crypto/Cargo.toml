@@ -1,5 +1,5 @@
 [package]
-name = "dvt_common"
+name = "crypto"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
@@ -9,11 +9,7 @@ ff = "0.13.0"
 rand = "0.8.5"
 group = "0.13.0"
 serde = "1.0.216"
-dvt_abi = { path = "../dvt_abi" }
-crypto = { path = "../crypto" }
 hex = "0.4"
-sp1-zkvm = "3.4.0"
-sp1-lib = "3.4.0"
 sha2 = "0.9"
 bls_org = { package = "bls12_381", version = "0.8.0"}
 secp256k1 = { git = "https://github.com/sp1-patches/rust-secp256k1", tag = "secp256k1-v0.29.1-patch-v1"}
