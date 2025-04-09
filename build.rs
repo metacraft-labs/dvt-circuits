@@ -29,21 +29,23 @@ fn main() {
 
     let uncommitted_flag = !uncommitted_files.is_empty();
 
-    // Convert the file list into a Rust array representation
-    let uncommitted_files_array = format!(
-        "[{}]",
-        uncommitted_files
-            .iter()
-            .map(|file| format!(r#""{}""#, file))
-            .collect::<Vec<String>>()
-            .join(", ")
-    );
+    let uncommitted_files_array = uncommitted_files
+        .iter()
+        .map(|file| format!(r#""{}""#, file))
+        .map(|line| format!("    {},\n", line))
+        .collect::<Vec<String>>()
+        .join("");
 
     let git_info_content = format!(
         r#"#[rustfmt::skip]
-pub const COMMIT_HASH: &str = "{commit_hash}";
-pub const UNCOMMITTED_CHANGES: bool = {uncommitted_flag};
-pub const UNCOMMITTED_FILES: &[&str] = &{uncommitted_files_array};
+mod git_info_contents {{
+    pub const COMMIT_HASH: &str = "{commit_hash}";
+    pub const UNCOMMITTED_CHANGES: bool = {uncommitted_flag};
+    pub const UNCOMMITTED_FILES: &[&str] = &[
+        {uncommitted_files_array}
+    ];
+}}
+pub use git_info_contents::*;
 "#
     );
 
