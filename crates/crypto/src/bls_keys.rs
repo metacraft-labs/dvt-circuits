@@ -2,6 +2,7 @@ use crate::bls_common::*;
 use crate::crypto;
 use crate::HexConvertable;
 use bls12_381::{G1Affine, G2Affine, Scalar};
+use serde::{Deserialize, Serialize, Serializer};
 use std::fmt;
 
 pub const BLS_SIGNATURE_SIZE: usize = 96;
@@ -90,6 +91,30 @@ macro_rules! define_raw_type {
             }
         }
 
+        impl Serialize for $name {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                let hex_str = hex::encode(self.0);
+                serializer.serialize_str(&hex_str)
+            }
+        }
+
+        impl<'de> Deserialize<'de> for $name {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                let hex_str = String::deserialize(deserializer)?;
+                let bytes = hex::decode(&hex_str).map_err(serde::de::Error::custom)?;
+                let arr: [u8; $size_const] = bytes
+                    .try_into()
+                    .map_err(|_| serde::de::Error::custom("Invalid {$name} length"))?;
+                Ok($name(arr))
+            }
+        }
+
         impl crypto::HexConvertable for $name {
             fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
                 let bytes: [u8; $size_const] = hex::decode(hex)?.try_into().unwrap();
@@ -106,6 +131,7 @@ macro_rules! define_raw_type {
 #[macro_export]
 macro_rules! for_each_raw_type {
     ($macro:ident) => {
+        $macro!(DvtGenId, GEN_ID_SIZE);
         $macro!(BLSPubkeyRaw, BLS_PUBKEY_SIZE);
         $macro!(BLSSecretRaw, BLS_SECRET_SIZE);
         $macro!(BLSIdRaw, BLS_ID_SIZE);
