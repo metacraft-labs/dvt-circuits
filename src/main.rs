@@ -4,7 +4,6 @@ use dvt_abi::{
     read_data_from_json_file, read_text_file, AbiBadEncryptedShare, AbiBadPartialShareData,
     AbiBlsSharedData, AbiFinalizationData,
 };
-use dvt_abi_host::ProverSerialize;
 use jsonschema::JSONSchema;
 use serde_json::Value;
 use sp1_sdk::{include_elf, proof::SP1ProofWithPublicValues, utils, ProverClient, SP1Stdin};
@@ -245,7 +244,7 @@ fn main() {
 
 fn execute<T>(data: &T, elf: &[u8], show_report: bool) -> Result<(), Box<dyn Error>>
 where
-    T: ProverSerialize + serde::ser::Serialize,
+    T: serde::ser::Serialize,
 {
     let mut stdin = SP1Stdin::new();
     let bin = serde_cbor::to_vec(data).expect("Failed to serialize data");
@@ -269,7 +268,7 @@ fn prove<T>(
     output_file_path: Option<&str>,
 ) -> Result<(), Box<dyn Error>>
 where
-    T: ProverSerialize + serde::ser::Serialize,
+    T: serde::ser::Serialize,
 {
     let mut stdin = SP1Stdin::new();
     let bin = serde_cbor::to_vec(data).expect("Failed to serialize data");
