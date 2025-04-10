@@ -5,12 +5,12 @@ sp1_zkvm::entrypoint!(main);
 use core::panic;
 
 use crypto::*;
-use dvt_abi::AbiBlsSharedData;
+use dvt_abi::BlsSharedData;
 use dvt_common::{self, VerificationErrors};
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dvt_abi::AbiBlsSharedData =
+    let data: dvt_abi::BlsSharedData =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
     if data.verification_hashes.len() != data.initial_commitment.settings.n as usize {

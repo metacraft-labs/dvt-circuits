@@ -35,7 +35,7 @@ impl std::error::Error for VerificationErrors {
     }
 }
 
-pub fn compute_seed_exchange_hash(seed_exchange: &dvt_abi::AbiSeedExchangeCommitment) -> SHA256Raw {
+pub fn compute_seed_exchange_hash(seed_exchange: &dvt_abi::SeedExchangeCommitment) -> SHA256Raw {
     let shared_secret = &seed_exchange.shared_secret;
     let mut hasher = Sha256::new();
 
@@ -72,8 +72,8 @@ pub fn get_index_in_commitments(
 
 pub fn verify_seed_exchange_commitment(
     verification_hashes: &dvt_abi::AbiVerificationHashes,
-    seed_exchange: &dvt_abi::AbiSeedExchangeCommitment,
-    initial_commitment: &dvt_abi::AbiInitialCommitment,
+    seed_exchange: &dvt_abi::SeedExchangeCommitment,
+    initial_commitment: &dvt_abi::InitialCommitment,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let commitment = &seed_exchange.commitment;
     let shared_secret = &seed_exchange.shared_secret;
@@ -151,7 +151,7 @@ pub fn verify_seed_exchange_commitment(
     Ok(())
 }
 
-pub fn compute_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitment) -> SHA256Raw {
+pub fn compute_initial_commitment_hash(commitment: &dvt_abi::InitialCommitment) -> SHA256Raw {
     let mut hasher = Sha256::new();
 
     hasher.update(commitment.settings.gen_id.as_ref());
@@ -171,7 +171,7 @@ pub fn compute_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitmen
         .expect("Vec must be exactly 32 bytes")
 }
 
-pub fn verify_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitment) -> bool {
+pub fn verify_initial_commitment_hash(commitment: &dvt_abi::InitialCommitment) -> bool {
     print!(
         "commitment.hash: {:?}, calced: {:?}\n",
         commitment.hash.to_hex(),
@@ -181,12 +181,12 @@ pub fn verify_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitment
 }
 
 fn generate_initial_commitment(
-    generation: &dvt_abi::AbiGeneration,
-    settings: &dvt_abi::AbiGenerateSettings,
-) -> dvt_abi::AbiInitialCommitment {
-    dvt_abi::AbiInitialCommitment {
+    generation: &dvt_abi::Generation,
+    settings: &dvt_abi::GenerateSettings,
+) -> dvt_abi::InitialCommitment {
+    dvt_abi::InitialCommitment {
         hash: generation.base_hash,
-        settings: dvt_abi::AbiGenerateSettings {
+        settings: dvt_abi::GenerateSettings {
             n: settings.n,
             k: settings.k,
             gen_id: settings.gen_id,
@@ -235,8 +235,8 @@ fn compute_agg_key_from_dvt(
 }
 
 pub fn verify_generation_hashes(
-    generations: &[dvt_abi::AbiGeneration],
-    settings: &dvt_abi::AbiGenerateSettings,
+    generations: &[dvt_abi::Generation],
+    settings: &dvt_abi::GenerateSettings,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if generations.len() == 0 {
         return Err(Box::new(std::io::Error::new(
@@ -280,8 +280,8 @@ pub fn verify_generation_hashes(
 }
 
 pub fn verify_generations(
-    generations: &[dvt_abi::AbiGeneration],
-    settings: &dvt_abi::AbiGenerateSettings,
+    generations: &[dvt_abi::Generation],
+    settings: &dvt_abi::GenerateSettings,
     agg_key: &BLSPubkeyRaw,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if generations.len() != settings.n as usize {
@@ -345,8 +345,8 @@ pub fn verify_generations(
 }
 
 pub fn compute_partial_share_hash(
-    settings: &dvt_abi::AbiGenerateSettings,
-    partial_share: &dvt_abi::AbiBadPartialShare,
+    settings: &dvt_abi::GenerateSettings,
+    partial_share: &dvt_abi::BadPartialShare,
 ) -> Vec<u8> {
     let mut hasher = Sha256::new();
     hasher.update(settings.gen_id.as_ref());
@@ -372,12 +372,12 @@ pub fn compute_partial_share_hash(
 }
 
 pub fn prove_wrong_final_key_generation(
-    data: &dvt_abi::AbiBadPartialShareData,
+    data: &dvt_abi::BadPartialShareData,
 ) -> Result<(), Box<dyn std::error::Error>> {
     verify_commitment_signature(data)?;
     // Verify that the generation base hashes are correct
     for (_, generation) in data.generations.iter().enumerate() {
-        let ok = verify_initial_commitment_hash(&dvt_abi::AbiInitialCommitment {
+        let ok = verify_initial_commitment_hash(&dvt_abi::InitialCommitment {
             hash: generation.base_hash,
             settings: data.settings.clone(),
             base_pubkeys: generation.verification_vector.clone(),
@@ -437,7 +437,7 @@ pub fn prove_wrong_final_key_generation(
 }
 
 fn verify_commitment_signature(
-    data: &dvt_abi::AbiBadPartialShareData,
+    data: &dvt_abi::BadPartialShareData,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let computed_hash = compute_partial_share_hash(&data.settings, &data.bad_partial);
     if computed_hash != data.bad_partial.commitment.hash.as_ref() {
@@ -462,7 +462,7 @@ fn verify_commitment_signature(
 
 fn find_perpetrator_index(
     perpetrador_hash: &SHA256Raw,
-    sorted_generation: &Vec<dvt_abi::AbiBadPartialShareGeneration>,
+    sorted_generation: &Vec<dvt_abi::BadPartialShareGeneration>,
 ) -> Result<usize, Box<dyn std::error::Error>> {
     let mut perpetrator_index = None;
     for i in 0..sorted_generation.len() {
@@ -483,7 +483,7 @@ fn find_perpetrator_index(
 }
 
 fn compute_pubkey_share(
-    sorted: Vec<dvt_abi::AbiBadPartialShareGeneration>,
+    sorted: Vec<dvt_abi::BadPartialShareGeneration>,
     perpetrator_bls_id: Scalar,
 ) -> BlsPublicKey {
     let verification_vectors = sorted

@@ -7,7 +7,7 @@ use std::io::Read;
 use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AbiGenerateSettings {
+pub struct GenerateSettings {
     #[serde(rename = "n")]
     pub n: u8,
     #[serde(rename = "k")]
@@ -19,81 +19,55 @@ pub struct AbiGenerateSettings {
 pub type AbiVerificationHashes = Vec<SHA256Raw>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AbiInitialCommitment {
+pub struct InitialCommitment {
     #[serde(rename = "hash")]
     pub hash: SHA256Raw,
     #[serde(rename = "settings")]
-    pub settings: AbiGenerateSettings,
+    pub settings: GenerateSettings,
     #[serde(rename = "base_pubkeys")]
     pub base_pubkeys: Vec<BLSPubkeyRaw>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AbiExchangedSecret {
+pub struct ExchangedSecret {
     #[serde(rename = "dst_base_hash")]
     pub dst_base_hash: SHA256Raw,
     #[serde(rename = "shared_secret")]
     pub secret: BLSSecretRaw,
 }
 
-pub trait Commitment {
-    type HashRaw: HexConvertable + Sized + AsByteArr;
-    type PubkeyRaw: HexConvertable + Sized + AsByteArr;
-    type SignatureRaw: HexConvertable + Sized + AsByteArr;
-
-    const HASH_SIZE: usize;
-    const PUBKEY_SIZE: usize;
-    const SIGNATURE_SIZE: usize;
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BlsCommitment {}
-
-impl Commitment for BlsCommitment {
-    type HashRaw = SHA256Raw;
-    type PubkeyRaw = BLSPubkeyRaw;
-    type SignatureRaw = BLSSignatureRaw;
-
-    const HASH_SIZE: usize = SHA256_SIZE;
-    const PUBKEY_SIZE: usize = BLS_PUBKEY_SIZE;
-    const SIGNATURE_SIZE: usize = BLS_SIGNATURE_SIZE;
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AbiCommitment<CommitmentType>
-where
-    CommitmentType: Commitment,
-{
+pub struct Commitment {
     #[serde(rename = "hash")]
-    pub hash: CommitmentType::HashRaw,
+    pub hash: SHA256Raw,
     #[serde(rename = "pubkey")]
-    pub pubkey: CommitmentType::PubkeyRaw,
+    pub pubkey: BLSPubkeyRaw,
     #[serde(rename = "signature")]
-    pub signature: CommitmentType::SignatureRaw,
+    pub signature: BLSSignatureRaw,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AbiSeedExchangeCommitment {
+pub struct SeedExchangeCommitment {
     #[serde(rename = "initial_commitment_hash")]
     pub initial_commitment_hash: SHA256Raw,
     #[serde(rename = "ssecret")]
-    pub shared_secret: AbiExchangedSecret,
+    pub shared_secret: ExchangedSecret,
     #[serde(rename = "commitment")]
-    pub commitment: AbiCommitment<BlsCommitment>,
+    pub commitment: Commitment,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AbiBlsSharedData {
+pub struct BlsSharedData {
     #[serde(rename = "base_hashes")]
     pub verification_hashes: AbiVerificationHashes,
     #[serde(rename = "initial_commitment")]
-    pub initial_commitment: AbiInitialCommitment,
+    pub initial_commitment: InitialCommitment,
     #[serde(rename = "seeds_exchange_commitment")]
-    pub seeds_exchange_commitment: AbiSeedExchangeCommitment,
+    pub seeds_exchange_commitment: SeedExchangeCommitment,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AbiGeneration {
+pub struct Generation {
     #[serde(rename = "base_pubkeys")]
     pub verification_vector: Vec<BLSPubkeyRaw>,
     #[serde(rename = "base_hash")]
@@ -107,17 +81,17 @@ pub struct AbiGeneration {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AbiFinalizationData {
+pub struct FinalizationData {
     #[serde(rename = "settings")]
-    pub settings: AbiGenerateSettings,
+    pub settings: GenerateSettings,
     #[serde(rename = "generations")]
-    pub generations: Vec<AbiGeneration>,
+    pub generations: Vec<Generation>,
     #[serde(rename = "aggregate_pubkey")]
     pub aggregate_pubkey: BLSPubkeyRaw,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AbiBadPartialShareGeneration {
+pub struct BadPartialShareGeneration {
     #[serde(rename = "base_pubkeys")]
     pub verification_vector: Vec<BLSPubkeyRaw>,
     #[serde(rename = "base_hash")]
@@ -125,27 +99,27 @@ pub struct AbiBadPartialShareGeneration {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AbiBadPartialShare {
+pub struct BadPartialShare {
     #[serde(rename = "settings")]
-    pub settings: AbiGenerateSettings,
+    pub settings: GenerateSettings,
     #[serde(rename = "data")]
-    pub data: AbiGeneration,
+    pub data: Generation,
     #[serde(rename = "commitment")]
-    pub commitment: AbiCommitment<BlsCommitment>,
+    pub commitment: Commitment,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AbiBadPartialShareData {
+pub struct BadPartialShareData {
     #[serde(rename = "settings")]
-    pub settings: AbiGenerateSettings,
+    pub settings: GenerateSettings,
     #[serde(rename = "generations")]
-    pub generations: Vec<AbiBadPartialShareGeneration>,
+    pub generations: Vec<BadPartialShareGeneration>,
     #[serde(rename = "bad_partial")]
-    pub bad_partial: AbiBadPartialShare,
+    pub bad_partial: BadPartialShare,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AbiBadEncryptedShare {
+pub struct BadEncryptedShare {
     #[serde(rename = "sender_pubkey")]
     pub sender_pubkey: BLSPubkeyRaw,
     #[serde(rename = "receiver_signature")]
@@ -157,7 +131,7 @@ pub struct AbiBadEncryptedShare {
     #[serde(rename = "encrypted_data")]
     pub encrypted_message: String,
     #[serde(rename = "settings")]
-    pub settings: AbiGenerateSettings,
+    pub settings: GenerateSettings,
     #[serde(rename = "base_hashes")]
     pub base_hashes: AbiVerificationHashes,
     #[serde(rename = "base_pubkeys")]
@@ -235,13 +209,13 @@ mod tests {
 
     #[test]
     fn test_seed_echange_commitemnt() {
-        let original = AbiSeedExchangeCommitment {
+        let original = SeedExchangeCommitment {
             initial_commitment_hash: dummy_sha256(),
-            shared_secret: AbiExchangedSecret {
+            shared_secret: ExchangedSecret {
                 secret: dummy_blssecret(),
                 dst_base_hash: dummy_sha256(),
             },
-            commitment: AbiCommitment {
+            commitment: Commitment {
                 hash: dummy_sha256(),
                 pubkey: dummy_blspubkey(),
                 signature: dummy_blssignature(),
@@ -251,7 +225,7 @@ mod tests {
         // ----- JSON round-trip -----
         let json_str = serde_json::to_string(&original).expect("JSON serialization failed");
         println!("{}", json_str);
-        let from_json: AbiSeedExchangeCommitment =
+        let from_json: SeedExchangeCommitment =
             serde_json::from_str(&json_str).expect("JSON deserialization failed");
         assert_eq!(
             &original.initial_commitment_hash.0[..],
@@ -273,7 +247,7 @@ mod tests {
     #[test]
     fn test_abi_commitment_serialization() {
         // Create a dummy instance
-        let original = AbiCommitment::<BlsCommitment> {
+        let original = Commitment::<BlsCommitment> {
             hash: dummy_sha256(),
             pubkey: dummy_blspubkey(),
             signature: dummy_blssignature(),
@@ -281,7 +255,7 @@ mod tests {
 
         // ----- JSON round-trip -----
         let json_str = serde_json::to_string(&original).expect("JSON serialization failed");
-        let from_json: AbiCommitment<BlsCommitment> =
+        let from_json: Commitment<BlsCommitment> =
             serde_json::from_str(&json_str).expect("JSON deserialization failed");
         assert_eq!(
             &original.hash.0[..],
@@ -301,7 +275,7 @@ mod tests {
 
         // ----- CBOR round-trip -----
         let bin = serde_cbor::to_vec(&original).expect("CBOR serialization failed");
-        let from_bin: AbiCommitment<BlsCommitment> =
+        let from_bin: Commitment<BlsCommitment> =
             serde_cbor::from_slice(&bin).expect("CBOR deserialization failed");
         assert_eq!(
             &original.hash.0[..],
