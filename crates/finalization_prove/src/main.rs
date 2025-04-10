@@ -6,7 +6,9 @@ use crypto::*;
 use dvt_common;
 
 pub fn main() {
-    let data = dvt_common::read_finalization_data();
+    let input: Vec<u8> = sp1_zkvm::io::read();
+    let data: dvt_abi::AbiFinalizationData =
+        serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
     let ok =
         dvt_common::verify_generations(&data.generations, &data.settings, &data.aggregate_pubkey);
     if ok.is_err() {

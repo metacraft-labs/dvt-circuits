@@ -5,10 +5,13 @@ sp1_zkvm::entrypoint!(main);
 use core::panic;
 
 use crypto::*;
+use dvt_abi::AbiBlsSharedData;
 use dvt_common::{self, VerificationErrors};
 
 pub fn main() {
-    let data = dvt_common::read_bls_shared_data_from_host();
+    let input: Vec<u8> = sp1_zkvm::io::read();
+    let data: dvt_abi::AbiBlsSharedData =
+        serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
     if data.verification_hashes.len() != data.initial_commitment.settings.n as usize {
         panic!("The number of verification hashes does not match the number of keys\n");
