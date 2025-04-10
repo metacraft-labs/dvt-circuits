@@ -1,9 +1,5 @@
 {
     "rust-analyzer.linkedProjects": [
-        "./crates/bad_share_exchange_prove/Cargo.toml",
-        "./crates/finalization_prove/Cargo.toml",
-        "./crates/dvt_abi_host/Cargo.toml",
-        "./crates/dvt_abi/Cargo.toml",
         "./Cargo.toml"
     ]
 }

@@ -1,11 +1,5 @@
 mod dvt_math;
-mod input;
 mod verification;
-
-pub use input::{
-    read_bad_encrypted_share, read_bad_partial_share_data, read_bls_shared_data_from_host,
-    read_finalization_data,
-};
 
 pub use verification::{
     compute_initial_commitment_hash, prove_wrong_final_key_generation, verify_generations,
