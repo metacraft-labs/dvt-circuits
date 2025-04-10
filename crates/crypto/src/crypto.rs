@@ -17,7 +17,7 @@ pub trait HexConvertable
 where
     Self: Sized,
 {
-    fn from_hex(hex: &String) -> Result<Self, FromHexError>;
+    fn from_hex(hex: &str) -> Result<Self, FromHexError>;
     fn to_hex(&self) -> String;
 }
 
