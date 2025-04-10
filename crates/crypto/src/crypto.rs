@@ -1,3 +1,5 @@
+use hex::FromHexError;
+
 pub trait ByteConvertible {
     type Error;
     type RawBytes;
@@ -10,6 +12,13 @@ pub trait ByteConvertible {
         Self: Sized;
     fn to_hex(&self) -> String;
     fn to_bytes(&self) -> Self::RawBytes;
+}
+pub trait HexConvertable
+where
+    Self: Sized,
+{
+    fn from_hex(hex: &String) -> Result<Self, FromHexError>;
+    fn to_hex(&self) -> String;
 }
 
 pub trait PublicKey {

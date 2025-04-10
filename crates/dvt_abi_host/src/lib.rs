@@ -1,4 +1,7 @@
+use crypto::*;
+use dvt_abi::Commitment;
 use sp1_sdk::SP1Stdin;
+
 fn write_array_to_prover<const N: usize>(stdin: &mut SP1Stdin, data: &[u8; N]) {
     for x in data.iter().take(N) {
         stdin.write(x);
@@ -41,11 +44,11 @@ impl ProverSerialize for dvt_abi::AbiExchangedSecret {
     }
 }
 
-impl ProverSerialize for dvt_abi::AbiCommitment {
+impl<T: Commitment> ProverSerialize for dvt_abi::AbiCommitment<T> {
     fn write(&self, stdin: &mut SP1Stdin) {
-        write_array_to_prover(stdin, &self.hash);
-        write_array_to_prover(stdin, &self.pubkey);
-        write_array_to_prover(stdin, &self.signature);
+        write_vec_to_prover(stdin, self.hash.as_arr());
+        write_vec_to_prover(stdin, self.pubkey.as_arr());
+        write_vec_to_prover(stdin, self.signature.as_arr());
     }
 }
 

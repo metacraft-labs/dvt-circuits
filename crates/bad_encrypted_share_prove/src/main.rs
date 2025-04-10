@@ -2,14 +2,13 @@
 
 sp1_zkvm::entrypoint!(main);
 
-use std::result;
-
 use dvt_common::{self, VerificationErrors};
 
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20::{ChaCha20, Key, Nonce};
 
 use bls12_381::{self, G1Affine, G2Affine};
+use crypto::*;
 use crypto::{
     BLSPubkeyRaw, SHA256Raw, BLS_PUBKEY_SIZE, BLS_SECRET_SIZE, BLS_SIGNATURE_SIZE, GEN_ID_SIZE,
     SHA256_SIZE,
@@ -197,7 +196,7 @@ fn parse_message(
     let mut initial_commitment = dvt_abi::AbiInitialCommitment {
         settings: settings,
         base_pubkeys: base_pubkeys,
-        hash: [0u8; SHA256_SIZE],
+        hash: SHA256Raw([0u8; SHA256_SIZE]),
     };
 
     let initial_commitment_hash = dvt_common::compute_initial_commitment_hash(&initial_commitment);
@@ -215,13 +214,13 @@ fn parse_message(
         seeds_exchange_commitment: dvt_abi::AbiSeedExchangeCommitment {
             initial_commitment_hash: initial_commitment_hash,
             shared_secret: dvt_abi::AbiExchangedSecret {
-                secret: secret,
+                secret: BLSSecretRaw(secret),
                 dst_base_hash: receiver_commitment_hash,
             },
             commitment: dvt_abi::AbiCommitment {
-                hash: commitment_hash,
-                pubkey: commitment_pubkey,
-                signature: commitment_signature,
+                hash: SHA256Raw(commitment_hash),
+                pubkey: BLSPubkeyRaw(commitment_pubkey),
+                signature: BLSSignatureRaw(commitment_signature),
             },
         },
     })
@@ -275,10 +274,10 @@ pub fn main() {
     if !found {
         panic!(
             "The seed exchange commitment hash {} is not part of the verification hashes  {} \n",
-            hex::encode(data.initial_commitment.hash),
+            data.initial_commitment.hash.to_hex(),
             data.verification_hashes
                 .iter()
-                .map(hex::encode)
+                .map(|h| h.to_hex())
                 .collect::<Vec<String>>()
                 .join(", ")
         );
@@ -304,15 +303,21 @@ pub fn main() {
                         println!("Slashable error seed exchange commitment: {}", err);
 
                         for h in data.verification_hashes.iter() {
-                            println!("Verification hash: {}", hex::encode(h));
-                            sp1_zkvm::io::commit(h);
+                            println!("Verification hash: {}", h.to_hex());
+                            sp1_zkvm::io::commit(h.as_ref());
                         }
 
                         println!(
                             "Perpetrator public key: {}",
-                            hex::encode(data.seeds_exchange_commitment.commitment.pubkey)
+                            data.seeds_exchange_commitment.commitment.pubkey.to_hex()
                         );
-                        for byte in data.seeds_exchange_commitment.commitment.pubkey {
+                        for byte in data
+                            .seeds_exchange_commitment
+                            .commitment
+                            .pubkey
+                            .as_arr()
+                            .iter()
+                        {
                             sp1_zkvm::io::commit(&byte);
                         }
 

@@ -1,5 +1,6 @@
 mod bls_common;
 mod bls_keys;
+#[macro_use]
 mod crypto;
 mod secp256k1_keys;
 

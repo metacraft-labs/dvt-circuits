@@ -1,5 +1,6 @@
 use crate::bls_common::*;
 use crate::crypto;
+use crate::HexConvertable;
 use bls12_381::{G1Affine, G2Affine, Scalar};
 use std::fmt;
 
@@ -10,11 +11,110 @@ pub const BLS_ID_SIZE: usize = 32;
 pub const GEN_ID_SIZE: usize = 16;
 pub const SHA256_SIZE: usize = 32;
 
-pub type BLSPubkeyRaw = [u8; BLS_PUBKEY_SIZE];
-pub type BLSSecretRaw = [u8; BLS_SECRET_SIZE];
-pub type BLSIdRaw = [u8; BLS_ID_SIZE];
-pub type BLSSignatureRaw = [u8; BLS_SIGNATURE_SIZE];
-pub type SHA256Raw = [u8; SHA256_SIZE];
+pub trait AsByteArr {
+    fn as_arr(&self) -> &[u8];
+}
+
+macro_rules! define_raw_type {
+    ($name:ident, $size_const:ident) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub struct $name(pub [u8; $size_const]);
+
+        impl std::ops::Deref for $name {
+            type Target = [u8; $size_const];
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+
+        impl std::ops::DerefMut for $name {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.0
+            }
+        }
+
+        impl AsRef<[u8; $size_const]> for $name {
+            fn as_ref(&self) -> &[u8; $size_const] {
+                &self.0
+            }
+        }
+
+        impl AsMut<[u8; $size_const]> for $name {
+            fn as_mut(&mut self) -> &mut [u8; $size_const] {
+                &mut self.0
+            }
+        }
+
+        impl From<[u8; $size_const]> for $name {
+            fn from(bytes: [u8; $size_const]) -> Self {
+                Self(bytes)
+            }
+        }
+
+        impl From<$name> for [u8; $size_const] {
+            fn from(value: $name) -> Self {
+                value.0
+            }
+        }
+
+        impl AsByteArr for $name {
+            fn as_arr(&self) -> &[u8] {
+                &self.0
+            }
+        }
+
+        impl std::convert::TryFrom<&[u8]> for $name {
+            type Error = std::array::TryFromSliceError;
+            fn try_from(slice: &[u8]) -> Result<Self, Self::Error> {
+                Ok(Self(slice.try_into()?))
+            }
+        }
+
+        impl std::convert::TryFrom<Vec<u8>> for $name {
+            type Error = std::array::TryFromSliceError;
+            fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
+                let array: [u8; $size_const] = vec.as_slice().try_into()?;
+                Ok(Self(array))
+            }
+        }
+
+        impl std::cmp::PartialOrd for $name {
+            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+                self.0.partial_cmp(&other.0)
+            }
+        }
+
+        impl std::cmp::Ord for $name {
+            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+                self.0.cmp(&other.0)
+            }
+        }
+
+        impl crypto::HexConvertable for $name {
+            fn from_hex(hex: &String) -> Result<Self, hex::FromHexError> {
+                let bytes: [u8; $size_const] = hex::decode(hex)?.try_into().unwrap();
+                Ok(Self(bytes))
+            }
+
+            fn to_hex(&self) -> String {
+                hex::encode(&self.0)
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! for_each_raw_type {
+    ($macro:ident) => {
+        $macro!(BLSPubkeyRaw, BLS_PUBKEY_SIZE);
+        $macro!(BLSSecretRaw, BLS_SECRET_SIZE);
+        $macro!(BLSIdRaw, BLS_ID_SIZE);
+        $macro!(BLSSignatureRaw, BLS_SIGNATURE_SIZE);
+        $macro!(SHA256Raw, SHA256_SIZE);
+    };
+}
+
+for_each_raw_type!(define_raw_type);
 
 #[derive(PartialEq)]
 pub struct BlsPublicKey {
@@ -28,13 +128,14 @@ impl crypto::ByteConvertible for BlsPublicKey {
     fn from_bytes(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
     where
         Self: Sized,
+        Self::RawBytes: HexConvertable,
     {
         let g1 = G1Affine::from_compressed(bytes).into_option();
         match g1 {
             Some(g1) => Ok(BlsPublicKey { key: g1 }),
             None => Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("Invalid public key {}", hex::encode(bytes)),
+                format!("Invalid public key {}", bytes.to_hex()),
             ))),
         }
     }
@@ -52,7 +153,7 @@ impl crypto::ByteConvertible for BlsPublicKey {
     }
 
     fn to_bytes(&self) -> Self::RawBytes {
-        self.key.to_compressed()
+        Self::RawBytes::from(self.key.to_compressed())
     }
 }
 
@@ -130,14 +231,14 @@ impl crypto::ByteConvertible for BlsSecretKey {
     }
 
     fn to_bytes(&self) -> Self::RawBytes {
-        let mut bytes: Self::RawBytes = self.key.to_bytes();
+        let mut bytes = self.key.to_bytes();
         // Convert them to big-endian
         bytes.reverse();
-        bytes
+        Self::RawBytes::from(bytes)
     }
 
     fn to_hex(&self) -> String {
-        hex::encode(self.to_bytes())
+        self.to_bytes().to_hex()
     }
 }
 
@@ -155,14 +256,14 @@ impl crypto::SecretKey for BlsSecretKey {
 impl fmt::Debug for BlsSecretKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use crate::crypto::ByteConvertible;
-        write!(f, "SecretKey({})", hex::encode(self.to_bytes()))
+        write!(f, "SecretKey({})", self.to_bytes().to_hex())
     }
 }
 
 impl fmt::Display for BlsSecretKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use crate::crypto::ByteConvertible;
-        write!(f, "SecretKey({})", hex::encode(self.to_bytes()))
+        write!(f, "SecretKey({})", self.to_bytes().to_hex())
     }
 }
 
@@ -198,7 +299,7 @@ impl crypto::ByteConvertible for BlsSignature {
     }
 
     fn to_bytes(&self) -> Self::RawBytes {
-        self.sig.to_compressed()
+        Self::RawBytes::from(self.sig.to_compressed())
     }
 
     fn to_hex(&self) -> String {

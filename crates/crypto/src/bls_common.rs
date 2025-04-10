@@ -3,7 +3,7 @@ use bls12_381::{
     pairing, G1Affine, G1Projective, G2Affine, G2Projective, Scalar,
 };
 
-use crate::bls_keys::*;
+use crate::{bls_keys::*, HexConvertable};
 use sha2::Sha256;
 
 pub fn hash_message_to_g2(msg: &[u8]) -> G2Projective {
@@ -39,13 +39,13 @@ fn uncompress_bls_pubkey_slow(
 ) -> Result<[u8; 96], Box<dyn std::error::Error>> {
     // We use the original bls library to verify the key
     // Becaus the sp1 library will crash if the key is invalid
-    let key = bls_org::G1Affine::from_compressed(pubkey);
+    let key = bls_org::G1Affine::from_compressed(pubkey.as_ref());
 
     match key.into_option() {
         Some(key) => Ok(key.to_uncompressed()),
         None => Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            format!("Invalid public key {}", hex::encode(pubkey)),
+            format!("Invalid public key {}", pubkey.to_hex()),
         ))),
     }
 }
@@ -58,7 +58,7 @@ pub fn to_g1_affine_slow(pubkey: &BLSPubkeyRaw) -> Result<G1Affine, Box<dyn std:
         Some(key) => Ok(key),
         None => Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            format!("Invalid public key {}", hex::encode(pubkey)),
+            format!("Invalid public key {}", pubkey.to_hex()),
         ))),
     }
 }
@@ -68,7 +68,7 @@ fn uncompress_bls_signature_slow(
 ) -> Result<[u8; 192], Box<dyn std::error::Error>> {
     // We use the original bls library to verify the key
     // Becaus the sp1 library will crash if the key is invalid
-    let key = bls_org::G2Affine::from_compressed(signature);
+    let key = bls_org::G2Affine::from_compressed(signature.as_ref());
 
     match key.into_option() {
         Some(key) => Ok(key.to_uncompressed()),
@@ -94,7 +94,7 @@ pub fn to_g2_affine_slow(
 }
 
 pub fn to_g1_affine(pubkey: &BLSPubkeyRaw) -> G1Affine {
-    G1Affine::from_compressed(pubkey)
+    G1Affine::from_compressed(pubkey.as_ref())
         .into_option()
         .expect("G1 point is not torsion free.")
 }
