@@ -14,3 +14,4 @@ dvt_abi = { path = "../dvt_abi" }
 dvt_common = { path = "../dvt_common" }
 hex = "0.4"
 chacha20 = "0.9.1"
+crypto = { path = "../crypto" }

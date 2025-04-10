@@ -4,6 +4,7 @@ sp1_zkvm::entrypoint!(main);
 
 use core::panic;
 
+use crypto::*;
 use dvt_common::{self, VerificationErrors};
 
 pub fn main() {
@@ -46,15 +47,15 @@ pub fn main() {
                         println!("Slashable error seed exchange commitment: {}", err);
 
                         for h in data.verification_hashes.iter() {
-                            println!("Verification hash: {}", hex::encode(h));
-                            sp1_zkvm::io::commit(h);
+                            println!("Verification hash: {}", h.to_hex());
+                            sp1_zkvm::io::commit(h.as_ref());
                         }
 
                         println!(
                             "Perpetrator public key: {}",
-                            hex::encode(data.seeds_exchange_commitment.commitment.pubkey)
+                            data.seeds_exchange_commitment.commitment.pubkey.to_hex()
                         );
-                        for byte in data.seeds_exchange_commitment.commitment.pubkey {
+                        for byte in data.seeds_exchange_commitment.commitment.pubkey.as_arr() {
                             sp1_zkvm::io::commit(&byte);
                         }
 

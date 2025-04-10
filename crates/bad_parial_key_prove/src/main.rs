@@ -4,6 +4,7 @@ sp1_zkvm::entrypoint!(main);
 
 use core::panic;
 
+use crypto::*;
 use dvt_common::{self, VerificationErrors};
 
 pub fn main() {
@@ -17,15 +18,15 @@ pub fn main() {
                 match verification_error {
                     VerificationErrors::SlashableError(e) => {
                         for h in data.generations.iter() {
-                            println!("Verification hash: {}", hex::encode(h.base_hash));
-                            sp1_zkvm::io::commit(&h.base_hash);
+                            println!("Verification hash: {}", h.base_hash.to_hex());
+                            sp1_zkvm::io::commit(h.base_hash.as_ref());
                         }
 
                         println!(
                             "Perpetrator public key: {}",
-                            hex::encode(data.bad_partial.commitment.pubkey)
+                            data.bad_partial.commitment.pubkey.to_hex()
                         );
-                        for byte in data.bad_partial.commitment.pubkey {
+                        for byte in data.bad_partial.commitment.pubkey.as_arr().iter() {
                             sp1_zkvm::io::commit(&byte);
                         }
                         return;

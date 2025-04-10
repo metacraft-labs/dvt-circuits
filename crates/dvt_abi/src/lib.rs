@@ -4,7 +4,9 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use std::error::Error;
 use std::fs::File;
+use std::hash::Hash;
 use std::io::Read;
+use std::ops::Deref;
 use std::path::Path;
 use validator::Validate;
 
@@ -150,18 +152,44 @@ pub struct AbiExchangedSecret {
     pub secret: BLSSecretRaw,
 }
 
+pub trait Commitment {
+    type HashRaw: HexConvertable + Sized + AsByteArr;
+    type PubkeyRaw: HexConvertable + Sized + AsByteArr;
+    type SignatureRaw: HexConvertable + Sized + AsByteArr;
+
+    const HASH_SIZE: usize;
+    const PUBKEY_SIZE: usize;
+    const SIGNATURE_SIZE: usize;
+}
+
 #[derive(Debug)]
-pub struct AbiCommitment {
-    pub hash: SHA256Raw,
-    pub pubkey: BLSPubkeyRaw,
-    pub signature: BLSSignatureRaw,
+pub struct BlsCommitment {}
+
+impl Commitment for BlsCommitment {
+    type HashRaw = SHA256Raw;
+    type PubkeyRaw = BLSPubkeyRaw;
+    type SignatureRaw = BLSSignatureRaw;
+
+    const HASH_SIZE: usize = SHA256_SIZE;
+    const PUBKEY_SIZE: usize = BLS_PUBKEY_SIZE;
+    const SIGNATURE_SIZE: usize = BLS_SIGNATURE_SIZE;
+}
+
+#[derive(Debug)]
+pub struct AbiCommitment<CommitmentType>
+where
+    CommitmentType: Commitment,
+{
+    pub hash: CommitmentType::HashRaw,
+    pub pubkey: CommitmentType::PubkeyRaw,
+    pub signature: CommitmentType::SignatureRaw,
 }
 
 #[derive(Debug)]
 pub struct AbiSeedExchangeCommitment {
     pub initial_commitment_hash: SHA256Raw,
     pub shared_secret: AbiExchangedSecret,
-    pub commitment: AbiCommitment,
+    pub commitment: AbiCommitment<BlsCommitment>,
 }
 
 #[derive(Debug)]
@@ -197,7 +225,7 @@ pub struct AbiBadPartialShareGeneration {
 pub struct AbiBadPartialShare {
     pub settings: AbiGenerateSettings,
     pub data: AbiGeneration,
-    pub commitment: AbiCommitment,
+    pub commitment: AbiCommitment<BlsCommitment>,
 }
 
 #[derive(Debug)]
@@ -259,8 +287,7 @@ impl ToAbi<AbiGenerateSettings> for DvtGenerateSettings {
 impl ToAbi<AbiInitialCommitment> for DvtInitialCommitment {
     fn to_abi(&self) -> Result<AbiInitialCommitment, Box<dyn Error>> {
         Ok(AbiInitialCommitment {
-            hash: decode_hex::<SHA256_SIZE>(&self.hash)
-                .map_err(|e| format!("Invalid hash: {e}"))?,
+            hash: SHA256Raw::from_hex(&self.hash).map_err(|e| format!("Invalid hash: {e}"))?,
             settings: self
                 .settings
                 .to_abi()
@@ -268,8 +295,8 @@ impl ToAbi<AbiInitialCommitment> for DvtInitialCommitment {
             base_pubkeys: self
                 .base_pubkeys
                 .iter()
-                .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
-                .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
+                .map(|p| BLSPubkeyRaw::from_hex(p))
+                .collect::<Result<Vec<BLSPubkeyRaw>, _>>()
                 .map_err(|e| format!("Invalid pubkey: {e}"))?,
         })
     }
@@ -278,22 +305,21 @@ impl ToAbi<AbiInitialCommitment> for DvtInitialCommitment {
 impl ToAbi<AbiExchangedSecret> for DvtExchangedSecret {
     fn to_abi(&self) -> Result<AbiExchangedSecret, Box<dyn Error>> {
         Ok(AbiExchangedSecret {
-            secret: decode_hex::<BLS_SECRET_SIZE>(&self.secret)
+            secret: BLSSecretRaw::from_hex(&self.secret)
                 .map_err(|e| format!("Invalid secret: {e}"))?,
-            dst_base_hash: decode_hex::<SHA256_SIZE>(&self.dst_base_hash)
+            dst_base_hash: SHA256Raw::from_hex(&self.dst_base_hash)
                 .map_err(|e| format!("Invalid dst_base_hash: {e}"))?,
         })
     }
 }
 
-impl ToAbi<AbiCommitment> for DvtCommitment {
-    fn to_abi(&self) -> Result<AbiCommitment, Box<dyn Error>> {
-        Ok(AbiCommitment {
-            hash: decode_hex::<SHA256_SIZE>(&self.hash)
-                .map_err(|e| format!("Invalid hash: {e}"))?,
-            pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.pubkey)
+impl<T: Commitment> ToAbi<AbiCommitment<T>> for DvtCommitment {
+    fn to_abi(&self) -> Result<AbiCommitment<T>, Box<dyn Error>> {
+        Ok(AbiCommitment::<T> {
+            hash: T::HashRaw::from_hex(&self.hash).map_err(|e| format!("Invalid hash: {e}"))?,
+            pubkey: T::PubkeyRaw::from_hex(&self.pubkey)
                 .map_err(|e| format!("Invalid pubkey: {e}"))?,
-            signature: decode_hex::<BLS_SIGNATURE_SIZE>(&self.signature)
+            signature: T::SignatureRaw::from_hex(&self.signature)
                 .map_err(|e| format!("Invalid signature: {e}"))?,
         })
     }
@@ -302,7 +328,7 @@ impl ToAbi<AbiCommitment> for DvtCommitment {
 impl ToAbi<AbiSeedExchangeCommitment> for DvtShareExchangeCommitment {
     fn to_abi(&self) -> Result<AbiSeedExchangeCommitment, Box<dyn Error>> {
         Ok(AbiSeedExchangeCommitment {
-            initial_commitment_hash: decode_hex::<SHA256_SIZE>(&self.initial_commitment_hash)
+            initial_commitment_hash: SHA256Raw::from_hex(&self.initial_commitment_hash)
                 .map_err(|e| format!("Invalid initial_commitment_hash: {e}"))?,
             shared_secret: self
                 .shared_secret
@@ -321,8 +347,8 @@ impl ToAbi<AbiBlsSharedData> for DvtBlsSharedData {
         let verification_hashes = self
             .verification_hashes
             .iter()
-            .map(|h| decode_hex::<SHA256_SIZE>(h))
-            .collect::<Result<Vec<[u8; SHA256_SIZE]>, _>>()
+            .map(|h| SHA256Raw::from_hex(h))
+            .collect::<Result<Vec<SHA256Raw>, _>>()
             .map_err(|e| format!("Invalid verification hash: {e}"))?;
 
         Ok(AbiBlsSharedData {
@@ -344,18 +370,18 @@ impl ToAbi<AbiGeneration> for DvtGeneration {
         let verification_vector = self
             .verification_vector
             .iter()
-            .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
-            .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
+            .map(|p| BLSPubkeyRaw::from_hex(p))
+            .collect::<Result<Vec<BLSPubkeyRaw>, _>>()
             .map_err(|e| format!("Invalid pubkey: {e}"))?;
 
         Ok(AbiGeneration {
             verification_vector,
-            base_hash: decode_hex::<SHA256_SIZE>(&self.base_hash)
+            base_hash: SHA256Raw::from_hex(&self.base_hash)
                 .map_err(|e| format!("Invalid base_hash: {e}"))?,
-            partial_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.partial_pubkey)
+            partial_pubkey: BLSPubkeyRaw::from_hex(&self.partial_pubkey)
                 .map_err(|e| format!("Invalid partial_pubkey: {e}"))?,
             message_cleartext: self.message_cleartext.as_bytes().to_vec(),
-            message_signature: decode_hex::<BLS_SIGNATURE_SIZE>(&self.message_signature)
+            message_signature: BLSSignatureRaw::from_hex(&self.message_signature)
                 .map_err(|e| format!("Invalid message_signature: {e}"))?,
         })
     }
@@ -374,7 +400,7 @@ impl ToAbi<AbiFinalizationData> for DvtFinalizationData {
             .map(|g| g.to_abi())
             .collect::<Result<Vec<AbiGeneration>, _>>()?;
 
-        let aggregate_pubkey = decode_hex::<BLS_PUBKEY_SIZE>(&self.aggregate_pubkey)
+        let aggregate_pubkey = BLSPubkeyRaw::from_hex(&self.aggregate_pubkey)
             .map_err(|e| format!("Invalid aggregate_pubkey: {e}"))?;
 
         Ok(AbiFinalizationData {
@@ -390,12 +416,12 @@ impl ToAbi<AbiBadPartialShareGeneration> for DvtBadPartialShareGeneration {
         let verification_vector = self
             .verification_vector
             .iter()
-            .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
-            .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
+            .map(|p| BLSPubkeyRaw::from_hex(p))
+            .collect::<Result<Vec<BLSPubkeyRaw>, _>>()
             .map_err(|e| format!("Invalid pubkey: {e}"))?;
 
-        let base_hash = decode_hex::<SHA256_SIZE>(&self.base_hash)
-            .map_err(|e| format!("Invalid base_hash: {e}"))?;
+        let base_hash =
+            SHA256Raw::from_hex(&self.base_hash).map_err(|e| format!("Invalid base_hash: {e}"))?;
 
         Ok(AbiBadPartialShareGeneration {
             verification_vector,
@@ -452,13 +478,13 @@ impl ToAbi<AbiBadPartialShareData> for DvtBadPartialShareData {
 impl ToAbi<AbiBadEncryptedShare> for DvtBadEncryptedShare {
     fn to_abi(&self) -> Result<AbiBadEncryptedShare, Box<dyn Error>> {
         Ok(AbiBadEncryptedShare {
-            sender_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.sender_pubkey)
+            sender_pubkey: BLSPubkeyRaw::from_hex(&self.sender_pubkey)
                 .map_err(|e| format!("Invalid sender_pubkey: {e}"))?,
-            receiver_pubkey: decode_hex::<BLS_PUBKEY_SIZE>(&self.receiver_pubkey)
+            receiver_pubkey: BLSPubkeyRaw::from_hex(&self.receiver_pubkey)
                 .map_err(|e| format!("Invalid receiver_pubkey: {e}"))?,
-            signature: decode_hex::<BLS_SIGNATURE_SIZE>(&self.signature)
+            signature: BLSSignatureRaw::from_hex(&self.signature)
                 .map_err(|e| format!("Invalid signature: {e}"))?,
-            receiver_commitment_hash: decode_hex::<SHA256_SIZE>(&self.receiver_commitment_hash)
+            receiver_commitment_hash: SHA256Raw::from_hex(&self.receiver_commitment_hash)
                 .map_err(|e| format!("Invalid receiver_commitment_hash: {e}"))?,
             encrypted_message: decode(&self.encrypted_message)
                 .map_err(|e| format!("Invalid encrypted_share: {e}"))?,
@@ -469,14 +495,14 @@ impl ToAbi<AbiBadEncryptedShare> for DvtBadEncryptedShare {
             base_hashes: self
                 .base_hashes
                 .iter()
-                .map(|h| decode_hex::<SHA256_SIZE>(h))
-                .collect::<Result<Vec<[u8; SHA256_SIZE]>, _>>()
+                .map(|h| SHA256Raw::from_hex(h))
+                .collect::<Result<Vec<SHA256Raw>, _>>()
                 .map_err(|e| format!("Invalid base_hash: {e}"))?,
             base_pubkeys: self
                 .base_pubkeys
                 .iter()
-                .map(|p| decode_hex::<BLS_PUBKEY_SIZE>(p))
-                .collect::<Result<Vec<[u8; BLS_PUBKEY_SIZE]>, _>>()
+                .map(|p| BLSPubkeyRaw::from_hex(p))
+                .collect::<Result<Vec<BLSPubkeyRaw>, _>>()
                 .map_err(|e| format!("Invalid base_pubkey: {e}"))?,
         })
     }

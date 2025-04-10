@@ -1,10 +1,10 @@
 use bls12_381::{G1Affine, G1Projective, G2Affine, Scalar};
 
-use crypto::ByteConvertible;
 use crypto::{
     BLSPubkeyRaw, BlsPublicKey, BlsSecretKey, BlsSignature, PublicKey, SHA256Raw, SecretKey,
     Signature,
 };
+use crypto::{ByteConvertible, HexConvertable};
 use dvt_abi::{self};
 use sha2::{Digest, Sha256};
 
@@ -41,9 +41,9 @@ pub fn compute_seed_exchange_hash(seed_exchange: &dvt_abi::AbiSeedExchangeCommit
 
     let sk = BlsSecretKey::from_bytes(&shared_secret.secret).expect("Invalid secret key");
 
-    hasher.update(&seed_exchange.initial_commitment_hash);
-    hasher.update(&sk.to_bytes());
-    hasher.update(&shared_secret.dst_base_hash);
+    hasher.update(seed_exchange.initial_commitment_hash.as_ref());
+    hasher.update(sk.to_bytes().as_ref());
+    hasher.update(shared_secret.dst_base_hash.as_ref());
 
     hasher
         .finalize()
@@ -82,15 +82,15 @@ pub fn verify_seed_exchange_commitment(
 
     let signature = BlsSignature::from_bytes(&commitment.signature)?;
 
-    if !pubkey.verify_signature(&commitment.hash, &signature) {
+    if !pubkey.verify_signature(commitment.hash.as_ref(), &signature) {
         return Err(Box::new(VerificationErrors::UnslashableError(format!(
             "Invalid field seeds_exchange_commitment.commitment.signature {},
             message: {}
             pubkey: {},
             \n",
-            hex::encode(&commitment.signature),
-            hex::encode(&commitment.hash),
-            hex::encode(&commitment.pubkey)
+            commitment.signature.to_hex(),
+            commitment.hash.to_hex(),
+            commitment.pubkey.to_hex()
         ))));
     }
 
@@ -105,11 +105,11 @@ pub fn verify_seed_exchange_commitment(
 
     let computed_commitment_hash = compute_seed_exchange_hash(seed_exchange);
 
-    if computed_commitment_hash.to_vec() != seed_exchange.commitment.hash {
+    if computed_commitment_hash.to_vec() != seed_exchange.commitment.hash.as_ref() {
         return Err(Box::new(VerificationErrors::SlashableError(
             format!(
                 "Invalid field seeds_exchange_commitment.commitment.hash. Expected: {:?}, got hash: {:?}\n",
-                hex::encode(seed_exchange.commitment.hash),
+                seed_exchange.commitment.hash.to_hex(),
                 hex::encode(computed_commitment_hash.to_vec())
             ),
         )));
@@ -162,7 +162,7 @@ pub fn compute_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitmen
     hasher.update([len]);
 
     for pubkey in &commitment.base_pubkeys {
-        hasher.update(&pubkey);
+        hasher.update(pubkey.as_ref());
     }
     hasher
         .finalize()
@@ -174,8 +174,8 @@ pub fn compute_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitmen
 pub fn verify_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitment) -> bool {
     print!(
         "commitment.hash: {:?}, calced: {:?}\n",
-        hex::encode(commitment.hash),
-        hex::encode(compute_initial_commitment_hash(commitment))
+        commitment.hash.to_hex(),
+        compute_initial_commitment_hash(commitment).to_hex()
     );
     compute_initial_commitment_hash(commitment) == commitment.hash
 }
@@ -204,7 +204,7 @@ fn agg_coefficients(
         .map(|vector| -> Vec<G1Projective> {
             vector
                 .iter()
-                .map(|pk: &[u8; 48]| to_g1_projection(&pk))
+                .map(|pk: &BLSPubkeyRaw| to_g1_projection(pk))
                 .collect()
         })
         .collect();
@@ -261,7 +261,7 @@ pub fn verify_generation_hashes(
         if !key.verify_signature_precomputed_hash(&hashed_msg, &signature) {
             return Err(Box::new(VerificationErrors::UnslashableError(format!(
                 "Invalid signature {}",
-                hex::encode(generation.message_signature)
+                generation.message_signature.to_hex()
             ))));
         }
 
@@ -270,7 +270,7 @@ pub fn verify_generation_hashes(
         if !ok {
             return Err(Box::new(VerificationErrors::UnslashableError(format!(
                 "Invalid initial commitment hash {}",
-                hex::encode(initial_commitment.hash)
+                initial_commitment.hash.to_hex()
             ))));
         }
     }
@@ -355,16 +355,16 @@ pub fn compute_partial_share_hash(
     hasher.update([len]);
 
     for pubkey in &partial_share.data.verification_vector {
-        hasher.update(&pubkey);
+        hasher.update(pubkey.as_ref());
     }
 
-    hasher.update(&partial_share.data.base_hash);
-    hasher.update(&partial_share.data.partial_pubkey);
+    hasher.update(partial_share.data.base_hash.as_ref());
+    hasher.update(partial_share.data.partial_pubkey.as_ref());
 
     let len = partial_share.data.message_cleartext.len() as u8;
     hasher.update([len]);
     hasher.update(&partial_share.data.message_cleartext);
-    hasher.update(&partial_share.data.message_signature);
+    hasher.update(partial_share.data.message_signature.as_ref());
 
     hasher.finalize().to_vec()
 }
@@ -383,7 +383,7 @@ pub fn prove_wrong_final_key_generation(
         if !ok {
             return Err(Box::new(VerificationErrors::UnslashableError(format!(
                 "Invalid generation base hash {}",
-                hex::encode(&generation.base_hash)
+                generation.base_hash.to_hex()
             ))));
         }
     }
@@ -438,10 +438,10 @@ fn verify_commitment_signature(
     data: &dvt_abi::AbiBadPartialShareData,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let computed_hash = compute_partial_share_hash(&data.settings, &data.bad_partial);
-    if computed_hash != data.bad_partial.commitment.hash {
+    if computed_hash != data.bad_partial.commitment.hash.as_ref() {
         return Err(Box::new(VerificationErrors::UnslashableError(format!(
             "Invalid commitment hash expect {}, got {}",
-            hex::encode(&data.bad_partial.commitment.hash),
+            data.bad_partial.commitment.hash.to_hex(),
             hex::encode(&computed_hash)
         ))));
     }
@@ -449,7 +449,7 @@ fn verify_commitment_signature(
     let sig = BlsSignature::from_bytes(&data.bad_partial.commitment.signature)?;
 
     // Verify that the commitment made by the participant has the correct hash and signature
-    if !key.verify_signature(&data.bad_partial.commitment.hash, &sig) {
+    if !key.verify_signature(data.bad_partial.commitment.hash.as_ref(), &sig) {
         return Err(Box::new(VerificationErrors::UnslashableError(format!(
             "Invalid commitment signature {} and key {}",
             sig, key
@@ -473,7 +473,7 @@ fn find_perpetrator_index(
         None => {
             return Err(Box::new(VerificationErrors::UnslashableError(format!(
                 "Could not find perpetrator generation {}",
-                hex::encode(perpetrador_hash)
+                perpetrador_hash.to_hex()
             ))));
         }
     };

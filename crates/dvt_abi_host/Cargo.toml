@@ -9,3 +9,4 @@ serde_json = "1.0"
 hex = "0.4.3"
 sp1-sdk = "3.4.0"
 dvt_abi = { path = "../dvt_abi" }
+crypto = { path = "../crypto" }

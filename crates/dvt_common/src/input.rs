@@ -1,8 +1,8 @@
 use crypto::{
-    BLSIdRaw, BLSPubkeyRaw, BLSSecretRaw, BLSSignatureRaw, SHA256Raw, BLS_ID_SIZE, BLS_PUBKEY_SIZE,
-    BLS_SECRET_SIZE, BLS_SIGNATURE_SIZE, GEN_ID_SIZE, SHA256_SIZE,
+    for_each_raw_type, BLSIdRaw, BLSPubkeyRaw, BLSSecretRaw, BLSSignatureRaw, SHA256Raw,
+    BLS_ID_SIZE, BLS_PUBKEY_SIZE, BLS_SECRET_SIZE, BLS_SIGNATURE_SIZE, GEN_ID_SIZE, SHA256_SIZE,
 };
-use dvt_abi::{self};
+use dvt_abi::{self, BlsCommitment};
 use sp1_zkvm;
 
 fn read_byte_array_from_host<const N: usize>() -> [u8; N] {
@@ -17,17 +17,30 @@ trait ReadFromHost: Sized {
     fn read_from_host() -> Self;
 }
 
-impl ReadFromHost for BLSPubkeyRaw {
-    fn read_from_host() -> BLSPubkeyRaw {
-        read_byte_array_from_host::<{ BLS_PUBKEY_SIZE }>()
-    }
+macro_rules! define_read_from_host {
+    ($name:ident, $size_const:ident) => {
+        impl ReadFromHost for $name {
+            fn read_from_host() -> $name {
+                read_byte_array_from_host::<{ $size_const }>().into()
+            }
+        }
+    };
 }
 
-impl ReadFromHost for SHA256Raw {
-    fn read_from_host() -> SHA256Raw {
-        read_byte_array_from_host::<{ SHA256_SIZE }>()
-    }
+fn read_from_host<T>() -> T
+where
+    T: ReadFromHost,
+{
+    T::read_from_host()
 }
+
+for_each_raw_type!(define_read_from_host);
+
+// impl ReadFromHost for SHA256Raw {
+//     fn read_from_host() -> SHA256Raw {
+//         read_byte_array_from_host::<{ SHA256_SIZE }>()
+//     }
+// }
 
 fn read_vec_from_host<T: ReadFromHost>(cnt: u8) -> Vec<T> {
     let mut result = Vec::with_capacity(cnt as usize);
@@ -37,29 +50,29 @@ fn read_vec_from_host<T: ReadFromHost>(cnt: u8) -> Vec<T> {
     result
 }
 
-fn read_gen_id_from_host() -> [u8; GEN_ID_SIZE] {
-    read_byte_array_from_host::<{ GEN_ID_SIZE }>()
-}
+// fn read_gen_id_from_host() -> [u8; GEN_ID_SIZE] {
+//     read_byte_array_from_host::<{ GEN_ID_SIZE }>()
+// }
 
-fn read_pubkey_from_host() -> BLSPubkeyRaw {
-    read_byte_array_from_host::<{ BLS_PUBKEY_SIZE }>()
-}
+// fn read_pubkey_from_host() -> BLSPubkeyRaw {
+//     read_byte_array_from_host::<{ BLS_PUBKEY_SIZE }>()
+// }
 
-fn read_signature_from_host() -> BLSSignatureRaw {
-    read_byte_array_from_host::<{ BLS_SIGNATURE_SIZE }>()
-}
+// fn read_signature_from_host() -> BLSSignatureRaw {
+//     read_byte_array_from_host::<{ BLS_SIGNATURE_SIZE }>()
+// }
 
-fn read_secret_from_host() -> BLSSecretRaw {
-    read_byte_array_from_host::<{ BLS_SECRET_SIZE }>()
-}
+// fn read_secret_from_host() -> BLSSecretRaw {
+//     read_byte_array_from_host::<{ BLS_SECRET_SIZE }>()
+// }
 
-fn read_bls_id_from_host() -> BLSIdRaw {
-    read_byte_array_from_host::<{ BLS_ID_SIZE }>()
-}
+// fn read_bls_id_from_host() -> BLSIdRaw {
+//     read_byte_array_from_host::<{ BLS_ID_SIZE }>()
+// }
 
-fn read_hash_from_host() -> SHA256Raw {
-    read_byte_array_from_host::<{ SHA256_SIZE }>()
-}
+// fn read_hash_from_host() -> SHA256Raw {
+//     read_byte_array_from_host::<{ SHA256_SIZE }>()
+// }
 
 fn read_byte_vec_from_host() -> Vec<u8> {
     let len = sp1_zkvm::io::read::<u32>();
@@ -74,20 +87,20 @@ fn read_settings_from_host() -> dvt_abi::AbiGenerateSettings {
     dvt_abi::AbiGenerateSettings {
         n: sp1_zkvm::io::read(),
         k: sp1_zkvm::io::read(),
-        gen_id: read_gen_id_from_host(),
+        gen_id: read_byte_array_from_host::<{ GEN_ID_SIZE }>(),
     }
 }
 
-fn read_commitment_from_host() -> dvt_abi::AbiCommitment {
+fn read_commitment_from_host() -> dvt_abi::AbiCommitment<BlsCommitment> {
     dvt_abi::AbiCommitment {
-        hash: read_hash_from_host(),
-        pubkey: read_pubkey_from_host(),
-        signature: read_signature_from_host(),
+        hash: read_from_host(),
+        pubkey: read_from_host(),
+        signature: read_from_host(),
     }
 }
 
 fn read_initial_commitment_from_host() -> dvt_abi::AbiInitialCommitment {
-    let hash = read_hash_from_host();
+    let hash = read_from_host();
     let settings = read_settings_from_host();
     let base_pubkeys = read_vec_from_host(settings.k);
     dvt_abi::AbiInitialCommitment {
@@ -99,13 +112,13 @@ fn read_initial_commitment_from_host() -> dvt_abi::AbiInitialCommitment {
 
 fn read_exchange_secret_from_host() -> dvt_abi::AbiExchangedSecret {
     dvt_abi::AbiExchangedSecret {
-        secret: read_secret_from_host(),
-        dst_base_hash: read_hash_from_host(),
+        secret: read_from_host(),
+        dst_base_hash: read_from_host(),
     }
 }
 
 fn read_seeds_exchange_commitment_from_host() -> dvt_abi::AbiSeedExchangeCommitment {
-    let initial_commitment_hash = read_hash_from_host();
+    let initial_commitment_hash = read_from_host();
     let shared_secret = read_exchange_secret_from_host();
     let commitment = read_commitment_from_host();
     dvt_abi::AbiSeedExchangeCommitment {
@@ -117,10 +130,10 @@ fn read_seeds_exchange_commitment_from_host() -> dvt_abi::AbiSeedExchangeCommitm
 
 fn read_signle_generation(k: u8) -> dvt_abi::AbiGeneration {
     let verification_vector = read_vec_from_host(k);
-    let base_hash = read_hash_from_host();
-    let partial_pubkey = read_pubkey_from_host();
+    let base_hash = read_from_host();
+    let partial_pubkey = read_from_host();
     let message = read_byte_vec_from_host();
-    let message_signature = read_signature_from_host();
+    let message_signature = read_from_host();
 
     dvt_abi::AbiGeneration {
         verification_vector: verification_vector,
@@ -153,7 +166,7 @@ pub fn read_bls_shared_data_from_host() -> dvt_abi::AbiBlsSharedData {
 pub fn read_finalization_data() -> dvt_abi::AbiFinalizationData {
     let settings = read_settings_from_host();
     let generations = read_generation_data(settings.n, settings.k);
-    let aggregate_pubkey = read_pubkey_from_host();
+    let aggregate_pubkey = read_from_host();
     dvt_abi::AbiFinalizationData {
         settings: settings,
         generations: generations,
@@ -165,7 +178,7 @@ fn read_partial_generation_data(n: u8, k: u8) -> Vec<dvt_abi::AbiBadPartialShare
     let mut result = Vec::new();
     for _ in 0..n {
         let verification_vector = read_vec_from_host(k);
-        let base_hash = read_hash_from_host();
+        let base_hash = read_from_host();
 
         result.push(dvt_abi::AbiBadPartialShareGeneration {
             verification_vector: verification_vector,
@@ -198,10 +211,10 @@ pub fn read_bad_partial_share_data() -> dvt_abi::AbiBadPartialShareData {
 }
 
 pub fn read_bad_encrypted_share() -> dvt_abi::AbiBadEncryptedShare {
-    let sender_pubkey = read_pubkey_from_host();
-    let signature = read_signature_from_host();
-    let receiver_pubkey = read_pubkey_from_host();
-    let receiver_commitment_hash = read_hash_from_host();
+    let sender_pubkey = read_from_host();
+    let signature = read_from_host();
+    let receiver_pubkey = read_from_host();
+    let receiver_commitment_hash = read_from_host();
     let encrypted_message = read_byte_vec_from_host();
     let settings = read_settings_from_host();
     let base_hashes = read_vec_from_host::<SHA256Raw>(settings.n);

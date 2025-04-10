@@ -2,6 +2,7 @@
 
 sp1_zkvm::entrypoint!(main);
 
+use crypto::*;
 use dvt_common;
 
 pub fn main() {
@@ -13,11 +14,11 @@ pub fn main() {
     }
 
     for g in data.generations.iter() {
-        println!("Verification hash: {}", hex::encode(&g.base_hash));
-        sp1_zkvm::io::commit(&g.base_hash);
+        println!("Verification hash: {}", g.base_hash.to_hex());
+        sp1_zkvm::io::commit(g.base_hash.as_ref());
     }
 
-    println!("Aggregate pubkey: {}", hex::encode(&data.aggregate_pubkey));
+    println!("Aggregate pubkey: {}", data.aggregate_pubkey.to_hex());
     for byte in data.aggregate_pubkey.iter() {
         sp1_zkvm::io::commit(byte);
     }
