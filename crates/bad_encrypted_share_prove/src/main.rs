@@ -162,11 +162,11 @@ impl BinaryStream {
 
 fn parse_message(
     msg: &[u8],
-    settings: dvt_abi::AbiGenerateSettings,
+    settings: dvt_abi::GenerateSettings,
     base_pubkeys: Vec<BLSPubkeyRaw>,
     commitment_hashes: Vec<SHA256Raw>,
     receiver_commitment_hash: SHA256Raw,
-) -> Result<dvt_abi::AbiBlsSharedData, String> {
+) -> Result<dvt_abi::BlsSharedData, String> {
     let mut stream = BinaryStream {
         data: msg.to_vec(),
         pos: 0,
@@ -193,7 +193,7 @@ fn parse_message(
 
     stream.finalize();
 
-    let mut initial_commitment = dvt_abi::AbiInitialCommitment {
+    let mut initial_commitment = dvt_abi::InitialCommitment {
         settings: settings,
         base_pubkeys: base_pubkeys,
         hash: SHA256Raw([0u8; SHA256_SIZE]),
@@ -208,16 +208,16 @@ fn parse_message(
     // println!("commitment_hash {}", hex::encode(&commitment_hash));
     // println!("commitment_pubkey {}", hex::encode(&commitment_pubkey));
     // println!("commitment_signature {}", hex::encode(&commitment_signature));
-    Ok(dvt_abi::AbiBlsSharedData {
+    Ok(dvt_abi::BlsSharedData {
         verification_hashes: commitment_hashes,
         initial_commitment: initial_commitment,
-        seeds_exchange_commitment: dvt_abi::AbiSeedExchangeCommitment {
+        seeds_exchange_commitment: dvt_abi::SeedExchangeCommitment {
             initial_commitment_hash: initial_commitment_hash,
-            shared_secret: dvt_abi::AbiExchangedSecret {
+            shared_secret: dvt_abi::ExchangedSecret {
                 secret: BLSSecretRaw(secret),
                 dst_base_hash: receiver_commitment_hash,
             },
-            commitment: dvt_abi::AbiCommitment {
+            commitment: dvt_abi::Commitment {
                 hash: SHA256Raw(commitment_hash),
                 pubkey: BLSPubkeyRaw(commitment_pubkey),
                 signature: BLSSignatureRaw(commitment_signature),
@@ -228,7 +228,7 @@ fn parse_message(
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dvt_abi::AbiBadEncryptedShare =
+    let data: dvt_abi::BadEncryptedShare =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
     let pk = G1Affine::from_compressed(&data.sender_pubkey)
