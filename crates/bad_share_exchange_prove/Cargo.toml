@@ -10,6 +10,7 @@ ff = "0.13.0"
 rand = "0.8.5"
 group = "0.13.0"
 serde = "1.0.216"
+serde_cbor = "0.10"
 dvt_abi = { path = "../dvt_abi" }
 dvt_common = { path = "../dvt_common" }
 hex = "0.4"

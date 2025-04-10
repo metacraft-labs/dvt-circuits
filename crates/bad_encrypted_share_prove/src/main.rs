@@ -227,7 +227,9 @@ fn parse_message(
 }
 
 pub fn main() {
-    let data = dvt_common::read_bad_encrypted_share();
+    let input: Vec<u8> = sp1_zkvm::io::read();
+    let data: dvt_abi::AbiBadEncryptedShare =
+        serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
     let pk = G1Affine::from_compressed(&data.sender_pubkey)
         .into_option()

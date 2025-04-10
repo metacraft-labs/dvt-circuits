@@ -245,10 +245,12 @@ fn main() {
 
 fn execute<T>(data: &T, elf: &[u8], show_report: bool) -> Result<(), Box<dyn Error>>
 where
-    T: ProverSerialize,
+    T: ProverSerialize + serde::ser::Serialize,
 {
     let mut stdin = SP1Stdin::new();
-    data.write(&mut stdin);
+    let bin = serde_cbor::to_vec(data).expect("Failed to serialize data");
+    println!("input len: {}", bin.len());
+    stdin.write(&bin);
     let client = ProverClient::new();
     let (_public_values, report) = client
         .execute(elf, stdin)
@@ -267,10 +269,11 @@ fn prove<T>(
     output_file_path: Option<&str>,
 ) -> Result<(), Box<dyn Error>>
 where
-    T: ProverSerialize,
+    T: ProverSerialize + serde::ser::Serialize,
 {
     let mut stdin = SP1Stdin::new();
-    data.write(&mut stdin);
+    let bin = serde_cbor::to_vec(data).expect("Failed to serialize data");
+    stdin.write(&bin);
     let client = ProverClient::new();
     let (pk, _) = client.setup(elf);
     let proof = client
