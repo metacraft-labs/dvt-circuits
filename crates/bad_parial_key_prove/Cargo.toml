@@ -11,8 +11,6 @@ rand = "0.8.5"
 group = "0.13.0"
 serde = "1.0.216"
 serde_cbor = "0.10"
-dvt_abi = { path = "../dvt_abi" }
-dvt_common = { path = "../dvt_common" }
+dvt = { path = "../dvt" }
 hex = "0.4"
 chacha20 = "0.9.1"
-crypto = { path = "../crypto" }

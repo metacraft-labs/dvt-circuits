@@ -4,14 +4,14 @@ sp1_zkvm::entrypoint!(main);
 
 use core::panic;
 
-use crypto::*;
-use dvt_common::{self, VerificationErrors};
+use dvt::crypto::*;
+use dvt::{self, VerificationErrors};
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dvt_abi::BadPartialShareData =
+    let data: dvt::BadPartialShareData =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
-    match dvt_common::prove_wrong_final_key_generation(&data) {
+    match dvt::prove_wrong_final_key_generation(&data) {
         Ok(()) => {
             panic!("Can't prove wrong doing");
         }

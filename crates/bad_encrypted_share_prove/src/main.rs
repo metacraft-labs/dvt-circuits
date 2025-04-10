@@ -2,17 +2,13 @@
 
 sp1_zkvm::entrypoint!(main);
 
-use dvt_common::{self, VerificationErrors};
+use dvt::{self, VerificationErrors};
 
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20::{ChaCha20, Key, Nonce};
 
 use bls12_381::{self, G1Affine, G2Affine};
-use crypto::*;
-use crypto::{
-    BLSPubkeyRaw, SHA256Raw, BLS_PUBKEY_SIZE, BLS_SECRET_SIZE, BLS_SIGNATURE_SIZE, GEN_ID_SIZE,
-    SHA256_SIZE,
-};
+use dvt::crypto::*;
 use sha2::{Digest, Sha256};
 use std::fmt;
 
@@ -162,11 +158,11 @@ impl BinaryStream {
 
 fn parse_message(
     msg: &[u8],
-    settings: dvt_abi::GenerateSettings,
+    settings: dvt::GenerateSettings,
     base_pubkeys: Vec<BLSPubkeyRaw>,
     commitment_hashes: Vec<SHA256Raw>,
     receiver_commitment_hash: SHA256Raw,
-) -> Result<dvt_abi::BlsSharedData, String> {
+) -> Result<dvt::BlsSharedData, String> {
     let mut stream = BinaryStream {
         data: msg.to_vec(),
         pos: 0,
@@ -193,13 +189,13 @@ fn parse_message(
 
     stream.finalize();
 
-    let mut initial_commitment = dvt_abi::InitialCommitment {
+    let mut initial_commitment = dvt::InitialCommitment {
         settings: settings,
         base_pubkeys: base_pubkeys,
         hash: SHA256Raw([0u8; SHA256_SIZE]),
     };
 
-    let initial_commitment_hash = dvt_common::compute_initial_commitment_hash(&initial_commitment);
+    let initial_commitment_hash = dvt::compute_initial_commitment_hash(&initial_commitment);
 
     initial_commitment.hash = initial_commitment_hash.clone();
     // println!("gen_id {}", hex::encode(&gen_id));
@@ -208,16 +204,16 @@ fn parse_message(
     // println!("commitment_hash {}", hex::encode(&commitment_hash));
     // println!("commitment_pubkey {}", hex::encode(&commitment_pubkey));
     // println!("commitment_signature {}", hex::encode(&commitment_signature));
-    Ok(dvt_abi::BlsSharedData {
+    Ok(dvt::BlsSharedData {
         verification_hashes: commitment_hashes,
         initial_commitment: initial_commitment,
-        seeds_exchange_commitment: dvt_abi::SeedExchangeCommitment {
+        seeds_exchange_commitment: dvt::SeedExchangeCommitment {
             initial_commitment_hash: initial_commitment_hash,
-            shared_secret: dvt_abi::ExchangedSecret {
+            shared_secret: dvt::ExchangedSecret {
                 secret: BLSSecretRaw(secret),
                 dst_base_hash: receiver_commitment_hash,
             },
-            commitment: dvt_abi::Commitment {
+            commitment: dvt::Commitment {
                 hash: SHA256Raw(commitment_hash),
                 pubkey: BLSPubkeyRaw(commitment_pubkey),
                 signature: BLSSignatureRaw(commitment_signature),
@@ -228,7 +224,7 @@ fn parse_message(
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dvt_abi::BadEncryptedShare =
+    let data: dvt::BadEncryptedShare =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
     let pk = G1Affine::from_compressed(&data.sender_pubkey)
@@ -286,11 +282,11 @@ pub fn main() {
         );
     }
 
-    if !dvt_common::verify_initial_commitment_hash(&data.initial_commitment) {
+    if !dvt::verify_initial_commitment_hash(&data.initial_commitment) {
         panic!("Unsalshable error while verifying commitment hash\n");
     }
 
-    match dvt_common::verify_seed_exchange_commitment(
+    match dvt::verify_seed_exchange_commitment(
         &data.verification_hashes,
         &data.seeds_exchange_commitment,
         &data.initial_commitment,

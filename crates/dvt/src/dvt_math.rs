@@ -1,4 +1,4 @@
-use bls12_381::{G1Affine, G1Projective, G2Affine, Scalar};
+use bls12_381::{G1Affine, G1Projective, Scalar};
 
 // https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
 //
@@ -16,28 +16,28 @@ use bls12_381::{G1Affine, G1Projective, G2Affine, Scalar};
 //
 // https://github.com/dashpay/dips/blob/master/dip-0006/bls_m-of-n_threshold_scheme_and_dkg.md
 // https://medium.com/toruslabs/what-distributed-key-generation-is-866adc79620
-pub fn evaluate_polynomial(cfs: Vec<G1Affine>, x: Scalar) -> G1Affine {
-    let cfst: Vec<G1Projective> = cfs.iter().map(|c| G1Projective::from(c)).collect();
+pub fn evaluate_polynomial(cfs: &[G1Affine], x: &Scalar) -> G1Affine {
+    let cfst: Vec<G1Projective> = cfs.iter().map(G1Projective::from).collect();
     let count = cfst.len();
     if count == 0 {
-        return G1Affine::identity();
+        G1Affine::identity()
     } else if count == 1 {
-        return cfs[0];
+        cfs[0]
     } else {
         let mut y = cfst[count - 1];
         for i in 2..(count + 1) {
             y = y * x + cfs[count - i];
         }
-        return G1Affine::from(y);
+        G1Affine::from(y)
     }
 }
 
-pub fn evaluate_polynomial_g1_projection(cfs: &Vec<G1Projective>, x: Scalar) -> G1Projective {
+pub fn evaluate_polynomial_g1_projection(cfs: &[G1Projective], x: &Scalar) -> G1Projective {
     let count = cfs.len();
     if count == 0 {
         G1Projective::identity()
     } else if count == 1 {
-        G1Projective::from(cfs[0])
+        cfs[0]
     } else {
         let mut y = cfs[count - 1];
         for i in 2..(count + 1) {
@@ -47,9 +47,11 @@ pub fn evaluate_polynomial_g1_projection(cfs: &Vec<G1Projective>, x: Scalar) -> 
     }
 }
 
+#[allow(clippy::assign_op_pattern)]
+#[allow(clippy::needless_range_loop)]
 pub fn lagrange_interpolation(
-    y_vec: &Vec<G1Affine>,
-    x_vec: &Vec<Scalar>,
+    y_vec: &[G1Affine],
+    x_vec: &[Scalar],
 ) -> Result<G1Affine, Box<dyn std::error::Error>> {
     let k = x_vec.len();
     if k == 0 || k != y_vec.len() {
@@ -99,8 +101,8 @@ pub fn lagrange_interpolation(
 
 #[cfg(test)]
 mod tests {
+    use crate::crypto::*;
     use bls12_381::*;
-    use crypto::*;
 
     use super::*;
 
@@ -141,7 +143,7 @@ mod tests {
 
         let id = bls_id_from_u32(1);
 
-        let result = evaluate_polynomial(pks, id);
+        let result = evaluate_polynomial(&pks, &id);
 
         assert!(hex::encode(result.to_compressed()) == target);
     }
@@ -161,7 +163,7 @@ mod tests {
 
         let id = bls_id_from_u32(1);
 
-        let result = evaluate_polynomial(pks, id);
+        let result = evaluate_polynomial(&pks, &id);
 
         assert!(hex::encode(result.to_compressed()) != target);
     }
