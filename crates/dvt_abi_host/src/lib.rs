@@ -89,7 +89,7 @@ impl ProverSerialize for dvt_abi::AbiGeneration {
         }
         write_array_to_prover(stdin, &self.base_hash);
         write_array_to_prover(stdin, &self.partial_pubkey);
-        write_vec_to_prover(stdin, &self.message_cleartext);
+        stdin.write(&self.message_cleartext);
         write_array_to_prover(stdin, &self.message_signature);
     }
 }
@@ -142,7 +142,7 @@ impl ProverSerialize for dvt_abi::AbiBadEncryptedShare {
         write_array_to_prover(stdin, &self.signature);
         write_array_to_prover(stdin, &self.receiver_pubkey);
         write_array_to_prover(stdin, &self.receiver_commitment_hash);
-        write_vec_to_prover(stdin, &self.encrypted_message);
+        stdin.write(&self.encrypted_message);
         self.settings.write(stdin);
         self.base_hashes.write(stdin);
         assert!(self.base_pubkeys.len() == self.settings.k as usize);

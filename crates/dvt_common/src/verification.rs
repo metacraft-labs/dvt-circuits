@@ -154,7 +154,7 @@ pub fn verify_seed_exchange_commitment(
 pub fn compute_initial_commitment_hash(commitment: &dvt_abi::AbiInitialCommitment) -> SHA256Raw {
     let mut hasher = Sha256::new();
 
-    hasher.update(commitment.settings.gen_id);
+    hasher.update(commitment.settings.gen_id.as_ref());
     hasher.update([commitment.settings.n]);
     hasher.update([commitment.settings.k]);
 
@@ -253,7 +253,9 @@ pub fn verify_generation_hashes(
         }
     }
 
-    let hashed_msg = G2Affine::from(&hash_message_to_g2(&generations[0].message_cleartext));
+    let hashed_msg = G2Affine::from(&hash_message_to_g2(
+        &generations[0].message_cleartext.as_bytes(),
+    ));
 
     for (_, generation) in generations.iter().enumerate() {
         let signature = BlsSignature::from_bytes(&generation.message_signature)?;
@@ -347,7 +349,7 @@ pub fn compute_partial_share_hash(
     partial_share: &dvt_abi::AbiBadPartialShare,
 ) -> Vec<u8> {
     let mut hasher = Sha256::new();
-    hasher.update(&settings.gen_id);
+    hasher.update(settings.gen_id.as_ref());
     hasher.update(&[settings.n]);
     hasher.update(&[settings.k]);
 
@@ -413,7 +415,7 @@ pub fn prove_wrong_final_key_generation(
             ))));
         }
     };
-    if !key.verify_signature(&data.bad_partial.data.message_cleartext, &sig) {
+    if !key.verify_signature(&data.bad_partial.data.message_cleartext.as_bytes(), &sig) {
         return Err(Box::new(VerificationErrors::SlashableError(format!(
             "Invalid partial signature {} from key {}",
             sig, key

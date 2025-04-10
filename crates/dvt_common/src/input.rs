@@ -1,7 +1,4 @@
-use crypto::{
-    for_each_raw_type, BLSIdRaw, BLSPubkeyRaw, BLSSecretRaw, BLSSignatureRaw, SHA256Raw,
-    BLS_ID_SIZE, BLS_PUBKEY_SIZE, BLS_SECRET_SIZE, BLS_SIGNATURE_SIZE, GEN_ID_SIZE, SHA256_SIZE,
-};
+use crypto::*;
 use dvt_abi::{self, BlsCommitment};
 use sp1_zkvm;
 
@@ -87,7 +84,7 @@ fn read_settings_from_host() -> dvt_abi::AbiGenerateSettings {
     dvt_abi::AbiGenerateSettings {
         n: sp1_zkvm::io::read(),
         k: sp1_zkvm::io::read(),
-        gen_id: read_byte_array_from_host::<{ GEN_ID_SIZE }>(),
+        gen_id: read_from_host(),
     }
 }
 
@@ -132,7 +129,7 @@ fn read_signle_generation(k: u8) -> dvt_abi::AbiGeneration {
     let verification_vector = read_vec_from_host(k);
     let base_hash = read_from_host();
     let partial_pubkey = read_from_host();
-    let message = read_byte_vec_from_host();
+    let message = sp1_zkvm::io::read::<String>();
     let message_signature = read_from_host();
 
     dvt_abi::AbiGeneration {
@@ -215,7 +212,7 @@ pub fn read_bad_encrypted_share() -> dvt_abi::AbiBadEncryptedShare {
     let signature = read_from_host();
     let receiver_pubkey = read_from_host();
     let receiver_commitment_hash = read_from_host();
-    let encrypted_message = read_byte_vec_from_host();
+    let encrypted_message = sp1_zkvm::io::read::<String>();
     let settings = read_settings_from_host();
     let base_hashes = read_vec_from_host::<SHA256Raw>(settings.n);
     let base_pubkeys = read_vec_from_host::<BLSPubkeyRaw>(settings.k);

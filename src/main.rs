@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use colored::*;
 use dvt_abi::{
-    read_data_from_json_file, read_text_file, AbiBlsSharedData, AbiFinalizationData,
-    DvtBadEncryptedShare, DvtBadPartialShareData, DvtBlsSharedData, DvtFinalizationData, ToAbi,
+    read_data_from_json_file, read_text_file, AbiBadEncryptedShare, AbiBadPartialShareData,
+    AbiBlsSharedData, AbiFinalizationData,
 };
 use dvt_abi_host::ProverSerialize;
 use jsonschema::JSONSchema;
@@ -99,58 +99,46 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
 
             match subtype {
                 CircuitType::BadShare => {
-                    let dvt_data = read_data_from_json_file::<DvtBlsSharedData>(&input_file)
+                    let dvt_data = read_data_from_json_file::<AbiBlsSharedData>(&input_file)
                         .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
-                    let abi_data: AbiBlsSharedData = dvt_data
-                        .to_abi()
-                        .map_err(|e| style_error(format!("Share data to ABI failed: {e}")))?;
                     prove(
-                        &abi_data,
+                        &dvt_data,
                         SHARE_PROVER_ELF,
                         &input_file,
                         output_file_path.as_deref(),
                     )?;
                 }
                 CircuitType::Finalization => {
-                    let dvt_data = read_data_from_json_file::<DvtFinalizationData>(&input_file)
+                    let dvt_data = read_data_from_json_file::<AbiFinalizationData>(&input_file)
                         .map_err(|e| {
                             style_error(format!("Failed to read finalization data: {e}"))
                         })?;
-                    let abi_data: AbiFinalizationData = dvt_data.to_abi().map_err(|e| {
-                        style_error(format!("Finalization data to ABI failed: {e}"))
-                    })?;
                     prove(
-                        &abi_data,
+                        &dvt_data,
                         FINALE_PROVER_ELF,
                         &input_file,
                         output_file_path.as_deref(),
                     )?;
                 }
                 CircuitType::BadPartialKey => {
-                    let dvt_data = read_data_from_json_file::<DvtBadPartialShareData>(&input_file)
+                    let dvt_data = read_data_from_json_file::<AbiBadPartialShareData>(&input_file)
                         .map_err(|e| {
                             style_error(format!("Failed to read bad partial key data: {e}"))
                         })?;
-                    let abi_data = dvt_data.to_abi().map_err(|e| {
-                        style_error(format!("Bad partial key data to ABI failed: {e}"))
-                    })?;
                     prove(
-                        &abi_data,
+                        &dvt_data,
                         BAD_PARTIAL_KEY_PROVER_ELF,
                         &input_file,
                         output_file_path.as_deref(),
                     )?;
                 }
                 CircuitType::BadEncryptedShare => {
-                    let dvt_data = read_data_from_json_file::<DvtBadEncryptedShare>(&input_file)
+                    let dvt_data = read_data_from_json_file::<AbiBadEncryptedShare>(&input_file)
                         .map_err(|e| {
                             style_error(format!("Failed to read bad encrypted share data: {e}"))
                         })?;
-                    let abi_data = dvt_data.to_abi().map_err(|e| {
-                        style_error(format!("Bad encrypted share data to ABI failed: {e}"))
-                    })?;
                     prove(
-                        &abi_data,
+                        &dvt_data,
                         BAD_ENCRYPTED_SHARE_PROVER_ELF,
                         &input_file,
                         output_file_path.as_deref(),
@@ -168,42 +156,30 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
 
             match subtype {
                 CircuitType::BadShare => {
-                    let dvt_data = read_data_from_json_file::<DvtBlsSharedData>(&input_file)
+                    let dvt_data = read_data_from_json_file::<AbiBlsSharedData>(&input_file)
                         .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
-                    let abi_data: AbiBlsSharedData = dvt_data
-                        .to_abi()
-                        .map_err(|e| style_error(format!("Share data to ABI failed: {e}")))?;
-                    execute(&abi_data, SHARE_PROVER_ELF, show_report)?;
+                    execute(&dvt_data, SHARE_PROVER_ELF, show_report)?;
                 }
                 CircuitType::Finalization => {
-                    let dvt_data = read_data_from_json_file::<DvtFinalizationData>(&input_file)
+                    let dvt_data = read_data_from_json_file::<AbiFinalizationData>(&input_file)
                         .map_err(|e| {
                             style_error(format!("Failed to read finalization data: {e}"))
                         })?;
-                    let abi_data: AbiFinalizationData = dvt_data.to_abi().map_err(|e| {
-                        style_error(format!("Finalization data to ABI failed: {e}"))
-                    })?;
-                    execute(&abi_data, FINALE_PROVER_ELF, show_report)?;
+                    execute(&dvt_data, FINALE_PROVER_ELF, show_report)?;
                 }
                 CircuitType::BadPartialKey => {
-                    let dvt_data = read_data_from_json_file::<DvtBadPartialShareData>(&input_file)
+                    let dvt_data = read_data_from_json_file::<AbiBadPartialShareData>(&input_file)
                         .map_err(|e| {
                             style_error(format!("Failed to read bad partial key data: {e}"))
                         })?;
-                    let abi_data = dvt_data.to_abi().map_err(|e| {
-                        style_error(format!("Bad partial key data to ABI failed: {e}"))
-                    })?;
-                    execute(&abi_data, BAD_PARTIAL_KEY_PROVER_ELF, show_report)?;
+                    execute(&dvt_data, BAD_PARTIAL_KEY_PROVER_ELF, show_report)?;
                 }
                 CircuitType::BadEncryptedShare => {
-                    let dvt_data = read_data_from_json_file::<DvtBadEncryptedShare>(&input_file)
+                    let dvt_data = read_data_from_json_file::<AbiBadEncryptedShare>(&input_file)
                         .map_err(|e| {
                             style_error(format!("Failed to read bad encrypted share data: {e}"))
                         })?;
-                    let abi_data = dvt_data.to_abi().map_err(|e| {
-                        style_error(format!("Bad encrypted share data to ABI failed: {e}"))
-                    })?;
-                    execute(&abi_data, BAD_ENCRYPTED_SHARE_PROVER_ELF, show_report)?;
+                    execute(&dvt_data, BAD_ENCRYPTED_SHARE_PROVER_ELF, show_report)?;
                 }
             }
         }

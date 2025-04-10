@@ -240,11 +240,12 @@ pub fn main() {
 
     let mut cipher2 = new_chacha20_cipher(p.to_bytes_raw().as_slice(), "", "");
 
-    let mut descrypted = data.encrypted_message.clone();
-    cipher2.apply_keystream(&mut descrypted);
-    println!("decrypted {:?}", hex::encode(&descrypted));
+    let mut decrypted =
+        hex::decode(&data.encrypted_message).expect("invalid hex in encrypted_message");
+    cipher2.apply_keystream(&mut decrypted);
+    println!("decrypted {:?}", hex::encode(&decrypted));
     let data = match parse_message(
-        &descrypted,
+        &decrypted,
         data.settings,
         data.base_pubkeys,
         data.base_hashes,
