@@ -80,7 +80,7 @@ macro_rules! define_raw_type {
 
         impl std::cmp::PartialOrd for $name {
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-                self.0.partial_cmp(&other.0)
+                Some(self.cmp(other))
             }
         }
 
@@ -91,7 +91,7 @@ macro_rules! define_raw_type {
         }
 
         impl crypto::HexConvertable for $name {
-            fn from_hex(hex: &String) -> Result<Self, hex::FromHexError> {
+            fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
                 let bytes: [u8; $size_const] = hex::decode(hex)?.try_into().unwrap();
                 Ok(Self(bytes))
             }
