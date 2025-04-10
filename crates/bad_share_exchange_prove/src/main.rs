@@ -4,13 +4,12 @@ sp1_zkvm::entrypoint!(main);
 
 use core::panic;
 
-use crypto::*;
-use dvt_abi::BlsSharedData;
-use dvt_common::{self, VerificationErrors};
+use dvt::crypto::*;
+use dvt::{self, VerificationErrors};
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dvt_abi::BlsSharedData =
+    let data: dvt::BlsSharedData =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
     if data.verification_hashes.len() != data.initial_commitment.settings.n as usize {
@@ -30,11 +29,11 @@ pub fn main() {
         panic!("The seed exchange commitment is not part of the verification hashes\n");
     }
 
-    if !dvt_common::verify_initial_commitment_hash(&data.initial_commitment) {
+    if !dvt::verify_initial_commitment_hash(&data.initial_commitment) {
         panic!("Unsalshable error while verifying commitment hash\n");
     }
 
-    match dvt_common::verify_seed_exchange_commitment(
+    match dvt::verify_seed_exchange_commitment(
         &data.verification_hashes,
         &data.seeds_exchange_commitment,
         &data.initial_commitment,

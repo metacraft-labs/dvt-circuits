@@ -1,6 +1,4 @@
-use crate::bls_common::*;
-use crate::crypto;
-use crate::HexConvertable;
+use crate::crypto::*;
 use bls12_381::{G1Affine, G2Affine, Scalar};
 use serde::{Deserialize, Serialize, Serializer};
 use std::fmt;
@@ -115,7 +113,7 @@ macro_rules! define_raw_type {
             }
         }
 
-        impl crypto::HexConvertable for $name {
+        impl traits::HexConvertable for $name {
             fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
                 let bytes: [u8; $size_const] = hex::decode(hex)?.try_into().unwrap();
                 Ok(Self(bytes))
@@ -147,14 +145,14 @@ pub struct BlsPublicKey {
     key: G1Affine,
 }
 
-impl crypto::ByteConvertible for BlsPublicKey {
+impl traits::ByteConvertible for BlsPublicKey {
     type Error = Box<dyn std::error::Error>;
     type RawBytes = BLSPubkeyRaw;
 
     fn from_bytes(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
     where
         Self: Sized,
-        Self::RawBytes: HexConvertable,
+        Self::RawBytes: traits::HexConvertable,
     {
         let g1 = G1Affine::from_compressed(bytes).into_option();
         match g1 {
@@ -183,7 +181,7 @@ impl crypto::ByteConvertible for BlsPublicKey {
     }
 }
 
-impl crypto::PublicKey for BlsPublicKey {
+impl traits::PublicKey for BlsPublicKey {
     type Sig = BlsSignature;
     fn verify_signature(&self, message: &[u8], signature: &Self::Sig) -> bool {
         bls_verify(&self.key, &signature.sig, message)
@@ -227,7 +225,7 @@ pub struct BlsSecretKey {
     key: Scalar,
 }
 
-impl crypto::ByteConvertible for BlsSecretKey {
+impl traits::ByteConvertible for BlsSecretKey {
     type Error = Box<dyn std::error::Error>;
     type RawBytes = BLSSecretRaw;
 
@@ -268,9 +266,9 @@ impl crypto::ByteConvertible for BlsSecretKey {
     }
 }
 
-impl crypto::Signature for BlsSignature {}
+impl traits::Signature for BlsSignature {}
 
-impl crypto::SecretKey for BlsSecretKey {
+impl traits::SecretKey for BlsSecretKey {
     type PubKey = BlsPublicKey;
     fn to_public_key(&self) -> Self::PubKey {
         BlsPublicKey {
@@ -298,7 +296,7 @@ pub struct BlsSignature {
     sig: G2Affine,
 }
 
-impl crypto::ByteConvertible for BlsSignature {
+impl traits::ByteConvertible for BlsSignature {
     type Error = Box<dyn std::error::Error>;
     type RawBytes = BLSSignatureRaw;
 
@@ -351,6 +349,7 @@ impl fmt::Display for BlsSignature {
 mod tests {
 
     use super::*;
+    use crate::*;
 
     #[test]
     fn test_bls_id_from_u32() {

@@ -1,14 +1,14 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use colored::*;
-use dvt_abi::{
-    read_data_from_json_file, read_text_file, BadEncryptedShare, BadPartialShareData,
-    BlsSharedData, FinalizationData,
-};
+use dvt::{BadEncryptedShare, BadPartialShareData, BlsSharedData, FinalizationData};
 use jsonschema::JSONSchema;
 use serde_json::Value;
 use sp1_sdk::{include_elf, proof::SP1ProofWithPublicValues, utils, ProverClient, SP1Stdin};
 use std::{error::Error, process};
+pub mod file_utils;
 pub mod git_info;
+
+use file_utils::*;
 
 fn style_error(msg: impl AsRef<str>) -> String {
     format!("❌ {}", msg.as_ref()).red().bold().to_string()

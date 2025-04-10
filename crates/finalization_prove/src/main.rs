@@ -2,15 +2,13 @@
 
 sp1_zkvm::entrypoint!(main);
 
-use crypto::*;
-use dvt_common;
+use dvt::crypto::HexConvertable;
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dvt_abi::FinalizationData =
+    let data: dvt::FinalizationData =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
-    let ok =
-        dvt_common::verify_generations(&data.generations, &data.settings, &data.aggregate_pubkey);
+    let ok = dvt::verify_generations(&data.generations, &data.settings, &data.aggregate_pubkey);
     if ok.is_err() {
         panic!("{:?}", ok.unwrap_err().to_string());
     }
