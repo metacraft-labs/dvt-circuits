@@ -9,6 +9,7 @@ use chacha20::{ChaCha20, Key, Nonce};
 
 use bls12_381::{self, G1Affine, G2Affine};
 use dvt::crypto::*;
+use dvt::types::*;
 use sha2::{Digest, Sha256};
 use std::fmt;
 

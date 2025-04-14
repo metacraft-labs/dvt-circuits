@@ -1,144 +1,7 @@
 use crate::crypto::*;
+use crate::types::*;
 use bls12_381::{G1Affine, G2Affine, Scalar};
-use serde::{Deserialize, Serialize, Serializer};
 use std::fmt;
-
-pub const BLS_SIGNATURE_SIZE: usize = 96;
-pub const BLS_PUBKEY_SIZE: usize = 48;
-pub const BLS_SECRET_SIZE: usize = 32;
-pub const BLS_ID_SIZE: usize = 32;
-pub const GEN_ID_SIZE: usize = 16;
-pub const SHA256_SIZE: usize = 32;
-
-pub trait AsByteArr {
-    fn as_arr(&self) -> &[u8];
-}
-
-macro_rules! define_raw_type {
-    ($name:ident, $size_const:ident) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-        pub struct $name(pub [u8; $size_const]);
-
-        impl std::ops::Deref for $name {
-            type Target = [u8; $size_const];
-            fn deref(&self) -> &Self::Target {
-                &self.0
-            }
-        }
-
-        impl std::ops::DerefMut for $name {
-            fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut self.0
-            }
-        }
-
-        impl AsRef<[u8; $size_const]> for $name {
-            fn as_ref(&self) -> &[u8; $size_const] {
-                &self.0
-            }
-        }
-
-        impl AsMut<[u8; $size_const]> for $name {
-            fn as_mut(&mut self) -> &mut [u8; $size_const] {
-                &mut self.0
-            }
-        }
-
-        impl From<[u8; $size_const]> for $name {
-            fn from(bytes: [u8; $size_const]) -> Self {
-                Self(bytes)
-            }
-        }
-
-        impl From<$name> for [u8; $size_const] {
-            fn from(value: $name) -> Self {
-                value.0
-            }
-        }
-
-        impl AsByteArr for $name {
-            fn as_arr(&self) -> &[u8] {
-                &self.0
-            }
-        }
-
-        impl std::convert::TryFrom<&[u8]> for $name {
-            type Error = std::array::TryFromSliceError;
-            fn try_from(slice: &[u8]) -> Result<Self, Self::Error> {
-                Ok(Self(slice.try_into()?))
-            }
-        }
-
-        impl std::convert::TryFrom<Vec<u8>> for $name {
-            type Error = std::array::TryFromSliceError;
-            fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
-                let array: [u8; $size_const] = vec.as_slice().try_into()?;
-                Ok(Self(array))
-            }
-        }
-
-        impl std::cmp::PartialOrd for $name {
-            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-                Some(self.cmp(other))
-            }
-        }
-
-        impl std::cmp::Ord for $name {
-            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-                self.0.cmp(&other.0)
-            }
-        }
-
-        impl Serialize for $name {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: Serializer,
-            {
-                let hex_str = hex::encode(self.0);
-                serializer.serialize_str(&hex_str)
-            }
-        }
-
-        impl<'de> Deserialize<'de> for $name {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                let hex_str = String::deserialize(deserializer)?;
-                let bytes = hex::decode(&hex_str).map_err(serde::de::Error::custom)?;
-                let arr: [u8; $size_const] = bytes
-                    .try_into()
-                    .map_err(|_| serde::de::Error::custom("Invalid {$name} length"))?;
-                Ok($name(arr))
-            }
-        }
-
-        impl traits::HexConvertable for $name {
-            fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
-                let bytes: [u8; $size_const] = hex::decode(hex)?.try_into().unwrap();
-                Ok(Self(bytes))
-            }
-
-            fn to_hex(&self) -> String {
-                hex::encode(&self.0)
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! for_each_raw_type {
-    ($macro:ident) => {
-        $macro!(DvtGenId, GEN_ID_SIZE);
-        $macro!(BLSPubkeyRaw, BLS_PUBKEY_SIZE);
-        $macro!(BLSSecretRaw, BLS_SECRET_SIZE);
-        $macro!(BLSIdRaw, BLS_ID_SIZE);
-        $macro!(BLSSignatureRaw, BLS_SIGNATURE_SIZE);
-        $macro!(SHA256Raw, SHA256_SIZE);
-    };
-}
-
-for_each_raw_type!(define_raw_type);
 
 #[derive(PartialEq)]
 pub struct BlsPublicKey {
@@ -172,12 +35,20 @@ impl traits::ByteConvertible for BlsPublicKey {
         Ok(BlsPublicKey { key: g1 })
     }
 
-    fn to_hex(&self) -> String {
-        hex::encode(self.key.to_compressed())
-    }
-
     fn to_bytes(&self) -> Self::RawBytes {
         Self::RawBytes::from(self.key.to_compressed())
+    }
+}
+
+impl HexConvertable for BlsPublicKey {
+    fn to_hex(&self) -> String {
+        self.to_bytes().to_hex()
+    }
+
+    fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
+        let bytes: [u8; 48] = hex::decode(hex).unwrap().try_into().unwrap();
+        let bytes = BLSPubkeyRaw::from(bytes);
+        Ok(BlsPublicKey::from_bytes(&bytes).expect("Can't create BLS public key"))
     }
 }
 
@@ -208,14 +79,12 @@ impl BlsPublicKey {
 
 impl fmt::Debug for BlsPublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use crate::crypto::ByteConvertible;
         write!(f, "PublicKey({})", self.to_hex())
     }
 }
 
 impl fmt::Display for BlsPublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use crate::crypto::ByteConvertible;
         write!(f, "PublicKey({})", self.to_hex())
     }
 }
@@ -260,13 +129,19 @@ impl traits::ByteConvertible for BlsSecretKey {
         bytes.reverse();
         Self::RawBytes::from(bytes)
     }
+}
 
+impl HexConvertable for BlsSecretKey {
     fn to_hex(&self) -> String {
         self.to_bytes().to_hex()
     }
-}
 
-impl traits::Signature for BlsSignature {}
+    fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
+        let bytes: [u8; 32] = hex::decode(hex).unwrap().try_into().unwrap();
+        let bytes = BLSSecretRaw::from(bytes);
+        Ok(BlsSecretKey::from_bytes(&bytes).expect("Can't create BLS secret key"))
+    }
+}
 
 impl traits::SecretKey for BlsSecretKey {
     type PubKey = BlsPublicKey;
@@ -295,6 +170,8 @@ impl fmt::Display for BlsSecretKey {
 pub struct BlsSignature {
     sig: G2Affine,
 }
+
+impl traits::Signature for BlsSignature {}
 
 impl traits::ByteConvertible for BlsSignature {
     type Error = Box<dyn std::error::Error>;
@@ -325,22 +202,28 @@ impl traits::ByteConvertible for BlsSignature {
     fn to_bytes(&self) -> Self::RawBytes {
         Self::RawBytes::from(self.sig.to_compressed())
     }
+}
 
+impl HexConvertable for BlsSignature {
     fn to_hex(&self) -> String {
-        hex::encode(self.sig.to_compressed())
+        self.to_bytes().to_hex()
+    }
+
+    fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
+        let bytes: [u8; 96] = hex::decode(hex).unwrap().try_into().unwrap();
+        let bytes = BLSSignatureRaw::from(bytes);
+        Ok(BlsSignature::from_bytes(&bytes).expect("Can't create BLS signature"))
     }
 }
 
 impl fmt::Debug for BlsSignature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use crate::crypto::ByteConvertible;
         write!(f, "Signature({})", self.to_hex())
     }
 }
 
 impl fmt::Display for BlsSignature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use crate::crypto::ByteConvertible;
         write!(f, "Signature({})", self.to_hex())
     }
 }
@@ -349,7 +232,6 @@ impl fmt::Display for BlsSignature {
 mod tests {
 
     use super::*;
-    use crate::*;
 
     #[test]
     fn test_bls_id_from_u32() {
