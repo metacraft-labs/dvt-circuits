@@ -1,9 +1,9 @@
 use bls12_381::{G1Affine, G1Projective, G2Affine, Scalar};
 
 use crate::crypto::{
-    BLSPubkeyRaw, BlsPublicKey, BlsSecretKey, BlsSignature, PublicKey, SHA256Raw, SecretKey,
+    BlsPublicKey, BlsSecretKey, BlsSignature, ByteConvertible, HexConvertable, PublicKey, SecretKey,
 };
-use crate::crypto::{ByteConvertible, HexConvertable};
+use crate::types::*;
 use sha2::{Digest, Sha256};
 
 use crate::dvt_math::{
@@ -11,7 +11,6 @@ use crate::dvt_math::{
 };
 
 use crate::crypto::{bls_id_from_u32, hash_message_to_g2, to_g1_affine, to_g1_projection};
-use crate::types::*;
 
 #[derive(Debug)]
 pub enum VerificationErrors {
@@ -170,11 +169,6 @@ pub fn compute_initial_commitment_hash(commitment: &InitialCommitment) -> SHA256
 }
 
 pub fn verify_initial_commitment_hash(commitment: &InitialCommitment) -> bool {
-    println!(
-        "commitment.hash: {:?}, calced: {:?}",
-        commitment.hash.to_hex(),
-        compute_initial_commitment_hash(commitment).to_hex()
-    );
     compute_initial_commitment_hash(commitment) == commitment.hash
 }
 
@@ -366,6 +360,23 @@ pub fn compute_partial_share_hash(
 
     hasher.finalize().to_vec()
 }
+
+// pub fn verify_commitment<Pk, Sig>(commitment: &Commitment) -> Result<(), Box<dyn std::error::Error>>
+// where
+//     Pk: PublicKey + ByteConvertible,
+//     Sig: Signature + ByteConvertible,
+// {
+//     let key = Pk::from_bytes(&commitment.pubkey.into())?;
+//     let sig = Sig::from_bytes(&commitment.signature.into())?;
+
+//     // Verify that the commitment made by the participant has the correct hash and signature
+//     match key.verify_signature(commitment.hash.as_ref(), &sig) {
+//         true => Ok(()),
+//         false => Err(format!("Invalid commitment signature {} and key {}"
+//             sig, key)
+//         .into()),
+//     }
+// }
 
 pub fn prove_wrong_final_key_generation(
     data: &BadPartialShareData,

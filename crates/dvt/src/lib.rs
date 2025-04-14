@@ -1,6 +1,6 @@
 pub mod crypto;
 mod dvt_math;
-mod types;
+pub mod types;
 mod verification;
 
 pub use verification::{

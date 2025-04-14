@@ -102,6 +102,7 @@ pub fn lagrange_interpolation(
 #[cfg(test)]
 mod tests {
     use crate::crypto::*;
+    use crate::types::*;
     use bls12_381::*;
 
     use super::*;

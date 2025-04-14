@@ -3,7 +3,8 @@ use bls12_381::{
     pairing, G1Affine, G1Projective, G2Affine, G2Projective, Scalar,
 };
 
-use crate::crypto::{bls_keys::*, HexConvertable};
+use crate::crypto::HexConvertable;
+use crate::types::*;
 use sha2::Sha256;
 
 pub fn hash_message_to_g2(msg: &[u8]) -> G2Projective {

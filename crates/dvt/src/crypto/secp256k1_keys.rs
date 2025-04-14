@@ -1,21 +1,21 @@
 use crate::crypto;
 use std::fmt;
 
+use super::HexConvertable;
+
 pub struct Secp256k1PublicKey {
     pub key: secp256k1::PublicKey,
 }
 
-type Secp256k1PublicKeyRaw = [u8; secp256k1::constants::PUBLIC_KEY_SIZE];
-
 impl crypto::ByteConvertible for Secp256k1PublicKey {
     type Error = Box<dyn std::error::Error>;
-    type RawBytes = Secp256k1PublicKeyRaw;
+    type RawBytes = crate::types::SECP256K1PubkeyRaw;
 
     fn from_bytes(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
     where
         Self: Sized,
     {
-        let key = secp256k1::PublicKey::from_slice(bytes)
+        let key = secp256k1::PublicKey::from_slice(bytes.as_ref())
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
         Ok(Self { key })
     }
@@ -27,25 +27,33 @@ impl crypto::ByteConvertible for Secp256k1PublicKey {
         Self::from_bytes(bytes)
     }
 
+    fn to_bytes(&self) -> Self::RawBytes {
+        Self::RawBytes::from(self.key.serialize())
+    }
+}
+
+impl HexConvertable for Secp256k1PublicKey {
     fn to_hex(&self) -> String {
-        hex::encode(self.key.serialize())
+        use crate::crypto::ByteConvertible;
+        self.to_bytes().to_hex()
     }
 
-    fn to_bytes(&self) -> Self::RawBytes {
-        self.key.serialize()
+    fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
+        use crate::crypto::ByteConvertible;
+        let bytes: [u8; 33] = hex::decode(hex).unwrap().try_into().unwrap();
+        let bytes = crate::types::SECP256K1PubkeyRaw::from(bytes);
+        Ok(Self::from_bytes(&bytes).unwrap())
     }
 }
 
 impl fmt::Debug for Secp256k1PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
-        use crate::crypto::ByteConvertible;
         write!(f, "{}", self.to_hex())
     }
 }
 
 impl fmt::Display for Secp256k1PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
-        use crate::crypto::ByteConvertible;
         write!(f, "{}", self.to_hex())
     }
 }
@@ -68,3 +76,41 @@ pub struct Secp256k1Signature {
 }
 
 impl crypto::Signature for Secp256k1Signature {}
+
+impl crypto::ByteConvertible for Secp256k1Signature {
+    type Error = Box<dyn std::error::Error>;
+    type RawBytes = crate::types::SECP256K1SignatureRaw;
+
+    fn from_bytes(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
+    where
+        Self: Sized,
+    {
+        let sig = secp256k1::ecdsa::Signature::from_compact(bytes.as_ref())?;
+        Ok(Secp256k1Signature { sig })
+    }
+
+    fn from_bytes_safe(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
+    where
+        Self: Sized,
+    {
+        Self::from_bytes(bytes)
+    }
+
+    fn to_bytes(&self) -> Self::RawBytes {
+        Self::RawBytes::from(self.sig.serialize_compact())
+    }
+}
+
+impl HexConvertable for Secp256k1Signature {
+    fn to_hex(&self) -> String {
+        use crate::crypto::ByteConvertible;
+        self.to_bytes().to_hex()
+    }
+
+    fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
+        use crate::crypto::ByteConvertible;
+        let bytes: [u8; 64] = hex::decode(hex).unwrap().try_into().unwrap();
+        let bytes = crate::types::SECP256K1SignatureRaw::from(bytes);
+        Ok(Self::from_bytes(&bytes).unwrap())
+    }
+}

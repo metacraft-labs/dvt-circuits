@@ -5,6 +5,7 @@ sp1_zkvm::entrypoint!(main);
 use core::panic;
 
 use dvt::crypto::*;
+use dvt::types::*;
 use dvt::{self, VerificationErrors};
 
 pub fn main() {
