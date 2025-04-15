@@ -14,11 +14,11 @@ pub fn main() {
     }
 
     for g in data.generations.iter() {
-        println!("Verification hash: {}", g.base_hash.to_hex());
+        println!("Verification hash: {}", g.base_hash);
         sp1_zkvm::io::commit(g.base_hash.as_ref());
     }
 
-    println!("Aggregate pubkey: {}", data.aggregate_pubkey.to_hex());
+    println!("Aggregate pubkey: {}", data.aggregate_pubkey);
     for byte in data.aggregate_pubkey.iter() {
         sp1_zkvm::io::commit(byte);
     }

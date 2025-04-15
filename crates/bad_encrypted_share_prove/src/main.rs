@@ -188,6 +188,13 @@ fn parse_message(
         .read_byte_array::<{ BLS_SIGNATURE_SIZE }>()
         .map_err(|e| format!("Invalid commitment_signature: {e}"))?;
 
+    // let commitment_pubkey = stream
+    //     .read_byte_array::<{ SECP256K1_PUBKEY_SIZE }>()
+    //     .map_err(|e| format!("Invalid commitment_pubkey: {e}"))?;
+    // let commitment_signature = stream
+    //     .read_byte_array::<{ SECP256K1_SIGNATURE_SIZE }>()
+    //     .map_err(|e| format!("Invalid commitment_signature: {e}"))?;
+
     stream.finalize();
 
     let mut initial_commitment = dvt::InitialCommitment {
@@ -218,6 +225,8 @@ fn parse_message(
                 hash: SHA256Raw(commitment_hash),
                 pubkey: BLSPubkeyRaw(commitment_pubkey),
                 signature: BLSSignatureRaw(commitment_signature),
+                // pubkey: SECP256K1PubkeyRaw(commitment_pubkey),
+                // signature: SECP256K1SignatureRaw(commitment_signature),
             },
         },
     })
@@ -274,7 +283,7 @@ pub fn main() {
     if !found {
         panic!(
             "The seed exchange commitment hash {} is not part of the verification hashes  {} \n",
-            data.initial_commitment.hash.to_hex(),
+            data.initial_commitment.hash,
             data.verification_hashes
                 .iter()
                 .map(|h| h.to_hex())
@@ -303,13 +312,13 @@ pub fn main() {
                         println!("Slashable error seed exchange commitment: {}", err);
 
                         for h in data.verification_hashes.iter() {
-                            println!("Verification hash: {}", h.to_hex());
+                            println!("Verification hash: {}", h);
                             sp1_zkvm::io::commit(h.as_ref());
                         }
 
                         println!(
                             "Perpetrator public key: {}",
-                            data.seeds_exchange_commitment.commitment.pubkey.to_hex()
+                            data.seeds_exchange_commitment.commitment.pubkey
                         );
                         for byte in data
                             .seeds_exchange_commitment
