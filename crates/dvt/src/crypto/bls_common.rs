@@ -3,7 +3,6 @@ use bls12_381::{
     pairing, G1Affine, G1Projective, G2Affine, G2Projective, Scalar,
 };
 
-use crate::crypto::HexConvertable;
 use crate::types::*;
 use sha2::Sha256;
 
@@ -46,7 +45,7 @@ fn uncompress_bls_pubkey_slow(
         Some(key) => Ok(key.to_uncompressed()),
         None => Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            format!("Invalid public key {}", pubkey.to_hex()),
+            format!("Invalid public key {}", pubkey),
         ))),
     }
 }
@@ -59,7 +58,7 @@ pub fn to_g1_affine_slow(pubkey: &BLSPubkeyRaw) -> Result<G1Affine, Box<dyn std:
         Some(key) => Ok(key),
         None => Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            format!("Invalid public key {}", pubkey.to_hex()),
+            format!("Invalid public key {}", pubkey),
         ))),
     }
 }

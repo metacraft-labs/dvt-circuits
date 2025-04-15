@@ -1,4 +1,4 @@
-use crate::traits;
+use crate::{traits, BlsCrypto, ByteConvertible, CryptoKeys};
 use serde::{Deserialize, Serialize, Serializer};
 use std::fmt;
 
@@ -33,14 +33,20 @@ pub struct ExchangedSecret {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct Commitment {
+pub struct Commitment<Crypto>
+where
+    Crypto: CryptoKeys,
+{
     #[serde(rename = "hash")]
     pub hash: SHA256Raw,
     #[serde(rename = "pubkey")]
-    pub pubkey: BLSPubkeyRaw,
+    pub pubkey: <Crypto::Pubkey as ByteConvertible>::RawBytes,
     #[serde(rename = "signature")]
-    pub signature: BLSSignatureRaw,
+    pub signature: <Crypto::Signature as ByteConvertible>::RawBytes,
 }
+
+type BlsCommitment = Commitment<BlsCrypto>;
+//type Secp256k1Commitment = Commitment<Secp256k1Crypto>;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SeedExchangeCommitment {
@@ -49,7 +55,7 @@ pub struct SeedExchangeCommitment {
     #[serde(rename = "ssecret")]
     pub shared_secret: ExchangedSecret,
     #[serde(rename = "commitment")]
-    pub commitment: Commitment,
+    pub commitment: BlsCommitment,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -101,7 +107,7 @@ pub struct BadPartialShare {
     #[serde(rename = "data")]
     pub data: Generation,
     #[serde(rename = "commitment")]
-    pub commitment: Commitment,
+    pub commitment: BlsCommitment,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -339,6 +345,7 @@ pub const SHA256_SIZE: usize = 32;
 
 pub const SECP256K1_PUBKEY_SIZE: usize = secp256k1::constants::PUBLIC_KEY_SIZE;
 pub const SECP256K1_SIGNATURE_SIZE: usize = secp256k1::constants::COMPACT_SIGNATURE_SIZE;
+pub const SECP256K1_SECRET_SIZE: usize = secp256k1::constants::SECRET_KEY_SIZE;
 
 #[macro_export]
 macro_rules! for_each_raw_type {
@@ -353,6 +360,7 @@ macro_rules! for_each_raw_type {
         $macro!(SHA256Raw, SHA256_SIZE);
         $macro!(SECP256K1PubkeyRaw, SECP256K1_PUBKEY_SIZE);
         $macro!(SECP256K1SignatureRaw, SECP256K1_SIGNATURE_SIZE);
+        $macro!(SECP256K1SecretRaw, SECP256K1_SECRET_SIZE);
     };
 }
 

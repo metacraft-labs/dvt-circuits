@@ -3,7 +3,7 @@ use crate::types::*;
 use bls12_381::{G1Affine, G2Affine, Scalar};
 use std::fmt;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct BlsPublicKey {
     key: G1Affine,
 }
@@ -22,7 +22,7 @@ impl traits::ByteConvertible for BlsPublicKey {
             Some(g1) => Ok(BlsPublicKey { key: g1 }),
             None => Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("Invalid public key {}", bytes.to_hex()),
+                format!("Invalid public key {}", bytes),
             ))),
         }
     }
@@ -89,7 +89,7 @@ impl fmt::Display for BlsPublicKey {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct BlsSecretKey {
     key: Scalar,
 }
@@ -166,7 +166,7 @@ impl fmt::Display for BlsSecretKey {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct BlsSignature {
     sig: G2Affine,
 }
@@ -226,6 +226,15 @@ impl fmt::Display for BlsSignature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Signature({})", self.to_hex())
     }
+}
+
+#[derive(Clone)]
+pub struct BlsCrypto {}
+
+impl CryptoKeys for BlsCrypto {
+    type Pubkey = BlsPublicKey;
+    type SecretKey = BlsSecretKey;
+    type Signature = BlsSignature;
 }
 
 #[cfg(test)]
