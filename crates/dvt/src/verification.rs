@@ -7,8 +7,8 @@ use crate::types::*;
 use sha2::{Digest, Sha256};
 
 use crate::dvt_math::{
-    evaluate_polynomial, evaluate_polynomial_g1_projection, evaluate_polynomial_generic,
-    lagrange_interpolation, lagrange_interpolation_generic, BlsG1, BlsG1Curve, BlsScalar,
+    agg_coefficients_generic, evaluate_polynomial_g1_projection, evaluate_polynomial_generic,
+    lagrange_interpolation, lagrange_interpolation_generic, BlsG1, BlsG1Curve, BlsScalar, TScalar,
 };
 
 use crate::crypto::{bls_id_from_u32, hash_message_to_g2, to_g1_affine, to_g1_projection};
@@ -485,18 +485,31 @@ fn compute_pubkey_share(
     sorted: &[BadPartialShareGeneration],
     perpetrator_bls_id: &Scalar,
 ) -> BlsPublicKey {
-    let verification_vectors: Vec<Vec<BLSPubkeyRaw>> = sorted
+    let verification_vectors: Vec<Vec<BlsG1>> = sorted
         .iter()
-        .map(|generation| -> Vec<BLSPubkeyRaw> { generation.verification_vector.clone() })
+        .map(|generation| {
+            generation
+                .verification_vector
+                .iter()
+                .map(|pk| BlsG1 {
+                    g1: to_g1_affine(pk),
+                })
+                .collect()
+        })
         .collect();
 
-    let ids: Vec<Scalar> = sorted
+    let ids: Vec<BlsScalar> = sorted
         .iter()
         .enumerate()
-        .map(|(i, _)| -> Scalar { bls_id_from_u32((i + 1) as u32) })
+        .map(|(i, _)| BlsScalar::from_u32((i + 1) as u32))
         .collect();
 
-    let computed_keys = agg_coefficients(&verification_vectors, &ids);
-    let expected_key = evaluate_polynomial(&computed_keys, perpetrator_bls_id);
-    BlsPublicKey::from_g1(&expected_key)
+    let computed_keys = agg_coefficients_generic::<BlsG1Curve>(&verification_vectors, &ids);
+    let expected_key = evaluate_polynomial_generic::<BlsG1Curve>(
+        &computed_keys,
+        &BlsScalar {
+            scalar: *perpetrator_bls_id,
+        },
+    );
+    BlsPublicKey::from_g1(&expected_key.g1)
 }
