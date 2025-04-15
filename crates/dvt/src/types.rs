@@ -299,7 +299,7 @@ macro_rules! define_raw_type {
             }
         }
 
-        impl traits::HexConvertable for $name {
+        impl traits::HexConvertible for $name {
             fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
                 let bytes: [u8; $size_const] = hex::decode(hex)?.try_into().unwrap();
                 Ok(Self(bytes))
@@ -308,28 +308,6 @@ macro_rules! define_raw_type {
             fn to_hex(&self) -> String {
                 hex::encode(&self.0)
             }
-        }
-
-        paste::paste! {
-            pub trait [<$name AllRawTypeTraits>]:
-                  std::ops::Deref<Target = [u8; $size_const]>
-                + std::ops::DerefMut<Target = [u8; $size_const]>
-                + AsRef<[u8; $size_const]>
-                + AsMut<[u8; $size_const]>
-                + From<[u8; $size_const]>
-                + Into<[u8; $size_const]>
-                + AsByteArr
-                + PartialOrd
-                + Ord
-                + Serialize
-                + for<'de> Deserialize<'de>
-                + fmt::Display
-                + fmt::Debug
-                + traits::HexConvertable
-            {
-            }
-
-            impl [<$name AllRawTypeTraits>] for $name {}
         }
     };
 }

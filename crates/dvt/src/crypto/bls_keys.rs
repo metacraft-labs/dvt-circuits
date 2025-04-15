@@ -15,7 +15,7 @@ impl traits::ByteConvertible for BlsPublicKey {
     fn from_bytes(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
     where
         Self: Sized,
-        Self::RawBytes: traits::HexConvertable,
+        Self::RawBytes: traits::HexConvertible,
     {
         let g1 = G1Affine::from_compressed(bytes).into_option();
         match g1 {
@@ -40,7 +40,7 @@ impl traits::ByteConvertible for BlsPublicKey {
     }
 }
 
-impl HexConvertable for BlsPublicKey {
+impl HexConvertible for BlsPublicKey {
     fn to_hex(&self) -> String {
         self.to_bytes().to_hex()
     }
@@ -131,7 +131,7 @@ impl traits::ByteConvertible for BlsSecretKey {
     }
 }
 
-impl HexConvertable for BlsSecretKey {
+impl HexConvertible for BlsSecretKey {
     fn to_hex(&self) -> String {
         self.to_bytes().to_hex()
     }
@@ -204,7 +204,7 @@ impl traits::ByteConvertible for BlsSignature {
     }
 }
 
-impl HexConvertable for BlsSignature {
+impl HexConvertible for BlsSignature {
     fn to_hex(&self) -> String {
         self.to_bytes().to_hex()
     }

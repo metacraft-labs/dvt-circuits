@@ -7,7 +7,8 @@ use crate::types::*;
 use sha2::{Digest, Sha256};
 
 use crate::dvt_math::{
-    evaluate_polynomial, evaluate_polynomial_g1_projection, lagrange_interpolation,
+    evaluate_polynomial, evaluate_polynomial_g1_projection, evaluate_polynomial_generic,
+    lagrange_interpolation, lagrange_interpolation_generic, BlsG1, BlsG1Curve, BlsScalar,
 };
 
 use crate::crypto::{bls_id_from_u32, hash_message_to_g2, to_g1_affine, to_g1_projection};
@@ -77,22 +78,6 @@ pub fn verify_seed_exchange_commitment(
 
     let shared_secret = &seed_exchange.shared_secret;
 
-    // let pubkey = BlsPublicKey::from_bytes_safe(&commitment.pubkey)?;
-
-    // let signature = BlsSignature::from_bytes(&commitment.signature)?;
-
-    // if !pubkey.verify_signature(commitment.hash.as_ref(), &signature) {
-    //     return Err(Box::new(VerificationErrors::UnslashableError(format!(
-    //         "Invalid field seeds_exchange_commitment.commitment.signature {},
-    //         message: {}
-    //         pubkey: {},
-    //         \n",
-    //         commitment.signature.to_hex(),
-    //         commitment.hash.to_hex(),
-    //         commitment.pubkey.to_hex()
-    //     ))));
-    // }
-
     if !verify_commitment(&seed_exchange.commitment) {
         return Err(Box::new(VerificationErrors::UnslashableError(format!(
             "Invalid field seeds_exchange_commitment.commitment.signature {},
@@ -146,7 +131,9 @@ pub fn verify_seed_exchange_commitment(
         .map(to_g1_affine)
         .collect();
 
-    let eval_result = evaluate_polynomial(&cfst, &id);
+    let cfst: Vec<BlsG1> = cfst.iter().map(|x| BlsG1 { g1: *x }).collect();
+    let eval_result = evaluate_polynomial_generic::<BlsG1Curve>(&cfst, &BlsScalar { scalar: id });
+    let eval_result = eval_result.g1;
 
     if !sk.to_public_key().equal(&eval_result) {
         return Err(Box::new(VerificationErrors::SlashableError(format!(
@@ -230,8 +217,12 @@ fn compute_agg_key_from_dvt(
     verification_vectors: &[Vec<BLSPubkeyRaw>],
     ids: &[Scalar],
 ) -> Result<BlsPublicKey, Box<dyn std::error::Error>> {
-    let coefficients = agg_coefficients(verification_vectors, ids);
-    let agg_key = lagrange_interpolation(&coefficients, ids)?;
+    let coefficients: Vec<BlsG1> = agg_coefficients(verification_vectors, ids)
+        .iter()
+        .map(|x| BlsG1 { g1: *x })
+        .collect();
+    let ids: Vec<BlsScalar> = ids.iter().map(|x| BlsScalar { scalar: *x }).collect();
+    let agg_key = lagrange_interpolation_generic::<BlsG1Curve>(&coefficients, &ids)?.g1;
     Ok(BlsPublicKey::from_g1(&agg_key))
 }
 
