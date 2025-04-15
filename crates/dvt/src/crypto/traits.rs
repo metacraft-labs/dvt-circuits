@@ -15,7 +15,7 @@ pub trait ByteConvertible {
         Self: Sized;
     fn to_bytes(&self) -> Self::RawBytes;
 }
-pub trait HexConvertable
+pub trait HexConvertible
 where
     Self: Sized,
 {
@@ -23,18 +23,18 @@ where
     fn to_hex(&self) -> String;
 }
 
-pub trait PublicKey: ByteConvertible + HexConvertable + Display + Debug {
+pub trait PublicKey: ByteConvertible + HexConvertible + Display + Debug {
     type Sig;
 
     fn verify_signature(&self, message: &[u8], signature: &Self::Sig) -> bool;
 }
 
-pub trait SecretKey: ByteConvertible + HexConvertable + Display + Debug {
+pub trait SecretKey: ByteConvertible + HexConvertible + Display + Debug {
     type PubKey;
     fn to_public_key(&self) -> Self::PubKey;
 }
 
-pub trait Signature: ByteConvertible + HexConvertable + Display + Debug {}
+pub trait Signature: ByteConvertible + HexConvertible + Display + Debug {}
 
 pub trait CryptoKeys {
     type Pubkey: PublicKey<Sig = Self::Signature>;

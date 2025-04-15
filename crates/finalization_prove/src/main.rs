@@ -2,7 +2,7 @@
 
 sp1_zkvm::entrypoint!(main);
 
-use dvt::crypto::HexConvertable;
+use dvt::crypto::HexConvertible;
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();

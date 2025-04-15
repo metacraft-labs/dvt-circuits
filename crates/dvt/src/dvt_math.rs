@@ -1,5 +1,162 @@
 use bls12_381::{G1Affine, G1Projective, Scalar};
 
+pub trait TScalar: Clone + Copy {
+    fn mul(self, other: &Self) -> Self;
+    fn mul_assign(&mut self, other: &Self) {
+        *self = self.mul(other);
+    }
+    fn sub(self, other: &Self) -> Self;
+    fn is_zero(self) -> bool;
+    fn invert(self) -> Self;
+}
+
+pub trait TPoint: Clone + Copy {
+    type Scalar: TScalar;
+    fn identity() -> Self;
+
+    fn add(self, other: &Self) -> Self;
+    fn mul_scalar(self, other: &Self::Scalar) -> Self;
+}
+
+#[derive(Clone, Copy)]
+pub struct BlsG1 {
+    pub g1: G1Affine,
+}
+
+#[derive(Clone, Copy)]
+pub struct BlsScalar {
+    pub scalar: Scalar,
+}
+
+impl TScalar for BlsScalar {
+    fn mul(self, other: &Self) -> Self {
+        BlsScalar {
+            scalar: self.scalar * other.scalar,
+        }
+    }
+
+    fn sub(self, other: &Self) -> Self {
+        BlsScalar {
+            scalar: self.scalar - other.scalar,
+        }
+    }
+
+    fn is_zero(self) -> bool {
+        self.scalar == Scalar::zero()
+    }
+
+    fn invert(self) -> Self {
+        Self {
+            scalar: self.scalar.invert().expect("invalid valid point"),
+        }
+    }
+}
+
+impl TPoint for BlsG1 {
+    type Scalar = BlsScalar;
+    fn identity() -> Self {
+        BlsG1 {
+            g1: G1Affine::identity(),
+        }
+    }
+
+    fn add(self, other: &Self) -> Self {
+        let gp1 = G1Projective::from(self.g1);
+        let ogp1 = G1Projective::from(other.g1);
+        Self {
+            g1: G1Affine::from(gp1 + ogp1),
+        }
+    }
+
+    fn mul_scalar(self, other: &Self::Scalar) -> Self {
+        let gp1 = G1Projective::from(self.g1);
+        Self {
+            g1: G1Affine::from(gp1 * other.scalar),
+        }
+    }
+}
+
+pub trait Curve {
+    type Scalar: TScalar;
+    type Point: TPoint<Scalar = Self::Scalar>;
+}
+
+pub struct BlsG1Curve {}
+
+impl Curve for BlsG1Curve {
+    type Point = BlsG1;
+    type Scalar = BlsScalar;
+}
+
+pub fn evaluate_polynomial_generic<C: Curve>(cfs: &[C::Point], x: &C::Scalar) -> C::Point {
+    let count = cfs.len();
+    if count == 0 {
+        C::Point::identity()
+    } else if count == 1 {
+        cfs[0]
+    } else {
+        let mut y = cfs[count - 1];
+        for i in 2..(count + 1) {
+            y = y.mul_scalar(x);
+            y = y.add(&cfs[count - i]);
+        }
+        y
+    }
+}
+
+#[allow(clippy::assign_op_pattern)]
+#[allow(clippy::needless_range_loop)]
+pub fn lagrange_interpolation_generic<C: Curve>(
+    y_vec: &[C::Point],
+    x_vec: &[C::Scalar],
+) -> Result<C::Point, Box<dyn std::error::Error>> {
+    let k = x_vec.len();
+    if k == 0 || k != y_vec.len() {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "invalid inputs",
+        )));
+    }
+    if k == 1 {
+        return Ok(y_vec[0]);
+    }
+
+    // We calculate L(0) so we can simplify
+    // (X - X0) .. (X - Xj-1) * (X - Xj+1) .. (X - Xk) to just X0 * X1 .. Xk
+    // Later we can divide by Xi for each basis polynomial li(0)
+    let mut a = x_vec[0];
+    for i in 1..k {
+        //a *= x_vec[i];
+        a.mul_assign(&x_vec[i]);
+    }
+    if a.is_zero() {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "zero secret share id",
+        )));
+    }
+    let mut r = C::Point::identity();
+    for i in 0..k {
+        let mut b = x_vec[i];
+        for j in 0..k {
+            if j != i {
+                let v = x_vec[j].sub(&x_vec[i]);
+                if v.is_zero() {
+                    return Err(Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "duplicate secret share id",
+                    )));
+                }
+                b.mul_assign(&v);
+            }
+        }
+        let li0 = a.mul(&b.invert());
+        let tmp = y_vec[i].mul_scalar(&li0);
+        r = r.add(&tmp);
+    }
+    Ok(r)
+}
+
 // https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
 //
 // In Shamir's secret sharing, a secret is encoded as a n-degree polynomial

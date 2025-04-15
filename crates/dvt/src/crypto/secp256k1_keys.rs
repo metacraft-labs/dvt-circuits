@@ -1,7 +1,7 @@
 use crate::{crypto, SECP256K1_SECRET_SIZE};
 use std::fmt;
 
-use super::{CryptoKeys, HexConvertable};
+use super::{CryptoKeys, HexConvertible};
 
 #[derive(PartialEq, Clone)]
 pub struct Secp256k1PublicKey {
@@ -33,7 +33,7 @@ impl crypto::ByteConvertible for Secp256k1PublicKey {
     }
 }
 
-impl HexConvertable for Secp256k1PublicKey {
+impl HexConvertible for Secp256k1PublicKey {
     fn to_hex(&self) -> String {
         use crate::crypto::ByteConvertible;
         self.to_bytes().to_hex()
@@ -102,7 +102,7 @@ impl crypto::ByteConvertible for Secp256k1SecretKey {
     }
 }
 
-impl HexConvertable for Secp256k1SecretKey {
+impl HexConvertible for Secp256k1SecretKey {
     fn to_hex(&self) -> String {
         use crate::crypto::ByteConvertible;
         self.to_bytes().to_hex()
@@ -181,7 +181,7 @@ impl crypto::ByteConvertible for Secp256k1Signature {
     }
 }
 
-impl HexConvertable for Secp256k1Signature {
+impl HexConvertible for Secp256k1Signature {
     fn to_hex(&self) -> String {
         use crate::crypto::ByteConvertible;
         self.to_bytes().to_hex()
