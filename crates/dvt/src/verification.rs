@@ -1,4 +1,4 @@
-use bls12_381::{G1Affine, G1Projective, G2Affine, Scalar};
+use bls12_381::{G1Affine, G2Affine, Scalar};
 
 use crate::crypto::{
     BlsPublicKey, BlsSecretKey, BlsSignature, ByteConvertible, CryptoKeys, PublicKey, SecretKey,
@@ -7,11 +7,11 @@ use crate::types::*;
 use sha2::{Digest, Sha256};
 
 use crate::dvt_math::{
-    agg_coefficients_generic, evaluate_polynomial_g1_projection, evaluate_polynomial_generic,
-    lagrange_interpolation, lagrange_interpolation_generic, BlsG1, BlsG1Curve, BlsScalar, TScalar,
+    agg_coefficients, evaluate_polynomial, lagrange_interpolation, BlsG1, BlsG1Curve, BlsScalar,
+    TScalar,
 };
 
-use crate::crypto::{bls_id_from_u32, hash_message_to_g2, to_g1_affine, to_g1_projection};
+use crate::crypto::{bls_id_from_u32, hash_message_to_g2, to_g1_affine};
 
 #[derive(Debug)]
 pub enum VerificationErrors {
@@ -132,7 +132,7 @@ pub fn verify_seed_exchange_commitment(
         .collect();
 
     let cfst: Vec<BlsG1> = cfst.iter().map(|x| BlsG1 { g1: *x }).collect();
-    let eval_result = evaluate_polynomial_generic::<BlsG1Curve>(&cfst, &BlsScalar { scalar: id });
+    let eval_result = evaluate_polynomial::<BlsG1Curve>(&cfst, &BlsScalar { scalar: id });
     let eval_result = eval_result.g1;
 
     if !sk.to_public_key().equal(&eval_result) {
@@ -185,44 +185,22 @@ fn generate_initial_commitment(
     }
 }
 
-#[allow(clippy::assign_op_pattern)]
-fn agg_coefficients(verification_vectors: &[Vec<BLSPubkeyRaw>], ids: &[Scalar]) -> Vec<G1Affine> {
-    let verification_vectors: Vec<Vec<G1Projective>> = verification_vectors
+fn compute_agg_key_from_dvt(
+    verification_vectors: &[Vec<BLSPubkeyRaw>],
+    ids: &[BlsScalar],
+) -> Result<BlsPublicKey, Box<dyn std::error::Error>> {
+    let vv: Vec<Vec<BlsG1>> = verification_vectors
         .iter()
-        .map(|vector| -> Vec<G1Projective> {
-            vector
-                .iter()
-                .map(|pk: &BLSPubkeyRaw| to_g1_projection(pk))
+        .map(|x| {
+            x.iter()
+                .map(|pt| BlsG1 {
+                    g1: to_g1_affine(pt),
+                })
                 .collect()
         })
         .collect();
-
-    let mut final_cfs = Vec::new();
-    for i in 0..verification_vectors[0].len() {
-        let mut sum = G1Projective::identity();
-        for v in &verification_vectors {
-            sum = sum + v[i];
-        }
-        final_cfs.push(sum);
-    }
-    let mut final_keys = Vec::new();
-    for id in ids.iter() {
-        let tmp = evaluate_polynomial_g1_projection(&final_cfs, id);
-        final_keys.push(tmp);
-    }
-    final_keys.iter().map(G1Affine::from).collect()
-}
-
-fn compute_agg_key_from_dvt(
-    verification_vectors: &[Vec<BLSPubkeyRaw>],
-    ids: &[Scalar],
-) -> Result<BlsPublicKey, Box<dyn std::error::Error>> {
-    let coefficients: Vec<BlsG1> = agg_coefficients(verification_vectors, ids)
-        .iter()
-        .map(|x| BlsG1 { g1: *x })
-        .collect();
-    let ids: Vec<BlsScalar> = ids.iter().map(|x| BlsScalar { scalar: *x }).collect();
-    let agg_key = lagrange_interpolation_generic::<BlsG1Curve>(&coefficients, &ids)?.g1;
+    let coefficients: Vec<BlsG1> = agg_coefficients::<BlsG1Curve>(&vv, ids);
+    let agg_key = lagrange_interpolation::<BlsG1Curve>(&coefficients, ids)?.g1;
     Ok(BlsPublicKey::from_g1(&agg_key))
 }
 
@@ -293,10 +271,10 @@ pub fn verify_generations(
         .map(|generation| -> Vec<BLSPubkeyRaw> { generation.verification_vector.clone() })
         .collect();
 
-    let ids: Vec<Scalar> = sorted
+    let ids: Vec<BlsScalar> = sorted
         .iter()
         .enumerate()
-        .map(|(i, _)| -> Scalar { bls_id_from_u32((i + 1) as u32) })
+        .map(|(i, _)| BlsScalar::from_u32((i + 1) as u32))
         .collect();
 
     let computed_key = compute_agg_key_from_dvt(&verification_vectors, &ids)?;
@@ -312,16 +290,18 @@ pub fn verify_generations(
         )));
     }
 
-    let partial_keys: Vec<G1Affine> = sorted
+    let partial_keys: Vec<BlsG1> = sorted
         .iter()
         .map(|generation| -> G1Affine {
             G1Affine::from_compressed(&generation.partial_pubkey)
                 .into_option()
                 .expect("Invalid public key")
         })
+        .map(|pt| BlsG1 { g1: pt })
         .collect();
 
-    let computed_key = BlsPublicKey::from_g1(&lagrange_interpolation(&partial_keys, &ids)?);
+    let computed_key =
+        BlsPublicKey::from_g1(&lagrange_interpolation::<BlsG1Curve>(&partial_keys, &ids)?.g1);
 
     if computed_key != agg_key {
         return Err(Box::new(std::io::Error::new(
@@ -504,8 +484,8 @@ fn compute_pubkey_share(
         .map(|(i, _)| BlsScalar::from_u32((i + 1) as u32))
         .collect();
 
-    let computed_keys = agg_coefficients_generic::<BlsG1Curve>(&verification_vectors, &ids);
-    let expected_key = evaluate_polynomial_generic::<BlsG1Curve>(
+    let computed_keys = agg_coefficients::<BlsG1Curve>(&verification_vectors, &ids);
+    let expected_key = evaluate_polynomial::<BlsG1Curve>(
         &computed_keys,
         &BlsScalar {
             scalar: *perpetrator_bls_id,
