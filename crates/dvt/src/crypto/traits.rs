@@ -15,6 +15,21 @@ pub trait ByteConvertible {
         Self: Sized;
     fn to_bytes(&self) -> Self::RawBytes;
 }
+
+impl<T> HexConvertible for T
+where
+    T: ByteConvertible,
+    T::RawBytes: HexConvertible,
+{
+    fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
+        let bytes = T::RawBytes::from_hex(hex).expect("Invalid hex string");
+        Ok(T::from_bytes(&bytes).expect("Can't create object from hex string"))
+    }
+
+    fn to_hex(&self) -> String {
+        self.to_bytes().to_hex()
+    }
+}
 pub trait HexConvertible
 where
     Self: Sized,

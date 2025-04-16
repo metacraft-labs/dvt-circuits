@@ -1,8 +1,12 @@
 use bls12_381::{G1Affine, G1Projective, Scalar};
+use std::fmt;
 
-use crate::bls_id_from_u32;
+use crate::{bls_id_from_u32, to_g1_affine, BLSPubkeyRaw, HexConvertible};
+
+use crate::types::BLSIdRaw;
 
 pub trait TScalar: Clone + Copy {
+    type RawBytes: HexConvertible;
     fn mul(self, other: &Self) -> Self;
     fn mul_assign(&mut self, other: &Self) {
         *self = self.mul(other);
@@ -11,27 +15,35 @@ pub trait TScalar: Clone + Copy {
     fn is_zero(self) -> bool;
     fn invert(self) -> Self;
     fn from_u32(x: u32) -> Self;
+
+    // fn from_raw_bytes(bytes: &Self::RawBytes) -> Self;
+    fn to_raw_bytes(self) -> Self::RawBytes;
 }
 
 pub trait TPoint: Clone + Copy {
     type Scalar: TScalar;
+    type RawBytes: HexConvertible;
     fn identity() -> Self;
 
     fn add(self, other: &Self) -> Self;
     fn mul_scalar(self, other: &Self::Scalar) -> Self;
+    fn from_raw_bytes(bytes: &Self::RawBytes) -> Self;
+    fn to_raw_bytes(self) -> Self::RawBytes;
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct BlsG1 {
     pub g1: G1Affine,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct BlsScalar {
     pub scalar: Scalar,
 }
 
 impl TScalar for BlsScalar {
+    type RawBytes = BLSIdRaw;
+
     fn mul(self, other: &Self) -> Self {
         BlsScalar {
             scalar: self.scalar * other.scalar,
@@ -50,7 +62,7 @@ impl TScalar for BlsScalar {
 
     fn invert(self) -> Self {
         Self {
-            scalar: self.scalar.invert().expect("invalid valid point"),
+            scalar: self.scalar.invert().expect("invalid scalar"),
         }
     }
 
@@ -59,10 +71,31 @@ impl TScalar for BlsScalar {
             scalar: bls_id_from_u32(x),
         }
     }
+
+    // fn from_raw_bytes(bytes: &Self::RawBytes) -> Self {
+    //     let mut le_bytes: Self::RawBytes = *bytes;
+    //     le_bytes.reverse();
+    //     BlsScalar {
+    //         scalar: Scalar::from_bytes(&le_bytes).expect("invalid scalar"),
+    //     }
+    // }
+
+    fn to_raw_bytes(self) -> Self::RawBytes {
+        let mut be_bytes = self.scalar.to_bytes();
+        be_bytes.reverse();
+        Self::RawBytes::from(be_bytes)
+    }
+}
+
+impl fmt::Display for BlsScalar {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_raw_bytes().to_hex())
+    }
 }
 
 impl TPoint for BlsG1 {
     type Scalar = BlsScalar;
+    type RawBytes = BLSPubkeyRaw;
     fn identity() -> Self {
         BlsG1 {
             g1: G1Affine::identity(),
@@ -82,6 +115,22 @@ impl TPoint for BlsG1 {
         Self {
             g1: G1Affine::from(gp1 * other.scalar),
         }
+    }
+
+    fn from_raw_bytes(bytes: &Self::RawBytes) -> Self {
+        BlsG1 {
+            g1: to_g1_affine(bytes),
+        }
+    }
+
+    fn to_raw_bytes(self) -> Self::RawBytes {
+        Self::RawBytes::from(self.g1.to_compressed())
+    }
+}
+
+impl fmt::Display for BlsG1 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_raw_bytes().to_hex())
     }
 }
 

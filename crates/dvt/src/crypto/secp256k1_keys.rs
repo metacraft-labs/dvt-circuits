@@ -1,4 +1,4 @@
-use crate::{crypto, SECP256K1_SECRET_SIZE};
+use crate::crypto;
 use std::fmt;
 
 use super::{CryptoKeys, HexConvertible};
@@ -30,20 +30,6 @@ impl crypto::ByteConvertible for Secp256k1PublicKey {
 
     fn to_bytes(&self) -> Self::RawBytes {
         Self::RawBytes::from(self.key.serialize())
-    }
-}
-
-impl HexConvertible for Secp256k1PublicKey {
-    fn to_hex(&self) -> String {
-        use crate::crypto::ByteConvertible;
-        self.to_bytes().to_hex()
-    }
-
-    fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
-        use crate::crypto::ByteConvertible;
-        let bytes: [u8; 33] = hex::decode(hex).unwrap().try_into().unwrap();
-        let bytes = crate::types::SECP256K1PubkeyRaw::from(bytes);
-        Ok(Self::from_bytes(&bytes).unwrap())
     }
 }
 
@@ -99,20 +85,6 @@ impl crypto::ByteConvertible for Secp256k1SecretKey {
 
     fn to_bytes(&self) -> Self::RawBytes {
         Self::RawBytes::from(self.secret.secret_bytes())
-    }
-}
-
-impl HexConvertible for Secp256k1SecretKey {
-    fn to_hex(&self) -> String {
-        use crate::crypto::ByteConvertible;
-        self.to_bytes().to_hex()
-    }
-
-    fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
-        use crate::crypto::ByteConvertible;
-        let bytes: [u8; SECP256K1_SECRET_SIZE] = hex::decode(hex).unwrap().try_into().unwrap();
-        let bytes = crate::types::SECP256K1SecretRaw::from(bytes);
-        Ok(Self::from_bytes(&bytes).unwrap())
     }
 }
 
@@ -178,20 +150,6 @@ impl crypto::ByteConvertible for Secp256k1Signature {
 
     fn to_bytes(&self) -> Self::RawBytes {
         Self::RawBytes::from(self.sig.serialize_compact())
-    }
-}
-
-impl HexConvertible for Secp256k1Signature {
-    fn to_hex(&self) -> String {
-        use crate::crypto::ByteConvertible;
-        self.to_bytes().to_hex()
-    }
-
-    fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
-        use crate::crypto::ByteConvertible;
-        let bytes: [u8; 64] = hex::decode(hex).unwrap().try_into().unwrap();
-        let bytes = crate::types::SECP256K1SignatureRaw::from(bytes);
-        Ok(Self::from_bytes(&bytes).unwrap())
     }
 }
 
