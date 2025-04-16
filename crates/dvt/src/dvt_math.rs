@@ -113,7 +113,7 @@ impl Curve for BlsG1Curve {
 //
 // https://github.com/dashpay/dips/blob/master/dip-0006/bls_m-of-n_threshold_scheme_and_dkg.md
 // https://medium.com/toruslabs/what-distributed-key-generation-is-866adc79620
-pub fn evaluate_polynomial_generic<C: Curve>(cfs: &[C::Point], x: &C::Scalar) -> C::Point {
+pub fn evaluate_polynomial<C: Curve>(cfs: &[C::Point], x: &C::Scalar) -> C::Point {
     let count = cfs.len();
     if count == 0 {
         C::Point::identity()
@@ -131,7 +131,7 @@ pub fn evaluate_polynomial_generic<C: Curve>(cfs: &[C::Point], x: &C::Scalar) ->
 
 #[allow(clippy::assign_op_pattern)]
 #[allow(clippy::needless_range_loop)]
-pub fn lagrange_interpolation_generic<C: Curve>(
+pub fn lagrange_interpolation<C: Curve>(
     y_vec: &[C::Point],
     x_vec: &[C::Scalar],
 ) -> Result<C::Point, Box<dyn std::error::Error>> {
@@ -183,7 +183,7 @@ pub fn lagrange_interpolation_generic<C: Curve>(
 }
 
 #[allow(clippy::assign_op_pattern)]
-pub fn agg_coefficients_generic<C: Curve>(
+pub fn agg_coefficients<C: Curve>(
     verification_vectors: &[Vec<C::Point>],
     ids: &[C::Scalar],
 ) -> Vec<C::Point> {
@@ -197,93 +197,10 @@ pub fn agg_coefficients_generic<C: Curve>(
     }
     let mut final_keys = Vec::new();
     for id in ids.iter() {
-        let tmp = evaluate_polynomial_generic::<C>(&final_cfs, id);
+        let tmp = evaluate_polynomial::<C>(&final_cfs, id);
         final_keys.push(tmp);
     }
     final_keys
-}
-
-// pub fn evaluate_polynomial(cfs: &[G1Affine], x: &Scalar) -> G1Affine {
-//     let cfst: Vec<G1Projective> = cfs.iter().map(G1Projective::from).collect();
-//     let count = cfst.len();
-//     if count == 0 {
-//         G1Affine::identity()
-//     } else if count == 1 {
-//         cfs[0]
-//     } else {
-//         let mut y = cfst[count - 1];
-//         for i in 2..(count + 1) {
-//             y = y * x + cfs[count - i];
-//         }
-//         G1Affine::from(y)
-//     }
-// }
-
-pub fn evaluate_polynomial_g1_projection(cfs: &[G1Projective], x: &Scalar) -> G1Projective {
-    let count = cfs.len();
-    if count == 0 {
-        G1Projective::identity()
-    } else if count == 1 {
-        cfs[0]
-    } else {
-        let mut y = cfs[count - 1];
-        for i in 2..(count + 1) {
-            y = y * x + cfs[count - i];
-        }
-        y
-    }
-}
-
-#[allow(clippy::assign_op_pattern)]
-#[allow(clippy::needless_range_loop)]
-pub fn lagrange_interpolation(
-    y_vec: &[G1Affine],
-    x_vec: &[Scalar],
-) -> Result<G1Affine, Box<dyn std::error::Error>> {
-    let k = x_vec.len();
-    if k == 0 || k != y_vec.len() {
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "invalid inputs",
-        )));
-    }
-    if k == 1 {
-        return Ok(y_vec[0]);
-    }
-
-    // We calculate L(0) so we can simplify
-    // (X - X0) .. (X - Xj-1) * (X - Xj+1) .. (X - Xk) to just X0 * X1 .. Xk
-    // Later we can divide by Xi for each basis polynomial li(0)
-    let mut a = x_vec[0];
-    for i in 1..k {
-        a *= x_vec[i];
-    }
-    if a == Scalar::zero() {
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "zero secret share id",
-        )));
-    }
-    let mut r = G1Projective::identity();
-    for i in 0..k {
-        let mut b = x_vec[i];
-        for j in 0..k {
-            if j != i {
-                let v = x_vec[j] - x_vec[i];
-                if v == Scalar::zero() {
-                    return Err(Box::new(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "duplicate secret share id",
-                    )));
-                }
-                b *= v;
-            }
-        }
-        let li0 = a * b.invert().expect("invalid valid point");
-        let tmp = y_vec[i] * li0;
-        r = r + tmp;
-    }
-    Ok(G1Affine::from(r))
 }
 
 #[cfg(test)]
@@ -318,47 +235,47 @@ mod tests {
 
     #[test]
     fn test_evaluate_polynomial() {
-        let pks: Vec<G1Affine> = [
+        let pks: Vec<BlsG1> = [
             "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
             "98876a81fe982573ec5f986956bf9bf0bcb5349d95c3c8da0aefd05a49fea6215f59b0696f906547baed90ab245804e8",
             "ad2c4e5b631fbded449ede4dca2d040b9c7eae58d1e73b3050486c1ba22c15a92d9ff13c05c356f974447e4fca84864a"]
         .iter().map(|pk| -> BLSPubkeyRaw {
             hex::decode(pk).unwrap().try_into().unwrap()
         })
-        .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
+        .map(|pk| BlsG1{ g1: G1Affine::from_compressed(&pk).into_option().unwrap() }).collect();
 
         let target = "af8e0095ecc662f65b95ce57e5bd2f8739ff93b0621a1ad53f5616538d1323ff40e6e9ddd7132298710974fe6fc0344e";
 
-        let id = bls_id_from_u32(1);
+        let id = BlsScalar::from_u32(1);
 
-        let result = evaluate_polynomial(&pks, &id);
+        let result = evaluate_polynomial::<BlsG1Curve>(&pks, &id).g1;
 
         assert!(hex::encode(result.to_compressed()) == target);
     }
 
     #[test]
     fn test_evaluate_polynomial_bad_base_keys() {
-        let pks: Vec<G1Affine> = [
+        let pks: Vec<BlsG1> = [
             "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
             "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
             "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9"]
         .iter().map(|pk| -> BLSPubkeyRaw {
             hex::decode(pk).unwrap().try_into().unwrap()
         })
-        .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
+        .map(|pk| BlsG1{ g1: G1Affine::from_compressed(&pk).into_option().unwrap() }).collect();
 
         let target = "af8e0095ecc662f65b95ce57e5bd2f8739ff93b0621a1ad53f5616538d1323ff40e6e9ddd7132298710974fe6fc0344e";
 
-        let id = bls_id_from_u32(1);
+        let id = BlsScalar::from_u32(1);
 
-        let result = evaluate_polynomial(&pks, &id);
+        let result = evaluate_polynomial::<BlsG1Curve>(&pks, &id).g1;
 
         assert!(hex::encode(result.to_compressed()) != target);
     }
 
     #[test]
     fn test_lagrange_interpolation() {
-        let pks: Vec<G1Affine> = [
+        let pks: Vec<BlsG1> = [
             "8da434e68daef9af33e39ab727557a3cd86d7991cd6b545746bf92c8edec37012912cfa2292a21512bce9040a1c0e502",
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
             "8cbfb6cb7af927cfe5fb17621df7036de539b7ff4aa0620cdc218d6b7fe7f2e714a96bdeddb2a0dc24867a90594427e1",
@@ -367,26 +284,26 @@ mod tests {
         .iter().map(|pk| -> BLSPubkeyRaw {
             hex::decode(pk).unwrap().try_into().unwrap()
         })
-        .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
+        .map(|pk| BlsG1{ g1: G1Affine::from_compressed(&pk).into_option().unwrap()}).collect();
 
         let target = "a31d9a483703cd0da9873e5e76b4de5f7035d0a73d79b3be8667daa4fc7065a1bbb5bf77787fcf2a35bd327eecc4fa6b";
 
         let ids = vec![
-            bls_id_from_u32(1),
-            bls_id_from_u32(2),
-            bls_id_from_u32(3),
-            bls_id_from_u32(4),
-            bls_id_from_u32(5),
+            BlsScalar::from_u32(1),
+            BlsScalar::from_u32(2),
+            BlsScalar::from_u32(3),
+            BlsScalar::from_u32(4),
+            BlsScalar::from_u32(5),
         ];
 
-        let result = lagrange_interpolation(&pks, &ids);
+        let result = lagrange_interpolation::<BlsG1Curve>(&pks, &ids).unwrap().g1;
 
-        assert!(hex::encode(result.unwrap().to_compressed()) == target);
+        assert!(hex::encode(result.to_compressed()) == target);
     }
 
     #[test]
     fn test_lagrange_interpolation_out_of_order() {
-        let pks: Vec<G1Affine> = [
+        let pks: Vec<BlsG1> = [
             "b255c8a66fd1a13373537e8a4ba258f4990c141fc3c06daccda0711f5ebaffc092f0e5b0e4454e6344e2f97957be4017",
             "8da434e68daef9af33e39ab727557a3cd86d7991cd6b545746bf92c8edec37012912cfa2292a21512bce9040a1c0e502",
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
@@ -396,26 +313,26 @@ mod tests {
         .iter().map(|pk| -> BLSPubkeyRaw {
             hex::decode(pk).unwrap().try_into().unwrap()
         })
-        .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
+        .map(|pk| BlsG1{ g1: G1Affine::from_compressed(&pk).into_option().unwrap()}).collect();
 
         let target = "a31d9a483703cd0da9873e5e76b4de5f7035d0a73d79b3be8667daa4fc7065a1bbb5bf77787fcf2a35bd327eecc4fa6b";
 
         let ids = vec![
-            bls_id_from_u32(5),
-            bls_id_from_u32(1),
-            bls_id_from_u32(2),
-            bls_id_from_u32(3),
-            bls_id_from_u32(4),
+            BlsScalar::from_u32(5),
+            BlsScalar::from_u32(1),
+            BlsScalar::from_u32(2),
+            BlsScalar::from_u32(3),
+            BlsScalar::from_u32(4),
         ];
 
-        let result = lagrange_interpolation(&pks, &ids);
+        let result = lagrange_interpolation::<BlsG1Curve>(&pks, &ids).unwrap().g1;
 
-        assert!(hex::encode(result.unwrap().to_compressed()) == target);
+        assert!(hex::encode(result.to_compressed()) == target);
     }
 
     #[test]
     fn test_lagrange_interpolation_wrong_order() {
-        let pks: Vec<G1Affine> = [
+        let pks: Vec<BlsG1> = [
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
             "8da434e68daef9af33e39ab727557a3cd86d7991cd6b545746bf92c8edec37012912cfa2292a21512bce9040a1c0e502",
             "8cbfb6cb7af927cfe5fb17621df7036de539b7ff4aa0620cdc218d6b7fe7f2e714a96bdeddb2a0dc24867a90594427e1",
@@ -424,26 +341,26 @@ mod tests {
         .iter().map(|pk| -> BLSPubkeyRaw {
             hex::decode(pk).unwrap().try_into().unwrap()
         })
-        .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
+        .map(|pk| BlsG1{ g1: G1Affine::from_compressed(&pk).into_option().unwrap()}).collect();
 
         let target = "a31d9a483703cd0da9873e5e76b4de5f7035d0a73d79b3be8667daa4fc7065a1bbb5bf77787fcf2a35bd327eecc4fa6b";
 
         let ids = vec![
-            bls_id_from_u32(1),
-            bls_id_from_u32(2),
-            bls_id_from_u32(3),
-            bls_id_from_u32(4),
-            bls_id_from_u32(5),
+            BlsScalar::from_u32(1),
+            BlsScalar::from_u32(2),
+            BlsScalar::from_u32(3),
+            BlsScalar::from_u32(4),
+            BlsScalar::from_u32(5),
         ];
 
-        let result = lagrange_interpolation(&pks, &ids);
+        let result = lagrange_interpolation::<BlsG1Curve>(&pks, &ids).unwrap().g1;
 
-        assert!(hex::encode(result.unwrap().to_compressed()) != target);
+        assert!(hex::encode(result.to_compressed()) != target);
     }
 
     #[test]
     fn test_lagrange_interpolation_wrong_base_keys() {
-        let pks: Vec<G1Affine> = [
+        let pks: Vec<BlsG1> = [
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
@@ -452,20 +369,20 @@ mod tests {
         .iter().map(|pk| -> BLSPubkeyRaw {
             hex::decode(pk).unwrap().try_into().unwrap()
         })
-        .map(|pk| G1Affine::from_compressed(&pk).into_option().unwrap()).collect();
+        .map(|pk| BlsG1{ g1: G1Affine::from_compressed(&pk).into_option().unwrap()}).collect();
 
         let target = "a31d9a483703cd0da9873e5e76b4de5f7035d0a73d79b3be8667daa4fc7065a1bbb5bf77787fcf2a35bd327eecc4fa6b";
 
         let ids = vec![
-            bls_id_from_u32(1),
-            bls_id_from_u32(2),
-            bls_id_from_u32(3),
-            bls_id_from_u32(4),
-            bls_id_from_u32(5),
+            BlsScalar::from_u32(1),
+            BlsScalar::from_u32(2),
+            BlsScalar::from_u32(3),
+            BlsScalar::from_u32(4),
+            BlsScalar::from_u32(5),
         ];
 
-        let result = lagrange_interpolation(&pks, &ids);
+        let result = lagrange_interpolation::<BlsG1Curve>(&pks, &ids).unwrap().g1;
 
-        assert!(hex::encode(result.unwrap().to_compressed()) != target);
+        assert!(hex::encode(result.to_compressed()) != target);
     }
 }
