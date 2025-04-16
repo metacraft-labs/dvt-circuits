@@ -40,18 +40,6 @@ impl traits::ByteConvertible for BlsPublicKey {
     }
 }
 
-impl HexConvertible for BlsPublicKey {
-    fn to_hex(&self) -> String {
-        self.to_bytes().to_hex()
-    }
-
-    fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
-        let bytes: [u8; 48] = hex::decode(hex).unwrap().try_into().unwrap();
-        let bytes = BLSPubkeyRaw::from(bytes);
-        Ok(BlsPublicKey::from_bytes(&bytes).expect("Can't create BLS public key"))
-    }
-}
-
 impl traits::PublicKey for BlsPublicKey {
     type Sig = BlsSignature;
     fn verify_signature(&self, message: &[u8], signature: &Self::Sig) -> bool {
@@ -131,18 +119,6 @@ impl traits::ByteConvertible for BlsSecretKey {
     }
 }
 
-impl HexConvertible for BlsSecretKey {
-    fn to_hex(&self) -> String {
-        self.to_bytes().to_hex()
-    }
-
-    fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
-        let bytes: [u8; 32] = hex::decode(hex).unwrap().try_into().unwrap();
-        let bytes = BLSSecretRaw::from(bytes);
-        Ok(BlsSecretKey::from_bytes(&bytes).expect("Can't create BLS secret key"))
-    }
-}
-
 impl traits::SecretKey for BlsSecretKey {
     type PubKey = BlsPublicKey;
     fn to_public_key(&self) -> Self::PubKey {
@@ -201,18 +177,6 @@ impl traits::ByteConvertible for BlsSignature {
 
     fn to_bytes(&self) -> Self::RawBytes {
         Self::RawBytes::from(self.sig.to_compressed())
-    }
-}
-
-impl HexConvertible for BlsSignature {
-    fn to_hex(&self) -> String {
-        self.to_bytes().to_hex()
-    }
-
-    fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
-        let bytes: [u8; 96] = hex::decode(hex).unwrap().try_into().unwrap();
-        let bytes = BLSSignatureRaw::from(bytes);
-        Ok(BlsSignature::from_bytes(&bytes).expect("Can't create BLS signature"))
     }
 }
 
