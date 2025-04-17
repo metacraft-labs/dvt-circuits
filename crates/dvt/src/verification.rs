@@ -1,4 +1,5 @@
 use bls12_381::{G2Affine, Scalar};
+use secp256k1::PublicKey;
 
 use crate::crypto::{
     BlsPublicKey, BlsSecretKey, BlsSignature, ByteConvertible, CryptoKeys, PublicKey, SecretKey,
@@ -72,7 +73,7 @@ pub fn get_index_in_commitments(
 pub fn verify_seed_exchange_commitment(
     verification_hashes: &VerificationHashes,
     seed_exchange: &SeedExchangeCommitment,
-    initial_commitment: &InitialCommitment,
+    initial_commitment: &InitialCommitment<BlsG1Curve>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let commitment = &seed_exchange.commitment;
 
@@ -128,7 +129,7 @@ pub fn verify_seed_exchange_commitment(
     let cfst: Vec<BlsG1> = initial_commitment
         .base_pubkeys
         .iter()
-        .map(BlsG1::from_raw_bytes)
+        .map(BlsG1::from_bytes).map(|x| x.expect("Invalid pubkey"))
         .collect();
 
     let eval_result = evaluate_polynomial::<BlsG1Curve>(&cfst, &id);
@@ -145,7 +146,7 @@ pub fn verify_seed_exchange_commitment(
     Ok(())
 }
 
-pub fn compute_initial_commitment_hash(commitment: &InitialCommitment) -> SHA256Raw {
+pub fn compute_initial_commitment_hash(commitment: &InitialCommitment<BlsG1Curve>) -> SHA256Raw {
     let mut hasher = Sha256::new();
 
     hasher.update(commitment.settings.gen_id.as_ref());
@@ -165,15 +166,15 @@ pub fn compute_initial_commitment_hash(commitment: &InitialCommitment) -> SHA256
         .expect("Vec must be exactly 32 bytes")
 }
 
-pub fn verify_initial_commitment_hash(commitment: &InitialCommitment) -> bool {
+pub fn verify_initial_commitment_hash(commitment: &InitialCommitment<BlsG1Curve>) -> bool {
     compute_initial_commitment_hash(commitment) == commitment.hash
 }
 
 fn generate_initial_commitment(
-    generation: &Generation,
+    generation: &Generation<BlsDvtWithSecp256k1Commitment>,
     settings: &GenerateSettings,
-) -> InitialCommitment {
-    InitialCommitment {
+) -> InitialCommitment<BlsG1Curve> {
+    InitialCommitment::<BlsG1Curve> {
         hash: generation.base_hash,
         settings: GenerateSettings {
             n: settings.n,
@@ -193,7 +194,7 @@ fn compute_agg_key_from_dvt<C: Curve>(
 }
 
 pub fn verify_generation_hashes(
-    generations: &[Generation],
+    generations: &[Generation<BlsDvtWithSecp256k1Commitment>],
     settings: &GenerateSettings,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if generations.is_empty() {
@@ -238,7 +239,7 @@ pub fn verify_generation_hashes(
 }
 
 pub fn verify_generations(
-    generations: &[Generation],
+    generations: &[Generation<BlsDvtWithSecp256k1Commitment>],
     settings: &GenerateSettings,
     agg_key: &BLSPubkeyRaw,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -274,7 +275,7 @@ pub fn verify_generations(
         .collect();
 
     let computed_key = compute_agg_key_from_dvt::<BlsG1Curve>(&verification_vectors, &ids)?;
-    let agg_key = BlsG1::from_raw_bytes(agg_key);
+    let agg_key = BlsG1::from_bytes(agg_key).expect("Invalid g1 point");
 
     if agg_key != computed_key {
         return Err(Box::new(std::io::Error::new(
@@ -288,7 +289,7 @@ pub fn verify_generations(
 
     let partial_keys: Vec<BlsG1> = sorted
         .iter()
-        .map(|generation| BlsG1::from_raw_bytes(&generation.partial_pubkey))
+        .map(|generation| BlsG1::from_bytes(&generation.partial_pubkey).expect("Invalid g1 point"))
         .collect();
 
     let computed_key = lagrange_interpolation::<BlsG1Curve>(&partial_keys, &ids)?;
@@ -308,7 +309,7 @@ pub fn verify_generations(
 
 pub fn compute_partial_share_hash(
     settings: &GenerateSettings,
-    partial_share: &BadPartialShare,
+    partial_share: &BadPartialShare<BlsDvtWithSecp256k1Commitment>,
 ) -> Vec<u8> {
     let mut hasher = Sha256::new();
     hasher.update(settings.gen_id.as_ref());
@@ -340,7 +341,7 @@ pub fn verify_commitment<Crypto: CryptoKeys>(commitment: &Commitment<Crypto>) ->
 }
 
 pub fn prove_wrong_final_key_generation(
-    data: &BadPartialShareData,
+    data: &BadPartialShareData<BlsDvtWithSecp256k1Commitment>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     verify_commitment_signature(data)?;
     // Verify that the generation base hashes are correct
@@ -406,7 +407,7 @@ pub fn prove_wrong_final_key_generation(
 }
 
 fn verify_commitment_signature(
-    data: &BadPartialShareData,
+    data: &BadPartialShareData<BlsDvtWithSecp256k1Commitment>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let computed_hash = compute_partial_share_hash(&data.settings, &data.bad_partial);
     if computed_hash != data.bad_partial.commitment.hash.as_ref() {
@@ -431,7 +432,7 @@ fn verify_commitment_signature(
 
 fn find_perpetrator_index(
     perpetrador_hash: &SHA256Raw,
-    sorted_generation: &[BadPartialShareGeneration],
+    sorted_generation: &[BadPartialShareGeneration<BlsDvtWithSecp256k1Commitment>],
 ) -> Result<usize, Box<dyn std::error::Error>> {
     let mut perpetrator_index = None;
     for (i, generation) in sorted_generation.iter().enumerate() {
@@ -451,33 +452,32 @@ fn find_perpetrator_index(
     Ok(perpetrator_index)
 }
 
-fn compute_pubkey_share(
-    sorted: &[BadPartialShareGeneration],
-    perpetrator_bls_id: &Scalar,
-) -> BlsPublicKey {
-    let verification_vectors: Vec<Vec<BlsG1>> = sorted
+fn compute_pubkey_share<Setup>(
+    sorted: &[BadPartialShareGeneration<Setup>],
+    perpetrator_bls_id: &<Setup::Curve as crate::dvt_math::Curve>::Scalar,
+) -> <Setup::GenCrypto as CryptoKeys>::Pubkey where Setup: DvtSetup{
+
+    let verification_vectors: Vec<Vec<<Setup::Curve as crate::dvt_math::Curve>::Point>> = sorted
         .iter()
         .map(|generation| {
             generation
                 .verification_vector
                 .iter()
-                .map(BlsG1::from_raw_bytes)
+                .map(<Setup::Curve as crate::dvt_math::Curve>::Point::from_bytes).map(|x| x.expect("Invalid pubkey"))
                 .collect()
         })
         .collect();
 
-    let ids: Vec<BlsScalar> = sorted
+    let ids: Vec<<Setup::Curve as crate::dvt_math::Curve>::Scalar> = sorted
         .iter()
         .enumerate()
-        .map(|(i, _)| BlsScalar::from_u32((i + 1) as u32))
+        .map(|(i, _)| <Setup::Curve as crate::dvt_math::Curve>::Scalar::from_u32((i + 1) as u32))
         .collect();
 
-    let computed_keys = agg_coefficients::<BlsG1Curve>(&verification_vectors, &ids);
-    let expected_key = evaluate_polynomial::<BlsG1Curve>(
+    let computed_keys = agg_coefficients::<Setup::Curve>(&verification_vectors, &ids);
+    let expected_key = evaluate_polynomial::<Setup::Curve>(
         &computed_keys,
-        &BlsScalar {
-            scalar: *perpetrator_bls_id,
-        },
+        & *perpetrator_bls_id,
     );
-    BlsPublicKey::from_g1(&expected_key.g1)
+    <Setup::GenCrypto as CryptoKeys>::Pubkey::from_bytes(&expected_key.to_bytes()).expect("Invalid pubkey")
 }

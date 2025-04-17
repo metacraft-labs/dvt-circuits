@@ -2,11 +2,11 @@
 
 sp1_zkvm::entrypoint!(main);
 
-use dvt::crypto::HexConvertible;
+use dvt::{ BlsDvtWithSecp256k1Commitment};
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dvt::FinalizationData =
+    let data: dvt::FinalizationData<BlsDvtWithSecp256k1Commitment> =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
     let ok = dvt::verify_generations(&data.generations, &data.settings, &data.aggregate_pubkey);
     if ok.is_err() {

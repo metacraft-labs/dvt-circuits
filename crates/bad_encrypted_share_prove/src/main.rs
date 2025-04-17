@@ -163,7 +163,7 @@ fn parse_message(
     base_pubkeys: Vec<BLSPubkeyRaw>,
     commitment_hashes: Vec<SHA256Raw>,
     receiver_commitment_hash: SHA256Raw,
-) -> Result<dvt::BlsSharedData, String> {
+) -> Result<dvt::SharedData<BlsDvtWithSecp256k1Commitment>, String> {
     let mut stream = BinaryStream {
         data: msg.to_vec(),
         pos: 0,
@@ -212,7 +212,7 @@ fn parse_message(
     // println!("commitment_hash {}", hex::encode(&commitment_hash));
     // println!("commitment_pubkey {}", hex::encode(&commitment_pubkey));
     // println!("commitment_signature {}", hex::encode(&commitment_signature));
-    Ok(dvt::BlsSharedData {
+    Ok(dvt::SharedData {
         verification_hashes: commitment_hashes,
         initial_commitment: initial_commitment,
         seeds_exchange_commitment: dvt::SeedExchangeCommitment {
@@ -234,7 +234,7 @@ fn parse_message(
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dvt::BadEncryptedShare =
+    let data: dvt::BadEncryptedShare<dvt::BlsDvtWithSecp256k1Commitment> =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
     let pk = G1Affine::from_compressed(&data.sender_pubkey)

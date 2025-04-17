@@ -10,7 +10,7 @@ use dvt::{self, VerificationErrors};
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dvt::BlsSharedData =
+    let data: dvt::SharedData<BlsDvtWithSecp256k1Commitment> =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
     if data.verification_hashes.len() != data.initial_commitment.settings.n as usize {
