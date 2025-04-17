@@ -51,8 +51,9 @@ pub trait SecretKey: ByteConvertible + HexConvertible + Display + Debug {
 
 pub trait Signature: ByteConvertible + HexConvertible + Display + Debug {}
 
-pub trait CryptoKeys {
-    type Pubkey: PublicKey<Sig = Self::Signature>;
-    type SecretKey: SecretKey<PubKey = Self::Pubkey>;
-    type Signature: Signature;
+pub trait CryptoKeys where {
+    type PubkeyRaw: HexConvertible + Clone + Serialize + for<'a> Deserialize<'a>;
+    type Pubkey: PublicKey<Sig = Self::Signature> + ByteConvertible<RawBytes = Self::PubkeyRaw> + Clone;
+    type SecretKey: SecretKey<PubKey = Self::Pubkey> + Clone;
+    type Signature: Signature + Clone;
 }
