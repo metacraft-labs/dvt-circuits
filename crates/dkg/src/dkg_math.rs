@@ -1,30 +1,11 @@
 use bls12_381::{G1Affine, G1Projective, Scalar};
-use std::fmt::{self, Display};
+use std::fmt::{self};
 
 use crate::{bls_id_from_u32, to_g1_affine, BLSPubkeyRaw, ByteConvertible, HexConvertible};
 
 use crate::types::BLSIdRaw;
 
-pub trait TScalar: Clone + Copy + ByteConvertible {
-    fn mul(self, other: &Self) -> Self;
-    fn mul_assign(&mut self, other: &Self) {
-        *self = self.mul(other);
-    }
-    fn sub(self, other: &Self) -> Self;
-    fn is_zero(self) -> bool;
-    fn invert(self) -> Self;
-    fn from_u32(x: u32) -> Self;
-}
-
-pub trait TPoint: Clone + Copy + ByteConvertible {
-    type Scalar: TScalar;
-    fn identity() -> Self;
-
-    fn add(self, other: &Self) -> Self;
-    fn mul_scalar(self, other: &Self::Scalar) -> Self;
-    // fn from_raw_bytes(bytes: &Self::RawBytes) -> Self;
-    // fn to_raw_bytes(self) -> Self::RawBytes;
-}
+use crate::crypto::traits::*;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct BlsG1 {
@@ -150,11 +131,6 @@ impl fmt::Display for BlsG1 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.to_hex())
     }
-}
-
-pub trait Curve {
-    type Scalar: TScalar + Display;
-    type Point: TPoint<Scalar = Self::Scalar> + PartialEq + Display;
 }
 
 #[derive(Clone)]

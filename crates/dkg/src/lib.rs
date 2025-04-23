@@ -1,5 +1,5 @@
 pub mod crypto;
-mod dvt_math;
+mod dkg_math;
 pub mod types;
 mod verification;
 

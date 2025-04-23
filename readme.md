@@ -22,13 +22,13 @@ cargo build
 ## Produce prove
 
 ```
-./target/release/dvt_prover_host --input-file input_file.json --type share
+./target/release/dkg_prover_host --input-file input_file.json --type share
 ```
 
 for more information 
 
 ```
-./target/release/dvt_prover_host --help
+./target/release/dkg_prover_host --help
 ```
 
 ## Proves
@@ -39,7 +39,7 @@ Demonstrates that some participants have sent an incorrect share.
 
 ### Successful Final Verification
 
-Confirms that the DVT algorithm has completed successfully.
+Confirms that the DKG algorithm has completed successfully.
 
 ### Incorrect Final Share Generation
 

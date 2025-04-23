@@ -43,7 +43,7 @@ for FILE in "$INPUT_DIR"/*.json; do
 
     FILENAME=$(basename "$FILE")
     OUTPUT_FILE="$OUTPUT_DIR/$FILENAME"
-    OUTPUT_FILE=$(echo "$OUTPUT_FILE" | sed -E 's/dvt-keygen-[0-9a-f]+-//')
+    OUTPUT_FILE=$(echo "$OUTPUT_FILE" | sed -E 's/dkg-keygen-[0-9a-f]+-//')
     jq --slurpfile type "$TYPE_FILE" '{params: $type[0], scenario: .}' "$FILE" > "$OUTPUT_FILE"
 
     echo "Processed: $FILE -> $OUTPUT_FILE"
