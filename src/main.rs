@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use colored::*;
-use dvt::{
-    BadEncryptedShare, BadPartialShareData, BlsDvtWithBlsCommitment, FinalizationData, SharedData,
+use dkg::{
+    BadEncryptedShare, BadPartialShareData, BlsDkgWithBlsCommitment, FinalizationData, SharedData,
 };
 use jsonschema::JSONSchema;
 use serde_json::Value;
@@ -100,52 +100,52 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
 
             match subtype {
                 CircuitType::BadShare => {
-                    let dvt_data = read_data_from_json_file::<
-                        SharedData<dvt::BlsDvtWithBlsCommitment>,
+                    let dkg_data = read_data_from_json_file::<
+                        SharedData<dkg::BlsDkgWithBlsCommitment>,
                     >(&input_file)
                     .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
                     prove(
-                        &dvt_data,
+                        &dkg_data,
                         SHARE_PROVER_ELF,
                         &input_file,
                         output_file_path.as_deref(),
                     )?;
                 }
                 CircuitType::Finalization => {
-                    let dvt_data = read_data_from_json_file::<
-                        FinalizationData<dvt::BlsDvtWithBlsCommitment>,
+                    let dkg_data = read_data_from_json_file::<
+                        FinalizationData<dkg::BlsDkgWithBlsCommitment>,
                     >(&input_file)
                     .map_err(|e| style_error(format!("Failed to read finalization data: {e}")))?;
                     prove(
-                        &dvt_data,
+                        &dkg_data,
                         FINALE_PROVER_ELF,
                         &input_file,
                         output_file_path.as_deref(),
                     )?;
                 }
                 CircuitType::BadPartialKey => {
-                    let dvt_data = read_data_from_json_file::<
-                        BadPartialShareData<dvt::BlsDvtWithBlsCommitment>,
+                    let dkg_data = read_data_from_json_file::<
+                        BadPartialShareData<dkg::BlsDkgWithBlsCommitment>,
                     >(&input_file)
                     .map_err(|e| {
                         style_error(format!("Failed to read bad partial key data: {e}"))
                     })?;
                     prove(
-                        &dvt_data,
+                        &dkg_data,
                         BAD_PARTIAL_KEY_PROVER_ELF,
                         &input_file,
                         output_file_path.as_deref(),
                     )?;
                 }
                 CircuitType::BadEncryptedShare => {
-                    let dvt_data = read_data_from_json_file::<
-                        BadEncryptedShare<dvt::BlsDvtWithBlsCommitment>,
+                    let dkg_data = read_data_from_json_file::<
+                        BadEncryptedShare<dkg::BlsDkgWithBlsCommitment>,
                     >(&input_file)
                     .map_err(|e| {
                         style_error(format!("Failed to read bad encrypted share data: {e}"))
                     })?;
                     prove(
-                        &dvt_data,
+                        &dkg_data,
                         BAD_ENCRYPTED_SHARE_PROVER_ELF,
                         &input_file,
                         output_file_path.as_deref(),
@@ -163,36 +163,36 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
 
             match subtype {
                 CircuitType::BadShare => {
-                    let dvt_data = read_data_from_json_file::<SharedData<BlsDvtWithBlsCommitment>>(
+                    let dkg_data = read_data_from_json_file::<SharedData<BlsDkgWithBlsCommitment>>(
                         &input_file,
                     )
                     .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
-                    execute(&dvt_data, SHARE_PROVER_ELF, show_report)?;
+                    execute(&dkg_data, SHARE_PROVER_ELF, show_report)?;
                 }
                 CircuitType::Finalization => {
-                    let dvt_data = read_data_from_json_file::<
-                        FinalizationData<dvt::BlsDvtWithBlsCommitment>,
+                    let dkg_data = read_data_from_json_file::<
+                        FinalizationData<dkg::BlsDkgWithBlsCommitment>,
                     >(&input_file)
                     .map_err(|e| style_error(format!("Failed to read finalization data: {e}")))?;
-                    execute(&dvt_data, FINALE_PROVER_ELF, show_report)?;
+                    execute(&dkg_data, FINALE_PROVER_ELF, show_report)?;
                 }
                 CircuitType::BadPartialKey => {
-                    let dvt_data = read_data_from_json_file::<
-                        BadPartialShareData<dvt::BlsDvtWithBlsCommitment>,
+                    let dkg_data = read_data_from_json_file::<
+                        BadPartialShareData<dkg::BlsDkgWithBlsCommitment>,
                     >(&input_file)
                     .map_err(|e| {
                         style_error(format!("Failed to read bad partial key data: {e}"))
                     })?;
-                    execute(&dvt_data, BAD_PARTIAL_KEY_PROVER_ELF, show_report)?;
+                    execute(&dkg_data, BAD_PARTIAL_KEY_PROVER_ELF, show_report)?;
                 }
                 CircuitType::BadEncryptedShare => {
-                    let dvt_data = read_data_from_json_file::<
-                        BadEncryptedShare<dvt::BlsDvtWithBlsCommitment>,
+                    let dkg_data = read_data_from_json_file::<
+                        BadEncryptedShare<dkg::BlsDkgWithBlsCommitment>,
                     >(&input_file)
                     .map_err(|e| {
                         style_error(format!("Failed to read bad encrypted share data: {e}"))
                     })?;
-                    execute(&dvt_data, BAD_ENCRYPTED_SHARE_PROVER_ELF, show_report)?;
+                    execute(&dkg_data, BAD_ENCRYPTED_SHARE_PROVER_ELF, show_report)?;
                 }
             }
         }

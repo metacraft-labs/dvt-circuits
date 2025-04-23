@@ -1,13 +1,9 @@
-use crate::crypto::{BlsSecretKey, ByteConvertible, CryptoKeys, PublicKey, SecretKey};
+use crate::crypto::{ByteConvertible, CryptoKeys, PublicKey, SecretKey};
+use crate::traits::*;
 use crate::types::*;
 use sha2::{Digest, Sha256};
 
-use crate::dvt_math::{
-    agg_coefficients, evaluate_polynomial, lagrange_interpolation, BlsG1, BlsG1Curve, BlsScalar,
-    Curve, TScalar,
-};
-
-use crate::crypto::to_g1_affine;
+use crate::dkg_math::{agg_coefficients, evaluate_polynomial, lagrange_interpolation};
 
 #[derive(Debug)]
 pub enum VerificationErrors {
@@ -30,14 +26,17 @@ impl std::error::Error for VerificationErrors {
     }
 }
 
-pub fn compute_seed_exchange_hash(seed_exchange: &SeedExchangeCommitment) -> SHA256Raw {
+pub fn compute_seed_exchange_hash<Setup>(seed_exchange: &SeedExchangeCommitment<Setup>) -> SHA256Raw
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
     let shared_secret = &seed_exchange.shared_secret;
     let mut hasher = Sha256::new();
 
-    let sk = BlsSecretKey::from_bytes(&shared_secret.secret).expect("Invalid secret key");
+    let sk = Setup::DkgSecretKey::from_bytes(&shared_secret.secret).expect("Invalid secret key");
 
     hasher.update(seed_exchange.initial_commitment_hash.as_ref());
-    hasher.update(sk.to_bytes().as_ref());
+    hasher.update(sk.to_bytes().as_arr());
     hasher.update(shared_secret.dst_base_hash.as_ref());
 
     hasher
@@ -65,11 +64,14 @@ pub fn get_index_in_commitments(
     )))
 }
 
-pub fn verify_seed_exchange_commitment(
+pub fn verify_seed_exchange_commitment<Setup>(
     verification_hashes: &VerificationHashes,
-    seed_exchange: &SeedExchangeCommitment,
-    initial_commitment: &InitialCommitment<BlsG1Curve>,
-) -> Result<(), Box<dyn std::error::Error>> {
+    seed_exchange: &SeedExchangeCommitment<Setup>,
+    initial_commitment: &InitialCommitment<Setup::CCurve>,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
     let commitment = &seed_exchange.commitment;
 
     let shared_secret = &seed_exchange.shared_secret;
@@ -84,7 +86,7 @@ pub fn verify_seed_exchange_commitment(
         ))));
     }
 
-    let sk = match BlsSecretKey::from_bytes(&shared_secret.secret) {
+    let sk = match Setup::DkgSecretKey::from_bytes(&shared_secret.secret) {
         Ok(sk) => sk,
         Err(e) => {
             return Err(Box::new(VerificationErrors::SlashableError(format!(
@@ -93,7 +95,7 @@ pub fn verify_seed_exchange_commitment(
         }
     };
 
-    let computed_commitment_hash = compute_seed_exchange_hash(seed_exchange);
+    let computed_commitment_hash = compute_seed_exchange_hash::<Setup>(seed_exchange);
 
     if computed_commitment_hash.to_vec() != seed_exchange.commitment.hash.as_ref() {
         return Err(Box::new(VerificationErrors::SlashableError(
@@ -119,22 +121,20 @@ pub fn verify_seed_exchange_commitment(
 
     // F(0) is always reserved for the aggregated key so we need to start from 1
     let dest_id = dest_id + 1;
-    let id = BlsScalar::from_u32(dest_id);
+    let id = Setup::Scalar::from_u32(dest_id);
 
-    let cfst: Vec<BlsG1> = initial_commitment
+    let cfst: Vec<Setup::Point> = initial_commitment
         .base_pubkeys
         .iter()
-        .map(BlsG1::from_bytes)
+        .map(Setup::Point::from_bytes)
         .map(|x| x.expect("Invalid pubkey"))
         .collect();
 
-    let eval_result = evaluate_polynomial::<BlsG1Curve>(&cfst, &id);
-    let eval_result = eval_result.g1;
-
-    if !sk.to_public_key().equal(&eval_result) {
+    let eval_result = evaluate_polynomial::<Setup::Curve>(&cfst, &id);
+    if sk.to_public_key().to_bytes() != eval_result.to_bytes() {
         return Err(Box::new(VerificationErrors::SlashableError(format!(
-            "Bad secret field : Expected secret with public key: {:?}, got public key: {:?}\n",
-            hex::encode(eval_result.to_compressed()),
+            "Bad secret field : Expected secret with public key: {}, got public key: {}\n",
+            eval_result,
             sk.to_public_key()
         ))));
     }
@@ -146,7 +146,7 @@ pub fn compute_initial_commitment_hash<Setup>(
     commitment: &InitialCommitment<Setup::Curve>,
 ) -> SHA256Raw
 where
-    Setup: DvtSetup + DvtSetupTypes<Setup>,
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     let mut hasher = Sha256::new();
 
@@ -169,7 +169,7 @@ where
 
 pub fn verify_initial_commitment_hash<Setup>(commitment: &InitialCommitment<Setup::Curve>) -> bool
 where
-    Setup: DvtSetup + DvtSetupTypes<Setup>,
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     compute_initial_commitment_hash::<Setup>(commitment) == commitment.hash
 }
@@ -179,7 +179,7 @@ fn generate_initial_commitment<Setup>(
     settings: &GenerateSettings,
 ) -> InitialCommitment<Setup::Curve>
 where
-    Setup: DvtSetup + DvtSetupTypes<Setup>,
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     InitialCommitment::<Setup::Curve> {
         hash: generation.base_hash,
@@ -192,7 +192,7 @@ where
     }
 }
 
-fn compute_agg_key_from_dvt<C: Curve>(
+fn compute_agg_key_from_dkg<C: Curve>(
     verification_vectors: &[Vec<C::Point>],
     ids: &[C::Scalar],
 ) -> Result<C::Point, Box<dyn std::error::Error>> {
@@ -205,7 +205,7 @@ pub fn verify_generation_hashes<Setup>(
     settings: &GenerateSettings,
 ) -> Result<(), Box<dyn std::error::Error>>
 where
-    Setup: DvtSetup + DvtSetupTypes<Setup>,
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     if generations.is_empty() {
         return Err(Box::new(std::io::Error::new(
@@ -222,14 +222,15 @@ where
         }
     }
 
-    let message_mapping =
-        Setup::GenCrypto::precompute_message_mapping(generations[0].message_cleartext.as_bytes());
+    let message_mapping = Setup::TargetCryptography::precompute_message_mapping(
+        generations[0].message_cleartext.as_bytes(),
+    );
 
     for generation in generations.iter() {
-        let signature = Setup::DvtSignature::from_bytes(&generation.message_signature)
+        let signature = Setup::DkgSignature::from_bytes(&generation.message_signature)
             .expect("Invalid signature");
         let key =
-            Setup::DvtPubkey::from_bytes(&generation.partial_pubkey).expect("Invalid public key");
+            Setup::DkgPubkey::from_bytes(&generation.partial_pubkey).expect("Invalid public key");
 
         if !key.verify_signature_from_precomputed_mapping(&message_mapping, &signature) {
             return Err(Box::new(VerificationErrors::UnslashableError(format!(
@@ -250,11 +251,14 @@ where
     Ok(())
 }
 
-pub fn verify_generations(
-    generations: &[Generation<BlsDvtWithBlsCommitment>],
+pub fn verify_generations<Setup>(
+    generations: &[Generation<Setup>],
     settings: &GenerateSettings,
-    agg_key: &BLSPubkeyRaw,
-) -> Result<(), Box<dyn std::error::Error>> {
+    agg_key: &Setup::DkgPubkey,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
     if generations.len() != settings.n as usize {
         return Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
@@ -267,29 +271,26 @@ pub fn verify_generations(
     let mut sorted = generations.to_vec();
     sorted.sort_by(|a, b| a.base_hash.cmp(&b.base_hash));
 
-    let verification_vectors: Vec<Vec<BlsG1>> = sorted
+    let verification_vectors: Vec<Vec<Setup::Point>> = sorted
         .iter()
-        .map(|generation| -> Vec<BlsG1> {
+        .map(|generation| -> Vec<Setup::Point> {
             generation
                 .verification_vector
                 .iter()
-                .map(|pt| BlsG1 {
-                    g1: to_g1_affine(pt),
-                })
+                .map(|pt| Setup::Point::from_bytes(pt).expect("Invalid point"))
                 .collect()
         })
         .collect();
 
-    let ids: Vec<BlsScalar> = sorted
+    let ids: Vec<Setup::Scalar> = sorted
         .iter()
         .enumerate()
-        .map(|(i, _)| BlsScalar::from_u32((i + 1) as u32))
+        .map(|(i, _)| Setup::Scalar::from_u32((i + 1) as u32))
         .collect();
 
-    let computed_key = compute_agg_key_from_dvt::<BlsG1Curve>(&verification_vectors, &ids)?;
-    let agg_key = BlsG1::from_bytes(agg_key).expect("Invalid g1 point");
+    let computed_key = compute_agg_key_from_dkg::<Setup::Curve>(&verification_vectors, &ids)?;
 
-    if agg_key != computed_key {
+    if agg_key.to_bytes() != computed_key.to_bytes() {
         return Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             format!(
@@ -299,14 +300,16 @@ pub fn verify_generations(
         )));
     }
 
-    let partial_keys: Vec<BlsG1> = sorted
+    let partial_keys: Vec<Setup::Point> = sorted
         .iter()
-        .map(|generation| BlsG1::from_bytes(&generation.partial_pubkey).expect("Invalid g1 point"))
+        .map(|generation| {
+            Setup::Point::from_bytes(&generation.partial_pubkey).expect("Invalid g1 point")
+        })
         .collect();
 
-    let computed_key = lagrange_interpolation::<BlsG1Curve>(&partial_keys, &ids)?;
+    let computed_key = lagrange_interpolation::<Setup::Curve>(&partial_keys, &ids)?;
 
-    if computed_key != agg_key {
+    if computed_key.to_bytes() != agg_key.to_bytes() {
         return Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             format!(
@@ -324,7 +327,7 @@ pub fn compute_partial_share_hash<Setup>(
     partial_share: &BadPartialShare<Setup>,
 ) -> Vec<u8>
 where
-    Setup: DvtSetup + DvtSetupTypes<Setup>,
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     let mut hasher = Sha256::new();
     hasher.update(settings.gen_id.as_ref());
@@ -359,7 +362,7 @@ pub fn prove_wrong_final_key_generation<Setup>(
     data: &BadPartialShareData<Setup>,
 ) -> Result<(), Box<dyn std::error::Error>>
 where
-    Setup: DvtSetup + DvtSetupTypes<Setup>,
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     verify_commitment_signature(data)?;
     // Verify that the generation base hashes are correct
@@ -383,7 +386,7 @@ where
     let perpetrator_index =
         find_perpetrator_index(&data.bad_partial.data.base_hash, &sorted_generation)?;
 
-    let key = match Setup::DvtPubkey::from_bytes_safe(&data.bad_partial.data.partial_pubkey) {
+    let key = match Setup::DkgPubkey::from_bytes_safe(&data.bad_partial.data.partial_pubkey) {
         Ok(key) => key,
         Err(e) => {
             return Err(Box::new(VerificationErrors::SlashableError(format!(
@@ -393,7 +396,7 @@ where
         }
     };
 
-    let sig = match Setup::DvtSignature::from_bytes_safe(&data.bad_partial.data.message_signature) {
+    let sig = match Setup::DkgSignature::from_bytes_safe(&data.bad_partial.data.message_signature) {
         Ok(sig) => sig,
         Err(e) => {
             return Err(Box::new(VerificationErrors::SlashableError(format!(
@@ -410,9 +413,9 @@ where
         ))));
     }
 
-    let perpetrator_bls_id = Setup::Scalar::from_u32((perpetrator_index + 1) as u32);
+    let perpetrator_id = Setup::Scalar::from_u32((perpetrator_index + 1) as u32);
 
-    let expected_key = compute_pubkey_share(&sorted_generation, &perpetrator_bls_id);
+    let expected_key = compute_pubkey_share(&sorted_generation, &perpetrator_id);
 
     if expected_key != Setup::Point::from_bytes(&key.to_bytes()).expect("Invalid point") {
         return Err(Box::new(VerificationErrors::SlashableError(format!(
@@ -428,7 +431,7 @@ fn verify_commitment_signature<Setup>(
     data: &BadPartialShareData<Setup>,
 ) -> Result<(), Box<dyn std::error::Error>>
 where
-    Setup: DvtSetup + DvtSetupTypes<Setup>,
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     let computed_hash = compute_partial_share_hash(&data.settings, &data.bad_partial);
     if computed_hash != data.bad_partial.commitment.hash.as_ref() {
@@ -458,7 +461,7 @@ fn find_perpetrator_index<Setup>(
     sorted_generation: &[BadPartialShareGeneration<Setup>],
 ) -> Result<usize, Box<dyn std::error::Error>>
 where
-    Setup: DvtSetup + DvtSetupTypes<Setup>,
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     let mut perpetrator_index = None;
     for (i, generation) in sorted_generation.iter().enumerate() {
@@ -480,10 +483,10 @@ where
 
 fn compute_pubkey_share<Setup>(
     sorted: &[BadPartialShareGeneration<Setup>],
-    perpetrator_bls_id: &Setup::Scalar,
+    perpetrator_id: &Setup::Scalar,
 ) -> Setup::Point
 where
-    Setup: DvtSetup + DvtSetupTypes<Setup>,
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     let verification_vectors: Vec<Vec<Setup::Point>> = sorted
         .iter()
@@ -504,6 +507,6 @@ where
         .collect();
 
     let computed_keys = agg_coefficients::<Setup::Curve>(&verification_vectors, &ids);
-    let expected_key = evaluate_polynomial::<Setup::Curve>(&computed_keys, perpetrator_bls_id);
+    let expected_key = evaluate_polynomial::<Setup::Curve>(&computed_keys, perpetrator_id);
     Setup::Point::from_bytes(&expected_key.to_bytes()).expect("Invalid pubkey")
 }

@@ -2,13 +2,23 @@
 
 sp1_zkvm::entrypoint!(main);
 
-use dvt::BlsDvtWithBlsCommitment;
+use dkg::{BlsDkgWithBlsCommitment, ByteConvertible, DkgSetupTypes};
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dvt::FinalizationData<BlsDvtWithBlsCommitment> =
+    let data: dkg::FinalizationData<BlsDkgWithBlsCommitment> =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
-    let ok = dvt::verify_generations(&data.generations, &data.settings, &data.aggregate_pubkey);
+
+    let agg_key =
+        <BlsDkgWithBlsCommitment as DkgSetupTypes<BlsDkgWithBlsCommitment>>::DkgPubkey::from_bytes(
+            &data.aggregate_pubkey,
+        )
+        .expect("Invalid aggregated key");
+    let ok = dkg::verify_generations::<BlsDkgWithBlsCommitment>(
+        &data.generations,
+        &data.settings,
+        &agg_key,
+    );
     if ok.is_err() {
         panic!("{:?}", ok.unwrap_err().to_string());
     }

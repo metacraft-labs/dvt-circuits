@@ -1,5 +1,5 @@
 [package]
-name = "dvt_prover_host"
+name = "dkg_prover_host"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
@@ -13,9 +13,9 @@ license = { workspace = true }
 edition = "2021"
 version = "0.1.0"
 authors = ["Martin Dobrev <martindobrev0@gmail.com>", "Grigor Gachev", "Zahary Karadjov" ]
-keywords = ["nimbus", "dvt"]
+keywords = ["nimbus", "dkg"]
 categories = ["cryptography"]
-repository = "https://github.com/metacraft-labs/dvt-circuits"
+repository = "https://github.com/metacraft-labs/dkg-circuits"
 license = "MIT OR Apache-2.0"
 
 [workspace]
@@ -32,7 +32,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_cbor = "0.10"
 clap = { version = "4", features = ["derive"] }
-dvt = { path = "crates/dvt" }
+dkg = { path = "crates/dkg" }
 jsonschema = "0.16"
 anyhow = "1.0.96"
 colored = "3.0.0"
