@@ -1,13 +1,11 @@
 use bls12_381::{G1Affine, G1Projective, Scalar};
-use secp256k1::ffi::types;
-use std::fmt;
+use std::fmt::{self, Display};
 
 use crate::{bls_id_from_u32, to_g1_affine, BLSPubkeyRaw, ByteConvertible, HexConvertible};
 
 use crate::types::BLSIdRaw;
 
 pub trait TScalar: Clone + Copy + ByteConvertible {
-
     fn mul(self, other: &Self) -> Self;
     fn mul_assign(&mut self, other: &Self) {
         *self = self.mul(other);
@@ -44,16 +42,18 @@ impl ByteConvertible for BlsG1 {
 
     fn from_bytes(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
     where
-        Self: Sized {
-            Ok(BlsG1 {
-                g1: to_g1_affine(bytes),
-            })
-        }
+        Self: Sized,
+    {
+        Ok(BlsG1 {
+            g1: to_g1_affine(bytes),
+        })
+    }
     fn from_bytes_safe(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
     where
-        Self: Sized {
-            Self::from_bytes(bytes)
-        }
+        Self: Sized,
+    {
+        Self::from_bytes(bytes)
+    }
     fn to_bytes(&self) -> Self::RawBytes {
         Self::RawBytes::from(self.g1.to_compressed())
     }
@@ -87,9 +87,7 @@ impl TScalar for BlsScalar {
             scalar: bls_id_from_u32(x),
         }
     }
-
 }
-
 
 impl ByteConvertible for BlsScalar {
     type Error = Box<dyn std::error::Error>;
@@ -97,18 +95,20 @@ impl ByteConvertible for BlsScalar {
 
     fn from_bytes(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
     where
-        Self: Sized {
-            let mut le_bytes: Self::RawBytes = *bytes;
-            le_bytes.reverse();
-            Ok(BlsScalar {
-                scalar: Scalar::from_bytes(&le_bytes).expect("invalid scalar"),
-            })
-        }
+        Self: Sized,
+    {
+        let mut le_bytes: Self::RawBytes = *bytes;
+        le_bytes.reverse();
+        Ok(BlsScalar {
+            scalar: Scalar::from_bytes(&le_bytes).expect("invalid scalar"),
+        })
+    }
     fn from_bytes_safe(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
     where
-        Self: Sized {
-            Self::from_bytes(bytes)
-        }
+        Self: Sized,
+    {
+        Self::from_bytes(bytes)
+    }
     fn to_bytes(&self) -> Self::RawBytes {
         let mut be_bytes = self.scalar.to_bytes();
         be_bytes.reverse();
@@ -152,10 +152,9 @@ impl fmt::Display for BlsG1 {
     }
 }
 
-
 pub trait Curve {
-    type Scalar: TScalar;
-    type Point: TPoint<Scalar = Self::Scalar>;
+    type Scalar: TScalar + Display;
+    type Point: TPoint<Scalar = Self::Scalar> + PartialEq + Display;
 }
 
 #[derive(Clone)]

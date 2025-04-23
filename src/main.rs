@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use colored::*;
-use dvt::{BadEncryptedShare, BadPartialShareData, BlsDvtWithSecp256k1Commitment, SharedData, FinalizationData};
+use dvt::{
+    BadEncryptedShare, BadPartialShareData, BlsDvtWithBlsCommitment, FinalizationData, SharedData,
+};
 use jsonschema::JSONSchema;
 use serde_json::Value;
 use sp1_sdk::{include_elf, proof::SP1ProofWithPublicValues, utils, ProverClient, SP1Stdin};
@@ -98,8 +100,10 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
 
             match subtype {
                 CircuitType::BadShare => {
-                    let dvt_data = read_data_from_json_file::<SharedData<dvt::BlsDvtWithSecp256k1Commitment>>(&input_file)
-                        .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
+                    let dvt_data = read_data_from_json_file::<
+                        SharedData<dvt::BlsDvtWithBlsCommitment>,
+                    >(&input_file)
+                    .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
                     prove(
                         &dvt_data,
                         SHARE_PROVER_ELF,
@@ -108,10 +112,10 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
                     )?;
                 }
                 CircuitType::Finalization => {
-                    let dvt_data = read_data_from_json_file::<FinalizationData<dvt::BlsDvtWithSecp256k1Commitment>>(&input_file)
-                        .map_err(|e| {
-                            style_error(format!("Failed to read finalization data: {e}"))
-                        })?;
+                    let dvt_data = read_data_from_json_file::<
+                        FinalizationData<dvt::BlsDvtWithBlsCommitment>,
+                    >(&input_file)
+                    .map_err(|e| style_error(format!("Failed to read finalization data: {e}")))?;
                     prove(
                         &dvt_data,
                         FINALE_PROVER_ELF,
@@ -120,10 +124,12 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
                     )?;
                 }
                 CircuitType::BadPartialKey => {
-                    let dvt_data = read_data_from_json_file::<BadPartialShareData<dvt::BlsDvtWithSecp256k1Commitment>>(&input_file)
-                        .map_err(|e| {
-                            style_error(format!("Failed to read bad partial key data: {e}"))
-                        })?;
+                    let dvt_data = read_data_from_json_file::<
+                        BadPartialShareData<dvt::BlsDvtWithBlsCommitment>,
+                    >(&input_file)
+                    .map_err(|e| {
+                        style_error(format!("Failed to read bad partial key data: {e}"))
+                    })?;
                     prove(
                         &dvt_data,
                         BAD_PARTIAL_KEY_PROVER_ELF,
@@ -132,10 +138,12 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
                     )?;
                 }
                 CircuitType::BadEncryptedShare => {
-                    let dvt_data = read_data_from_json_file::<BadEncryptedShare<dvt::BlsDvtWithSecp256k1Commitment>>(&input_file)
-                        .map_err(|e| {
-                            style_error(format!("Failed to read bad encrypted share data: {e}"))
-                        })?;
+                    let dvt_data = read_data_from_json_file::<
+                        BadEncryptedShare<dvt::BlsDvtWithBlsCommitment>,
+                    >(&input_file)
+                    .map_err(|e| {
+                        style_error(format!("Failed to read bad encrypted share data: {e}"))
+                    })?;
                     prove(
                         &dvt_data,
                         BAD_ENCRYPTED_SHARE_PROVER_ELF,
@@ -155,29 +163,35 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
 
             match subtype {
                 CircuitType::BadShare => {
-                    let dvt_data = read_data_from_json_file::<SharedData<BlsDvtWithSecp256k1Commitment>>(&input_file)
-                        .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
+                    let dvt_data = read_data_from_json_file::<SharedData<BlsDvtWithBlsCommitment>>(
+                        &input_file,
+                    )
+                    .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
                     execute(&dvt_data, SHARE_PROVER_ELF, show_report)?;
                 }
                 CircuitType::Finalization => {
-                    let dvt_data = read_data_from_json_file::<FinalizationData<dvt::BlsDvtWithSecp256k1Commitment>>(&input_file)
-                        .map_err(|e| {
-                            style_error(format!("Failed to read finalization data: {e}"))
-                        })?;
+                    let dvt_data = read_data_from_json_file::<
+                        FinalizationData<dvt::BlsDvtWithBlsCommitment>,
+                    >(&input_file)
+                    .map_err(|e| style_error(format!("Failed to read finalization data: {e}")))?;
                     execute(&dvt_data, FINALE_PROVER_ELF, show_report)?;
                 }
                 CircuitType::BadPartialKey => {
-                    let dvt_data = read_data_from_json_file::<BadPartialShareData<dvt::BlsDvtWithSecp256k1Commitment>>(&input_file)
-                        .map_err(|e| {
-                            style_error(format!("Failed to read bad partial key data: {e}"))
-                        })?;
+                    let dvt_data = read_data_from_json_file::<
+                        BadPartialShareData<dvt::BlsDvtWithBlsCommitment>,
+                    >(&input_file)
+                    .map_err(|e| {
+                        style_error(format!("Failed to read bad partial key data: {e}"))
+                    })?;
                     execute(&dvt_data, BAD_PARTIAL_KEY_PROVER_ELF, show_report)?;
                 }
                 CircuitType::BadEncryptedShare => {
-                    let dvt_data = read_data_from_json_file::<BadEncryptedShare<dvt::BlsDvtWithSecp256k1Commitment>>(&input_file)
-                        .map_err(|e| {
-                            style_error(format!("Failed to read bad encrypted share data: {e}"))
-                        })?;
+                    let dvt_data = read_data_from_json_file::<
+                        BadEncryptedShare<dvt::BlsDvtWithBlsCommitment>,
+                    >(&input_file)
+                    .map_err(|e| {
+                        style_error(format!("Failed to read bad encrypted share data: {e}"))
+                    })?;
                     execute(&dvt_data, BAD_ENCRYPTED_SHARE_PROVER_ELF, show_report)?;
                 }
             }

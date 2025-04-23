@@ -3,9 +3,11 @@ use std::fmt::{Debug, Display};
 use hex::FromHexError;
 use serde::{Deserialize, Serialize};
 
+use crate::AsByteArr;
+
 pub trait ByteConvertible {
-    type Error: Debug;
-    type RawBytes: Clone + Serialize + for<'a> Deserialize<'a>;
+    type Error: Debug + Display;
+    type RawBytes: Clone + Serialize + for<'a> Deserialize<'a> + AsByteArr + Display;
 
     fn from_bytes(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
     where
@@ -40,8 +42,15 @@ where
 
 pub trait PublicKey: ByteConvertible + HexConvertible + Display + Debug {
     type Sig;
+    type MessageMapping;
 
     fn verify_signature(&self, message: &[u8], signature: &Self::Sig) -> bool;
+
+    fn verify_signature_from_precomputed_mapping(
+        &self,
+        msg: &Self::MessageMapping,
+        signature: &Self::Sig,
+    ) -> bool;
 }
 
 pub trait SecretKey: ByteConvertible + HexConvertible + Display + Debug {
@@ -51,9 +60,14 @@ pub trait SecretKey: ByteConvertible + HexConvertible + Display + Debug {
 
 pub trait Signature: ByteConvertible + HexConvertible + Display + Debug {}
 
-pub trait CryptoKeys where {
+pub trait CryptoKeys {
     type PubkeyRaw: HexConvertible + Clone + Serialize + for<'a> Deserialize<'a>;
-    type Pubkey: PublicKey<Sig = Self::Signature> + ByteConvertible<RawBytes = Self::PubkeyRaw> + Clone;
+    type Pubkey: PublicKey<Sig = Self::Signature, MessageMapping = Self::MessageMapping>
+        + ByteConvertible<RawBytes = Self::PubkeyRaw>
+        + Clone;
     type SecretKey: SecretKey<PubKey = Self::Pubkey> + Clone;
     type Signature: Signature + Clone;
+    type MessageMapping;
+
+    fn precompute_message_mapping(msg: &[u8]) -> Self::MessageMapping;
 }

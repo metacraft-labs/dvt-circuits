@@ -42,8 +42,17 @@ impl traits::ByteConvertible for BlsPublicKey {
 
 impl traits::PublicKey for BlsPublicKey {
     type Sig = BlsSignature;
+    type MessageMapping = G2Affine;
     fn verify_signature(&self, message: &[u8], signature: &Self::Sig) -> bool {
         bls_verify(&self.key, &signature.sig, message)
+    }
+
+    fn verify_signature_from_precomputed_mapping(
+        &self,
+        msg: &Self::MessageMapping,
+        signature: &Self::Sig,
+    ) -> bool {
+        self.verify_signature_precomputed_hash(msg, signature)
     }
 }
 
@@ -200,6 +209,11 @@ impl CryptoKeys for BlsCrypto {
     type Pubkey = BlsPublicKey;
     type SecretKey = BlsSecretKey;
     type Signature = BlsSignature;
+    type MessageMapping = G2Affine;
+
+    fn precompute_message_mapping(msg: &[u8]) -> Self::MessageMapping {
+        G2Affine::from(&hash_message_to_g2(msg))
+    }
 }
 
 #[cfg(test)]

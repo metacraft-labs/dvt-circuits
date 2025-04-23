@@ -163,7 +163,7 @@ fn parse_message(
     base_pubkeys: Vec<BLSPubkeyRaw>,
     commitment_hashes: Vec<SHA256Raw>,
     receiver_commitment_hash: SHA256Raw,
-) -> Result<dvt::SharedData<BlsDvtWithSecp256k1Commitment>, String> {
+) -> Result<dvt::SharedData<BlsDvtWithBlsCommitment>, String> {
     let mut stream = BinaryStream {
         data: msg.to_vec(),
         pos: 0,
@@ -203,7 +203,8 @@ fn parse_message(
         hash: SHA256Raw([0u8; SHA256_SIZE]),
     };
 
-    let initial_commitment_hash = dvt::compute_initial_commitment_hash(&initial_commitment);
+    let initial_commitment_hash =
+        dvt::compute_initial_commitment_hash::<BlsDvtWithBlsCommitment>(&initial_commitment);
 
     initial_commitment.hash = initial_commitment_hash.clone();
     // println!("gen_id {}", hex::encode(&gen_id));
@@ -234,7 +235,7 @@ fn parse_message(
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dvt::BadEncryptedShare<dvt::BlsDvtWithSecp256k1Commitment> =
+    let data: dvt::BadEncryptedShare<dvt::BlsDvtWithBlsCommitment> =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
     let pk = G1Affine::from_compressed(&data.sender_pubkey)
@@ -292,7 +293,7 @@ pub fn main() {
         );
     }
 
-    if !dvt::verify_initial_commitment_hash(&data.initial_commitment) {
+    if !dvt::verify_initial_commitment_hash::<BlsDvtWithBlsCommitment>(&data.initial_commitment) {
         panic!("Unsalshable error while verifying commitment hash\n");
     }
 

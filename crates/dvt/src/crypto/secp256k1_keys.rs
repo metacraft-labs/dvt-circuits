@@ -1,7 +1,7 @@
 use crate::crypto;
 use std::fmt;
 
-use super::{CryptoKeys, HexConvertible};
+use super::{ByteConvertible, CryptoKeys, HexConvertible};
 
 #[derive(PartialEq, Clone)]
 pub struct Secp256k1PublicKey {
@@ -47,6 +47,8 @@ impl fmt::Display for Secp256k1PublicKey {
 
 impl crypto::PublicKey for Secp256k1PublicKey {
     type Sig = Secp256k1Signature;
+    type MessageMapping = Vec<u8>;
+
     fn verify_signature(&self, message: &[u8], signature: &Self::Sig) -> bool {
         let secp = secp256k1::Secp256k1::verification_only();
         let msg_hash = match secp256k1::Message::from_digest_slice(message) {
@@ -55,6 +57,14 @@ impl crypto::PublicKey for Secp256k1PublicKey {
         };
         secp.verify_ecdsa(&msg_hash, &signature.sig, &self.key)
             .is_ok()
+    }
+
+    fn verify_signature_from_precomputed_mapping(
+        &self,
+        msg: &Self::MessageMapping,
+        signature: &Self::Sig,
+    ) -> bool {
+        self.verify_signature(msg, signature)
     }
 }
 
@@ -158,6 +168,12 @@ pub struct Secp256k1Crypto {}
 
 impl CryptoKeys for Secp256k1Crypto {
     type Pubkey = Secp256k1PublicKey;
+    type PubkeyRaw = <Secp256k1PublicKey as ByteConvertible>::RawBytes;
     type SecretKey = Secp256k1SecretKey;
     type Signature = Secp256k1Signature;
+    type MessageMapping = Vec<u8>;
+
+    fn precompute_message_mapping(msg: &[u8]) -> Self::MessageMapping {
+        msg.to_vec()
+    }
 }

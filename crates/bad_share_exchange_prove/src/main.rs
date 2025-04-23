@@ -10,7 +10,7 @@ use dvt::{self, VerificationErrors};
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dvt::SharedData<BlsDvtWithSecp256k1Commitment> =
+    let data: dvt::SharedData<BlsDvtWithBlsCommitment> =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
     if data.verification_hashes.len() != data.initial_commitment.settings.n as usize {
@@ -30,7 +30,7 @@ pub fn main() {
         panic!("The seed exchange commitment is not part of the verification hashes\n");
     }
 
-    if !dvt::verify_initial_commitment_hash(&data.initial_commitment) {
+    if !dvt::verify_initial_commitment_hash::<BlsDvtWithBlsCommitment>(&data.initial_commitment) {
         panic!("Unsalshable error while verifying commitment hash\n");
     }
 
