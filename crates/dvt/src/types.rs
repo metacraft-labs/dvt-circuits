@@ -1,45 +1,64 @@
-use crate::{dvt_math, traits, BlsCrypto, ByteConvertible, CryptoKeys, HexConvertible};
-use group::Curve;
+use crate::{crypto, dvt_math, traits, BlsCrypto, ByteConvertible, CryptoKeys};
+
 use serde::{Deserialize, Serialize, Serializer};
-use std::fmt;
+use std::fmt::{self, Display};
+
+use crypto::{PublicKey, Signature};
 
 pub trait DvtSetup: Clone {
-    type GenCrypto: CryptoKeys<PubkeyRaw = <<Self::Curve as crate::dvt_math::Curve>::Point as ByteConvertible>::RawBytes> + Clone;
+    type GenCrypto: CryptoKeys<
+            PubkeyRaw = <<Self::CCurve as dvt_math::Curve>::Point as ByteConvertible>::RawBytes,
+        > + Clone;
     type CommitmentCrypto: CryptoKeys + Clone;
-    type Curve: crate::dvt_math::Curve + Clone;
+    type CCurve: dvt_math::Curve + Clone;
 }
 
-// pub trait DvtSetup: DvtSetupBase
-// where
-//     <Self::GenCrypto as CryptoKeys>::Pubkey:
-//         ByteConvertible<RawBytes = <<Self::Curve as crate::dvt_math::Curve>::Point as ByteConvertible>::RawBytes>,
-// {
-// }
-// impl<T> DvtSetup for T
-// where
-//     T: DvtSetupBase,
-//     <T::GenCrypto as CryptoKeys>::Pubkey:
-//         ByteConvertible<RawBytes = <<Self::Curve as crate::dvt_math::Curve>::Point as ByteConvertible>::RawBytes>,
-// {
-// }
+pub trait DvtSetupTypes<T: DvtSetup>
+where
+    Self::Point: ByteConvertible<
+        RawBytes = <<T::GenCrypto as CryptoKeys>::Pubkey as ByteConvertible>::RawBytes,
+    >,
+{
+    type Point: dvt_math::TPoint + Clone + Display + PartialEq;
+    type Scalar: dvt_math::TScalar + Clone + Display;
+    type Curve: dvt_math::Curve<Point = Self::Point, Scalar = Self::Scalar> + Clone;
+    type DvtPubkey: PublicKey<
+            Sig = Self::DvtSignature,
+            MessageMapping = <T::GenCrypto as CryptoKeys>::MessageMapping,
+        > + ByteConvertible<RawBytes = <Self::Point as ByteConvertible>::RawBytes>
+        + Clone;
+    type DvtSignature: Signature
+        + ByteConvertible<
+            RawBytes = <<T::GenCrypto as CryptoKeys>::Signature as ByteConvertible>::RawBytes,
+        > + Clone;
 
+    // Some questionable life choices lead to this moment
+    type CommitmentPubkey: PublicKey<Sig = Self::CommitmentSignature>
+        + ByteConvertible<
+            RawBytes = <<T::CommitmentCrypto as CryptoKeys>::Pubkey as ByteConvertible>::RawBytes,
+            Error = <<T::CommitmentCrypto as CryptoKeys>::Pubkey as ByteConvertible>::Error,
+        > + Clone;
+    type CommitmentSignature: Signature + ByteConvertible<RawBytes = <<T::CommitmentCrypto as CryptoKeys>::Signature as ByteConvertible>::RawBytes,
+                                                          Error = <<T::CommitmentCrypto as CryptoKeys>::Signature as ByteConvertible>::Error> + Clone;
+}
+
+impl<T: DvtSetup> DvtSetupTypes<T> for T {
+    type Point = <Self::Curve as dvt_math::Curve>::Point;
+    type Scalar = <Self::Curve as dvt_math::Curve>::Scalar;
+    type Curve = T::CCurve;
+    type DvtPubkey = <T::GenCrypto as CryptoKeys>::Pubkey;
+    type DvtSignature = <T::GenCrypto as CryptoKeys>::Signature;
+    type CommitmentPubkey = <T::CommitmentCrypto as CryptoKeys>::Pubkey;
+    type CommitmentSignature = <T::CommitmentCrypto as CryptoKeys>::Signature;
+}
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct BlsDvtWithSecp256k1Commitment {}
+pub struct BlsDvtWithBlsCommitment {}
 
-impl DvtSetup for BlsDvtWithSecp256k1Commitment {
+impl DvtSetup for BlsDvtWithBlsCommitment {
     type GenCrypto = BlsCrypto;
     type CommitmentCrypto = BlsCrypto;
-    type Curve = crate::dvt_math::BlsG1Curve;
-}
-
-fn pesho() {
-
-    let raw = BLSPubkeyRaw::from_hex("90346f9c5f3c09d96ea02acd0220daa8459f03866ed938c798e3716e42c7e033c9a7ef66a10f83af06d5c00b508c6d0f").unwrap();
-
-    let p1 = <<<BlsDvtWithSecp256k1Commitment as DvtSetup>::Curve as dvt_math::Curve>::Point as ByteConvertible>::RawBytes::from_hex("90346f9c5f3c09d96ea02acd0220daa8459f03866ed938c798e3716e42c7e033c9a7ef66a10f83af06d5c00b508c6d0f").unwrap();
-    let p2 = <<<BlsDvtWithSecp256k1Commitment as DvtSetup>::GenCrypto as CryptoKeys>::Pubkey as ByteConvertible>::RawBytes::from_hex("90346f9c5f3c09d96ea02acd0220daa8459f03866ed938c798e3716e42c7e033c9a7ef66a10f83af06d5c00b508c6d0f").unwrap();
-
+    type CCurve = dvt_math::BlsG1Curve;
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -57,7 +76,7 @@ pub type VerificationHashes = Vec<SHA256Raw>;
 #[derive(Clone, Serialize, Deserialize)]
 pub struct InitialCommitment<C>
 where
-    C: crate::dvt_math::Curve,
+    C: dvt_math::Curve,
 {
     #[serde(rename = "hash")]
     pub hash: SHA256Raw,
@@ -103,8 +122,9 @@ pub struct SeedExchangeCommitment {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SharedData<Setup>
-where 
-    Setup: DvtSetup,{
+where
+    Setup: DvtSetup + DvtSetupTypes<Setup>,
+{
     #[serde(rename = "base_hashes")]
     pub verification_hashes: VerificationHashes,
     #[serde(rename = "initial_commitment")]
@@ -116,38 +136,41 @@ where
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Generation<Setup>
 where
-    Setup: DvtSetup,
+    Setup: DvtSetup + DvtSetupTypes<Setup>,
 {
     #[serde(rename = "base_pubkeys")]
-    pub verification_vector: Vec<<<Setup::Curve as crate::dvt_math::Curve>::Point as ByteConvertible>::RawBytes>,
+    pub verification_vector: Vec<<Setup::Point as ByteConvertible>::RawBytes>,
     #[serde(rename = "base_hash")]
     pub base_hash: SHA256Raw,
     #[serde(rename = "partial_pubkey")]
-    pub partial_pubkey: <<Setup::GenCrypto as CryptoKeys>::Pubkey as ByteConvertible>::RawBytes,
+    pub partial_pubkey: <Setup::DvtPubkey as ByteConvertible>::RawBytes,
     #[serde(rename = "message_cleartext")]
     pub message_cleartext: String,
     #[serde(rename = "message_signature")]
-    pub message_signature: <<Setup::GenCrypto as CryptoKeys>::Signature as ByteConvertible>::RawBytes,
+    pub message_signature: <Setup::DvtSignature as ByteConvertible>::RawBytes,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct FinalizationData<Setup>
 where
-    Setup: DvtSetup,
+    Setup: DvtSetup + DvtSetupTypes<Setup>,
 {
     #[serde(rename = "settings")]
     pub settings: GenerateSettings,
     #[serde(rename = "generations")]
     pub generations: Vec<Generation<Setup>>,
     #[serde(rename = "aggregate_pubkey")]
-    pub aggregate_pubkey: <<Setup::GenCrypto as CryptoKeys>::Pubkey as ByteConvertible>::RawBytes,
+    pub aggregate_pubkey: <Setup::DvtPubkey as ByteConvertible>::RawBytes,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct BadPartialShareGeneration<Setup> where
-    Setup: DvtSetup{
+pub struct BadPartialShareGeneration<Setup>
+where
+    Setup: DvtSetup + DvtSetupTypes<Setup>,
+{
     #[serde(rename = "base_pubkeys")]
-    pub verification_vector: Vec<<<Setup::Curve as crate::dvt_math::Curve>::Point as ByteConvertible>::RawBytes>,
+    pub verification_vector:
+        Vec<<<Setup::Curve as dvt_math::Curve>::Point as ByteConvertible>::RawBytes>,
     #[serde(rename = "base_hash")]
     pub base_hash: SHA256Raw,
 }
@@ -155,7 +178,7 @@ pub struct BadPartialShareGeneration<Setup> where
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BadPartialShare<Setup>
 where
-    Setup: DvtSetup,
+    Setup: DvtSetup + DvtSetupTypes<Setup>,
 {
     #[serde(rename = "settings")]
     pub settings: GenerateSettings,
@@ -168,7 +191,7 @@ where
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BadPartialShareData<Setup>
 where
-    Setup: DvtSetup,
+    Setup: DvtSetup + DvtSetupTypes<Setup>,
 {
     #[serde(rename = "settings")]
     pub settings: GenerateSettings,
@@ -181,14 +204,14 @@ where
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BadEncryptedShare<Setup>
 where
-    Setup: DvtSetup,
+    Setup: DvtSetup + DvtSetupTypes<Setup>,
 {
     #[serde(rename = "sender_pubkey")]
-    pub sender_pubkey: <<Setup::GenCrypto as CryptoKeys>::Pubkey as ByteConvertible>::RawBytes,
+    pub sender_pubkey: <Setup::CommitmentPubkey as ByteConvertible>::RawBytes,
     #[serde(rename = "receiver_signature")]
-    pub signature: <<Setup::GenCrypto as CryptoKeys>::Signature as ByteConvertible>::RawBytes,
+    pub signature: <Setup::CommitmentSignature as ByteConvertible>::RawBytes,
     #[serde(rename = "receiver_pubkey")]
-    pub receiver_pubkey: <<Setup::GenCrypto as CryptoKeys>::Pubkey as ByteConvertible>::RawBytes,
+    pub receiver_pubkey: <Setup::CommitmentPubkey as ByteConvertible>::RawBytes,
     #[serde(rename = "receiver_base_secrets_commitment_hash")]
     pub receiver_commitment_hash: SHA256Raw,
     #[serde(rename = "encrypted_data")]
@@ -198,8 +221,7 @@ where
     #[serde(rename = "base_hashes")]
     pub base_hashes: VerificationHashes,
     #[serde(rename = "base_pubkeys")]
-    pub base_pubkeys:
-        Vec<<<Setup::Curve as crate::dvt_math::Curve>::Point as ByteConvertible>::RawBytes>,
+    pub base_pubkeys: Vec<<Setup::Point as ByteConvertible>::RawBytes>,
 }
 
 macro_rules! define_display {
@@ -228,21 +250,21 @@ macro_rules! define_display {
 
 #[macro_export]
 macro_rules! for_each_dvt_type {
-    ($macro:ident) => {
+    ($macro:ident, $setup:ident) => {
         $macro!(GenerateSettings);
-        $macro!(InitialCommitment<crate::dvt_math::BlsG1Curve>);
+        $macro!(InitialCommitment<<$setup as DvtSetup>::CCurve>);
         $macro!(SeedExchangeCommitment);
-        $macro!(SharedData<BlsDvtWithSecp256k1Commitment>);
-        $macro!(Generation<BlsDvtWithSecp256k1Commitment>);
-        $macro!(FinalizationData<BlsDvtWithSecp256k1Commitment>);
-        $macro!(BadPartialShareGeneration<BlsDvtWithSecp256k1Commitment>);
-        $macro!(BadPartialShare<BlsDvtWithSecp256k1Commitment>);
-        $macro!(BadPartialShareData<BlsDvtWithSecp256k1Commitment>);
-        $macro!(BadEncryptedShare<BlsDvtWithSecp256k1Commitment>);
+        $macro!(SharedData<$setup>);
+        $macro!(Generation<$setup>);
+        $macro!(FinalizationData<$setup>);
+        $macro!(BadPartialShareGeneration<$setup>);
+        $macro!(BadPartialShare<$setup>);
+        $macro!(BadPartialShareData<$setup>);
+        $macro!(BadEncryptedShare<$setup>);
     };
 }
 
-for_each_dvt_type!(define_display);
+for_each_dvt_type!(define_display, BlsDvtWithBlsCommitment);
 
 pub trait AsByteArr {
     fn as_arr(&self) -> &[u8];
@@ -388,19 +410,34 @@ pub const SECP256K1_SIGNATURE_SIZE: usize = secp256k1::constants::COMPACT_SIGNAT
 pub const SECP256K1_SECRET_SIZE: usize = secp256k1::constants::SECRET_KEY_SIZE;
 
 #[macro_export]
-macro_rules! for_each_raw_type {
+macro_rules! for_each_bls_type {
     ($macro:ident) => {
-        $macro!(DvtGenId, GEN_ID_SIZE);
         $macro!(BLSPubkeyRaw, BLS_PUBKEY_SIZE);
         $macro!(BLSSignatureRaw, BLS_SIGNATURE_SIZE);
         $macro!(BLSUncompressedPubkeyRaw, BLS_UNCOMPRESSED_PUBKEY_SIZE);
         $macro!(BLSUncompressedSignatureRaw, BLS_UNCOMPRESSED_SIGNATURE_SIZE);
         $macro!(BLSSecretRaw, BLS_SECRET_SIZE);
         $macro!(BLSIdRaw, BLS_ID_SIZE);
-        $macro!(SHA256Raw, SHA256_SIZE);
+    };
+}
+
+#[macro_export]
+macro_rules! for_each_secp256k1_type {
+    ($macro:ident) => {
         $macro!(SECP256K1PubkeyRaw, SECP256K1_PUBKEY_SIZE);
         $macro!(SECP256K1SignatureRaw, SECP256K1_SIGNATURE_SIZE);
         $macro!(SECP256K1SecretRaw, SECP256K1_SECRET_SIZE);
+    };
+}
+
+#[macro_export]
+macro_rules! for_each_raw_type {
+    ($macro:ident) => {
+        for_each_bls_type!($macro);
+        for_each_secp256k1_type!($macro);
+
+        $macro!(DvtGenId, GEN_ID_SIZE);
+        $macro!(SHA256Raw, SHA256_SIZE);
     };
 }
 
