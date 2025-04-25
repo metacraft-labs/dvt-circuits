@@ -3,7 +3,9 @@ use std::fmt::{Debug, Display};
 use hex::FromHexError;
 use serde::{Deserialize, Serialize};
 
-use crate::AsByteArr;
+pub trait AsByteArr {
+    fn as_arr(&self) -> &[u8];
+}
 
 pub trait ByteConvertible {
     type Error: Debug + Display;
@@ -85,7 +87,12 @@ pub trait Curve {
 }
 
 pub trait CryptoKeys {
-    type PubkeyRaw: HexConvertible + Clone + Serialize + for<'a> Deserialize<'a> + Display;
+    type PubkeyRaw: HexConvertible
+        + Clone
+        + Serialize
+        + for<'a> Deserialize<'a>
+        + Display
+        + AsByteArr;
     type Pubkey: PublicKey<Sig = Self::Signature, MessageMapping = Self::MessageMapping>
         + ByteConvertible<RawBytes = Self::PubkeyRaw>
         + Clone;

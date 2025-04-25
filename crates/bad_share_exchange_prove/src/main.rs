@@ -7,10 +7,18 @@ use core::panic;
 use dkg::crypto::*;
 use dkg::types::*;
 use dkg::{self, VerificationErrors};
+use serde::Deserialize;
 
 pub fn main() {
+    run::<BlsDkgWithSecp256kCommitment>();
+}
+
+pub fn run<Setup>()
+where
+    Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup> + for<'a> Deserialize<'a>,
+{
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dkg::SharedData<BlsDkgWithBlsCommitment> =
+    let data: dkg::SharedData<Setup> =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
     if data.verification_hashes.len() != data.initial_commitment.settings.n as usize {
@@ -30,11 +38,11 @@ pub fn main() {
         panic!("The seed exchange commitment is not part of the verification hashes\n");
     }
 
-    if !dkg::verify_initial_commitment_hash::<BlsDkgWithBlsCommitment>(&data.initial_commitment) {
+    if !dkg::verify_initial_commitment_hash::<Setup>(&data.initial_commitment) {
         panic!("Unsalshable error while verifying commitment hash\n");
     }
 
-    match dkg::verify_seed_exchange_commitment::<BlsDkgWithBlsCommitment>(
+    match dkg::verify_seed_exchange_commitment::<Setup>(
         &data.verification_hashes,
         &data.seeds_exchange_commitment,
         &data.initial_commitment,
@@ -65,7 +73,7 @@ pub fn main() {
                         return;
                     }
                     VerificationErrors::UnslashableError(err) => {
-                        panic!("Unslashable error seed exchange commitment: {}", err);
+                        panic!("Unslashable error seed exchange commitment:\n {}", err);
                     }
                 }
             } else {

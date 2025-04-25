@@ -1,9 +1,11 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use colored::*;
 use dkg::{
-    BadEncryptedShare, BadPartialShareData, BlsDkgWithBlsCommitment, FinalizationData, SharedData,
+    BadEncryptedShare, BadPartialShareData, BlsDkgWithSecp256kCommitment, DkgSetup, DkgSetupTypes,
+    FinalizationData, SharedData,
 };
 use jsonschema::JSONSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sp1_sdk::{include_elf, proof::SP1ProofWithPublicValues, utils, ProverClient, SP1Stdin};
 use std::{error::Error, process};
@@ -86,7 +88,10 @@ pub const FINALE_PROVER_ELF: &[u8] = include_elf!("finalization_prove");
 pub const BAD_PARTIAL_KEY_PROVER_ELF: &[u8] = include_elf!("bad_parial_key_prove");
 pub const BAD_ENCRYPTED_SHARE_PROVER_ELF: &[u8] = include_elf!("bad_encrypted_share_prove");
 
-fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
+fn run<Setup>(cli: Cli) -> Result<(), Box<dyn Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup> + for<'a> Deserialize<'a> + Serialize,
+{
     utils::setup_logger();
 
     match cli.command {
@@ -100,10 +105,8 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
 
             match subtype {
                 CircuitType::BadShare => {
-                    let dkg_data = read_data_from_json_file::<
-                        SharedData<dkg::BlsDkgWithBlsCommitment>,
-                    >(&input_file)
-                    .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
+                    let dkg_data = read_data_from_json_file::<SharedData<Setup>>(&input_file)
+                        .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
                     prove(
                         &dkg_data,
                         SHARE_PROVER_ELF,
@@ -112,10 +115,10 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
                     )?;
                 }
                 CircuitType::Finalization => {
-                    let dkg_data = read_data_from_json_file::<
-                        FinalizationData<dkg::BlsDkgWithBlsCommitment>,
-                    >(&input_file)
-                    .map_err(|e| style_error(format!("Failed to read finalization data: {e}")))?;
+                    let dkg_data = read_data_from_json_file::<FinalizationData<Setup>>(&input_file)
+                        .map_err(|e| {
+                            style_error(format!("Failed to read finalization data: {e}"))
+                        })?;
                     prove(
                         &dkg_data,
                         FINALE_PROVER_ELF,
@@ -124,12 +127,11 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
                     )?;
                 }
                 CircuitType::BadPartialKey => {
-                    let dkg_data = read_data_from_json_file::<
-                        BadPartialShareData<dkg::BlsDkgWithBlsCommitment>,
-                    >(&input_file)
-                    .map_err(|e| {
-                        style_error(format!("Failed to read bad partial key data: {e}"))
-                    })?;
+                    let dkg_data =
+                        read_data_from_json_file::<BadPartialShareData<Setup>>(&input_file)
+                            .map_err(|e| {
+                                style_error(format!("Failed to read bad partial key data: {e}"))
+                            })?;
                     prove(
                         &dkg_data,
                         BAD_PARTIAL_KEY_PROVER_ELF,
@@ -138,9 +140,9 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
                     )?;
                 }
                 CircuitType::BadEncryptedShare => {
-                    let dkg_data = read_data_from_json_file::<
-                        BadEncryptedShare<dkg::BlsDkgWithBlsCommitment>,
-                    >(&input_file)
+                    let dkg_data = read_data_from_json_file::<BadEncryptedShare<Setup>>(
+                        &input_file,
+                    )
                     .map_err(|e| {
                         style_error(format!("Failed to read bad encrypted share data: {e}"))
                     })?;
@@ -163,32 +165,29 @@ fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
 
             match subtype {
                 CircuitType::BadShare => {
-                    let dkg_data = read_data_from_json_file::<SharedData<BlsDkgWithBlsCommitment>>(
-                        &input_file,
-                    )
-                    .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
+                    let dkg_data = read_data_from_json_file::<SharedData<Setup>>(&input_file)
+                        .map_err(|e| style_error(format!("Failed to read share data: {e}")))?;
                     execute(&dkg_data, SHARE_PROVER_ELF, show_report)?;
                 }
                 CircuitType::Finalization => {
-                    let dkg_data = read_data_from_json_file::<
-                        FinalizationData<dkg::BlsDkgWithBlsCommitment>,
-                    >(&input_file)
-                    .map_err(|e| style_error(format!("Failed to read finalization data: {e}")))?;
+                    let dkg_data = read_data_from_json_file::<FinalizationData<Setup>>(&input_file)
+                        .map_err(|e| {
+                            style_error(format!("Failed to read finalization data: {e}"))
+                        })?;
                     execute(&dkg_data, FINALE_PROVER_ELF, show_report)?;
                 }
                 CircuitType::BadPartialKey => {
-                    let dkg_data = read_data_from_json_file::<
-                        BadPartialShareData<dkg::BlsDkgWithBlsCommitment>,
-                    >(&input_file)
-                    .map_err(|e| {
-                        style_error(format!("Failed to read bad partial key data: {e}"))
-                    })?;
+                    let dkg_data =
+                        read_data_from_json_file::<BadPartialShareData<Setup>>(&input_file)
+                            .map_err(|e| {
+                                style_error(format!("Failed to read bad partial key data: {e}"))
+                            })?;
                     execute(&dkg_data, BAD_PARTIAL_KEY_PROVER_ELF, show_report)?;
                 }
                 CircuitType::BadEncryptedShare => {
-                    let dkg_data = read_data_from_json_file::<
-                        BadEncryptedShare<dkg::BlsDkgWithBlsCommitment>,
-                    >(&input_file)
+                    let dkg_data = read_data_from_json_file::<BadEncryptedShare<Setup>>(
+                        &input_file,
+                    )
                     .map_err(|e| {
                         style_error(format!("Failed to read bad encrypted share data: {e}"))
                     })?;
@@ -247,7 +246,7 @@ fn main() {
         }
     }
     let cli = Cli::parse();
-    match run(cli) {
+    match run::<BlsDkgWithSecp256kCommitment>(cli) {
         Ok(_) => {}
         Err(e) => {
             println!("{e}");
