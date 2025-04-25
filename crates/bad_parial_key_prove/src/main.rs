@@ -7,10 +7,18 @@ use core::panic;
 use dkg::crypto::*;
 use dkg::types::*;
 use dkg::{self, VerificationErrors};
+use serde::Deserialize;
 
 pub fn main() {
+    run::<BlsDkgWithSecp256kCommitment>();
+}
+
+pub fn run<Setup>()
+where
+    Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup> + for<'a> Deserialize<'a>,
+{
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dkg::BadPartialShareData<BlsDkgWithBlsCommitment> =
+    let data: dkg::BadPartialShareData<Setup> =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
     match dkg::prove_wrong_final_key_generation(&data) {
         Ok(()) => {

@@ -55,8 +55,16 @@ impl crypto::PublicKey for Secp256k1PublicKey {
             Ok(m) => m,
             Err(_) => return false,
         };
-        secp.verify_ecdsa(&msg_hash, &signature.sig, &self.key)
-            .is_ok()
+        println!("msg_hash: {}", msg_hash);
+        println!("signature: {}", signature);
+        println!("key: {}", self.key);
+        match secp.verify_ecdsa(&msg_hash, &signature.sig, &self.key) {
+            Ok(_) => true,
+            Err(e) => {
+                println!("Failed to verify signature: {}", e);
+                false
+            }
+        }
     }
 
     fn verify_signature_from_precomputed_mapping(

@@ -10,6 +10,7 @@ use chacha20::{ChaCha20, Key, Nonce};
 use bls12_381::{self, G1Affine, G2Affine};
 use dkg::crypto::*;
 use dkg::types::*;
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::fmt;
 
@@ -234,113 +235,120 @@ fn parse_message(
 }
 
 pub fn main() {
+    run::<BlsDkgWithSecp256kCommitment>();
+}
+
+pub fn run<Setup>()
+where
+    Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup> + for<'a> Deserialize<'a>,
+{
     let input: Vec<u8> = sp1_zkvm::io::read();
-    let data: dkg::BadEncryptedShare<dkg::BlsDkgWithBlsCommitment> =
+    let data: dkg::BadEncryptedShare<Setup> =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
-    let pk = G1Affine::from_compressed(&data.sender_pubkey)
-        .into_option()
-        .unwrap();
-    let sig = G2Affine::from_compressed(&data.signature)
-        .into_option()
-        .unwrap();
+    // let pk = G1Affine::from_compressed(&data.sender_pubkey)
+    //     .into_option()
+    //     .unwrap();
+    // let sig = G2Affine::from_compressed(&data.signature)
+    //     .into_option()
+    //     .unwrap();
 
-    let p = bls12_381::pairing(&pk, &sig);
+    // let p = bls12_381::pairing(&pk, &sig);
 
-    let mut cipher2 = new_chacha20_cipher(p.to_bytes_raw().as_slice(), "", "");
+    // let mut cipher2 = new_chacha20_cipher(p.to_bytes_raw().as_slice(), "", "");
 
-    let mut decrypted =
-        hex::decode(&data.encrypted_message).expect("invalid hex in encrypted_message");
-    cipher2.apply_keystream(&mut decrypted);
-    println!("decrypted {:?}", hex::encode(&decrypted));
-    let data = match parse_message(
-        &decrypted,
-        data.settings,
-        data.base_pubkeys,
-        data.base_hashes,
-        data.receiver_commitment_hash,
-    ) {
-        Ok(data) => data,
-        Err(e) => {
-            println!("Error: {}", e);
-            sp1_zkvm::io::commit(&data.encrypted_message);
-            return;
-        }
-    };
+    // let mut decrypted =
+    //     hex::decode(&data.encrypted_message).expect("invalid hex in encrypted_message");
+    // cipher2.apply_keystream(&mut decrypted);
+    // println!("decrypted {:?}", hex::encode(&decrypted));
+    // let data = match parse_message(
+    //     &decrypted,
+    //     data.settings,
+    //     data.base_pubkeys,
+    //     data.base_hashes,
+    //     data.receiver_commitment_hash,
+    // ) {
+    //     Ok(data) => data,
+    //     Err(e) => {
+    //         println!("Error: {}", e);
+    //         sp1_zkvm::io::commit(&data.encrypted_message);
+    //         return;
+    //     }
+    // };
 
-    if data.verification_hashes.len() != data.initial_commitment.settings.n as usize {
-        panic!("The number of verification hashes does not match the number of keys\n");
-    }
+    // if data.verification_hashes.len() != data.initial_commitment.settings.n as usize {
+    //     panic!("The number of verification hashes does not match the number of keys\n");
+    // }
 
-    if data.initial_commitment.settings.n < data.initial_commitment.settings.k {
-        panic!("N should be greater than or equal to k\n");
-    }
+    // if data.initial_commitment.settings.n < data.initial_commitment.settings.k {
+    //     panic!("N should be greater than or equal to k\n");
+    // }
 
-    let found = data
-        .verification_hashes
-        .iter()
-        .any(|h| h == &data.initial_commitment.hash);
+    // let found = data
+    //     .verification_hashes
+    //     .iter()
+    //     .any(|h| h == &data.initial_commitment.hash);
 
-    if !found {
-        panic!(
-            "The seed exchange commitment hash {} is not part of the verification hashes  {} \n",
-            data.initial_commitment.hash,
-            data.verification_hashes
-                .iter()
-                .map(|h| h.to_hex())
-                .collect::<Vec<String>>()
-                .join(", ")
-        );
-    }
+    // if !found {
+    //     panic!(
+    //         "The seed exchange commitment hash {} is not part of the verification hashes  {} \n",
+    //         data.initial_commitment.hash,
+    //         data.verification_hashes
+    //             .iter()
+    //             .map(|h| h.to_hex())
+    //             .collect::<Vec<String>>()
+    //             .join(", ")
+    //     );
+    // }
 
-    if !dkg::verify_initial_commitment_hash::<BlsDkgWithBlsCommitment>(&data.initial_commitment) {
-        panic!("Unsalshable error while verifying commitment hash\n");
-    }
+    // if !dkg::verify_initial_commitment_hash::<Setup>(&data.initial_commitment) {
+    //     panic!("Unsalshable error while verifying commitment hash\n");
+    // }
 
-    match dkg::verify_seed_exchange_commitment::<BlsDkgWithBlsCommitment>(
-        &data.verification_hashes,
-        &data.seeds_exchange_commitment,
-        &data.initial_commitment,
-    ) {
-        Ok(()) => {
-            println!("The share is valid. We can't that the prove participant share is corrupted.");
-        }
+    // match dkg::verify_seed_exchange_commitment::<Setup>(
+    //     &data.verification_hashes,
+    //     &data.seeds_exchange_commitment,
+    //     &data.initial_commitment,
+    // ) {
+    //     Ok(()) => {
+    //         println!("The share is valid. We can't that the prove participant share is corrupted.");
+    //     }
 
-        Err(e) => {
-            if let Some(verification_error) = e.downcast_ref::<VerificationErrors>() {
-                match verification_error {
-                    VerificationErrors::SlashableError(err) => {
-                        println!("Slashable error seed exchange commitment: {}", err);
+    //     Err(e) => {
+    //         if let Some(verification_error) = e.downcast_ref::<VerificationErrors>() {
+    //             match verification_error {
+    //                 VerificationErrors::SlashableError(err) => {
+    //                     println!("Slashable error seed exchange commitment: {}", err);
 
-                        for h in data.verification_hashes.iter() {
-                            println!("Verification hash: {}", h);
-                            sp1_zkvm::io::commit(h.as_ref());
-                        }
+    //                     for h in data.verification_hashes.iter() {
+    //                         println!("Verification hash: {}", h);
+    //                         sp1_zkvm::io::commit(h.as_ref());
+    //                     }
 
-                        println!(
-                            "Perpetrator public key: {}",
-                            data.seeds_exchange_commitment.commitment.pubkey
-                        );
-                        for byte in data
-                            .seeds_exchange_commitment
-                            .commitment
-                            .pubkey
-                            .as_arr()
-                            .iter()
-                        {
-                            sp1_zkvm::io::commit(&byte);
-                        }
+    //                     println!(
+    //                         "Perpetrator public key: {}",
+    //                         data.seeds_exchange_commitment.commitment.pubkey
+    //                     );
+    //                     for byte in data
+    //                         .seeds_exchange_commitment
+    //                         .commitment
+    //                         .pubkey
+    //                         .as_arr()
+    //                         .iter()
+    //                     {
+    //                         sp1_zkvm::io::commit(&byte);
+    //                     }
 
-                        return;
-                    }
-                    VerificationErrors::UnslashableError(err) => {
-                        panic!("Unslashable error seed exchange commitment: {}", err);
-                    }
-                }
-            } else {
-                panic!("Unknown error seed exchange commitment: {}", e);
-            }
-        }
-    }
+    //                     return;
+    //                 }
+    //                 VerificationErrors::UnslashableError(err) => {
+    //                     panic!("Unslashable error seed exchange commitment: {}", err);
+    //                 }
+    //             }
+    //         } else {
+    //             panic!("Unknown error seed exchange commitment: {}", e);
+    //         }
+    //     }
+    // }
     panic!("The seed exchange commitment is valid");
 }

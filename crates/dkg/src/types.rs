@@ -1,5 +1,5 @@
-use crate::traits::*;
 use crate::{dkg_math, BlsCrypto, ByteConvertible, CryptoKeys};
+use crate::{traits::*, Secp256k1Crypto};
 
 use serde::{Deserialize, Serialize, Serializer};
 use std::fmt::{self};
@@ -10,6 +10,15 @@ pub struct BlsDkgWithBlsCommitment {}
 impl DkgSetup for BlsDkgWithBlsCommitment {
     type TargetCryptography = BlsCrypto;
     type IdentityCryptography = BlsCrypto;
+    type CCurve = dkg_math::BlsG1Curve;
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct BlsDkgWithSecp256kCommitment {}
+
+impl DkgSetup for BlsDkgWithSecp256kCommitment {
+    type TargetCryptography = BlsCrypto;
+    type IdentityCryptography = Secp256k1Crypto;
     type CCurve = dkg_math::BlsG1Curve;
 }
 
@@ -177,51 +186,30 @@ where
     #[serde(rename = "base_pubkeys")]
     pub base_pubkeys: Vec<<Setup::Point as ByteConvertible>::RawBytes>,
 }
+pub struct PrettyJson<T>(pub T);
 
-macro_rules! define_display {
-    ($name:ty) => {
-        impl fmt::Display for $name {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                let text = match serde_json::to_string_pretty(self) {
-                    Ok(text) => text,
-                    Err(err) => err.to_string(),
-                };
-                write!(f, "{}", text)
-            }
+impl<T> fmt::Display for PrettyJson<T>
+where
+    T: Serialize,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match serde_json::to_string_pretty(&self.0) {
+            Ok(text) => write!(f, "{}", text),
+            Err(err) => write!(f, "{}", err),
         }
-
-        impl fmt::Debug for $name {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                let text = match serde_json::to_string_pretty(self) {
-                    Ok(text) => text,
-                    Err(err) => err.to_string(),
-                };
-                write!(f, "{}", text)
-            }
-        }
-    };
+    }
 }
 
-#[macro_export]
-macro_rules! for_each_dkg_type {
-    ($macro:ident, $setup:ident) => {
-        $macro!(GenerateSettings);
-        $macro!(InitialCommitment<<$setup as DkgSetup>::CCurve>);
-        $macro!(SeedExchangeCommitment<$setup>);
-        $macro!(SharedData<$setup>);
-        $macro!(Generation<$setup>);
-        $macro!(FinalizationData<$setup>);
-        $macro!(BadPartialShareGeneration<$setup>);
-        $macro!(BadPartialShare<$setup>);
-        $macro!(BadPartialShareData<$setup>);
-        $macro!(BadEncryptedShare<$setup>);
-    };
-}
-
-for_each_dkg_type!(define_display, BlsDkgWithBlsCommitment);
-
-pub trait AsByteArr {
-    fn as_arr(&self) -> &[u8];
+impl<T> fmt::Debug for PrettyJson<T>
+where
+    T: Serialize,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match serde_json::to_string_pretty(&self.0) {
+            Ok(text) => write!(f, "{}", text),
+            Err(err) => write!(f, "{}", err),
+        }
+    }
 }
 
 macro_rules! define_raw_type {

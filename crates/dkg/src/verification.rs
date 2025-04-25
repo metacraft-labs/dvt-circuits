@@ -67,7 +67,7 @@ pub fn get_index_in_commitments(
 pub fn verify_seed_exchange_commitment<Setup>(
     verification_hashes: &VerificationHashes,
     seed_exchange: &SeedExchangeCommitment<Setup>,
-    initial_commitment: &InitialCommitment<Setup::CCurve>,
+    initial_commitment: &InitialCommitment<Setup::Curve>,
 ) -> Result<(), Box<dyn std::error::Error>>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
