@@ -171,10 +171,12 @@ where
 {
     #[serde(rename = "sender_pubkey")]
     pub sender_pubkey: <Setup::CommitmentPubkey as ByteConvertible>::RawBytes,
-    #[serde(rename = "receiver_signature")]
-    pub signature: <Setup::CommitmentSignature as ByteConvertible>::RawBytes,
     #[serde(rename = "receiver_pubkey")]
     pub receiver_pubkey: <Setup::CommitmentPubkey as ByteConvertible>::RawBytes,
+    #[serde(rename = "sender_encr_pubkey")]
+    pub sender_encr_pubkey: <Setup::Point as ByteConvertible>::RawBytes,
+    #[serde(rename = "receiver_encr_seckey")]
+    pub receiver_encr_seckey: <Setup::DkgSecretKey as ByteConvertible>::RawBytes,
     #[serde(rename = "receiver_base_secrets_commitment_hash")]
     pub receiver_commitment_hash: SHA256Raw,
     #[serde(rename = "encrypted_data")]
@@ -184,7 +186,7 @@ where
     #[serde(rename = "base_hashes")]
     pub base_hashes: VerificationHashes,
     #[serde(rename = "base_pubkeys")]
-    pub base_pubkeys: Vec<<Setup::Point as ByteConvertible>::RawBytes>,
+    pub base_pubkeys: Vec<<Setup::DkgPubkey as ByteConvertible>::RawBytes>,
 }
 pub struct PrettyJson<T>(pub T);
 

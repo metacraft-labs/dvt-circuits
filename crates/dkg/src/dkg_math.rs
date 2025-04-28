@@ -1,9 +1,9 @@
 use bls12_381::{G1Affine, G1Projective, Scalar};
 use std::fmt::{self};
 
-use crate::{bls_id_from_u32, to_g1_affine, BLSPubkeyRaw, ByteConvertible, HexConvertible};
-
-use crate::types::BLSIdRaw;
+use crate::{
+    bls_id_from_u32, to_g1_affine, BLSPubkeyRaw, BLSSecretRaw, ByteConvertible, HexConvertible,
+};
 
 use crate::crypto::traits::*;
 
@@ -72,7 +72,7 @@ impl TScalar for BlsScalar {
 
 impl ByteConvertible for BlsScalar {
     type Error = Box<dyn std::error::Error>;
-    type RawBytes = BLSIdRaw;
+    type RawBytes = BLSSecretRaw;
 
     fn from_bytes(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
     where

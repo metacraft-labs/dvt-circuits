@@ -9,7 +9,13 @@ pub trait AsByteArr {
 
 pub trait ByteConvertible {
     type Error: Debug + Display;
-    type RawBytes: Clone + Serialize + for<'a> Deserialize<'a> + AsByteArr + Display + PartialEq;
+    type RawBytes: Clone
+        + Serialize
+        + for<'a> Deserialize<'a>
+        + AsByteArr
+        + Display
+        + PartialEq
+        + for<'a> TryFrom<&'a [u8]>;
 
     fn from_bytes(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
     where
@@ -92,11 +98,23 @@ pub trait CryptoKeys {
         + Serialize
         + for<'a> Deserialize<'a>
         + Display
-        + AsByteArr;
+        + AsByteArr
+        + for<'a> TryFrom<&'a [u8]>;
+
+    type SecretKeyRaw: HexConvertible
+        + Clone
+        + Serialize
+        + for<'a> Deserialize<'a>
+        + Display
+        + AsByteArr
+        + for<'a> TryFrom<&'a [u8]>;
+
     type Pubkey: PublicKey<Sig = Self::Signature, MessageMapping = Self::MessageMapping>
         + ByteConvertible<RawBytes = Self::PubkeyRaw>
         + Clone;
-    type SecretKey: SecretKey<PubKey = Self::Pubkey> + Clone;
+    type SecretKey: SecretKey<PubKey = Self::Pubkey>
+        + ByteConvertible<RawBytes = Self::SecretKeyRaw>
+        + Clone;
     type Signature: Signature + Clone;
     type MessageMapping;
 
@@ -113,8 +131,10 @@ pub trait DkgSetup: Clone {
     /// Cryptographic scheme used for threshold signing and DKG key generation.
     ///
     /// The `PubkeyRaw` type must match the raw bytes of the curve point used in this setup.
-    type TargetCryptography: CryptoKeys<PubkeyRaw = <<Self::CCurve as Curve>::Point as ByteConvertible>::RawBytes>
-        + Clone;
+    type TargetCryptography: CryptoKeys<
+            PubkeyRaw = <<Self::CCurve as Curve>::Point as ByteConvertible>::RawBytes,
+            SecretKeyRaw = <<Self::CCurve as Curve>::Scalar as ByteConvertible>::RawBytes,
+        > + Clone;
 
     /// Cryptographic scheme used for identity and authentication.
     ///
@@ -139,11 +159,16 @@ where
     Self::Point: ByteConvertible<
         RawBytes = <<T::TargetCryptography as CryptoKeys>::Pubkey as ByteConvertible>::RawBytes,
     >,
+    Self::Scalar: ByteConvertible<
+        RawBytes = <<T::TargetCryptography as CryptoKeys>::SecretKey as ByteConvertible>::RawBytes,
+    >,
 {
-    type Point: TPoint + Clone + Display + PartialEq;
+    type Point: TPoint<Scalar = Self::Scalar> + Clone + Display + PartialEq;
     type Scalar: TScalar + Clone + Display;
     type Curve: Curve<Point = Self::Point, Scalar = Self::Scalar> + Clone;
-    type DkgSecretKey: SecretKey<PubKey = Self::DkgPubkey> + ByteConvertible<RawBytes = <<T::TargetCryptography as CryptoKeys>::SecretKey as ByteConvertible>::RawBytes>  + Clone;
+    type DkgSecretKey: SecretKey<PubKey = Self::DkgPubkey>
+        + ByteConvertible<RawBytes = <Self::Scalar as ByteConvertible>::RawBytes>
+        + Clone;
     type DkgPubkey: PublicKey<
             Sig = Self::DkgSignature,
             MessageMapping = <T::TargetCryptography as CryptoKeys>::MessageMapping,
