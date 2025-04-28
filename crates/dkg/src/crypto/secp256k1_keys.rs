@@ -177,6 +177,7 @@ pub struct Secp256k1Crypto {}
 impl CryptoKeys for Secp256k1Crypto {
     type Pubkey = Secp256k1PublicKey;
     type PubkeyRaw = <Secp256k1PublicKey as ByteConvertible>::RawBytes;
+    type SecretKeyRaw = <Secp256k1SecretKey as ByteConvertible>::RawBytes;
     type SecretKey = Secp256k1SecretKey;
     type Signature = Secp256k1Signature;
     type MessageMapping = Vec<u8>;
