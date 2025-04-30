@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BadPartialShareData",
+  "type": "object",
+  "required": [
+    "bad_partial",
+    "generations",
+    "settings"
+  ],
+  "properties": {
+    "bad_partial": {
+      "$ref": "#/definitions/BadPartialShare"
+    },
+    "generations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/BadPartialShareGeneration"
+      }
+    },
+    "settings": {
+      "$ref": "#/definitions/GenerateSettings"
+    }
+  },
+  "definitions": {
+    "BLSPubkeyRaw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 96,
+      "minLength": 96,
+      "pattern": "^[0-9a-fA-F]{96}$"
+    },
+    "BLSSignatureRaw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 192,
+      "minLength": 192,
+      "pattern": "^[0-9a-fA-F]{192}$"
+    },
+    "BadPartialShare": {
+      "type": "object",
+      "required": [
+        "commitment",
+        "data",
+        "settings"
+      ],
+      "properties": {
+        "commitment": {
+          "$ref": "#/definitions/Commitment"
+        },
+        "data": {
+          "$ref": "#/definitions/Generation"
+        },
+        "settings": {
+          "$ref": "#/definitions/GenerateSettings"
+        }
+      }
+    },
+    "BadPartialShareGeneration": {
+      "type": "object",
+      "required": [
+        "base_hash",
+        "base_pubkeys"
+      ],
+      "properties": {
+        "base_hash": {
+          "$ref": "#/definitions/SHA256Raw"
+        },
+        "base_pubkeys": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BLSPubkeyRaw"
+          }
+        }
+      }
+    },
+    "Commitment": {
+      "type": "object",
+      "required": [
+        "hash",
+        "pubkey",
+        "signature"
+      ],
+      "properties": {
+        "hash": {
+          "$ref": "#/definitions/SHA256Raw"
+        },
+        "pubkey": {
+          "$ref": "#/definitions/SECP256K1PubkeyRaw"
+        },
+        "signature": {
+          "$ref": "#/definitions/SECP256K1SignatureRaw"
+        }
+      }
+    },
+    "DkgGenId": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 32,
+      "minLength": 32,
+      "pattern": "^[0-9a-fA-F]{32}$"
+    },
+    "GenerateSettings": {
+      "type": "object",
+      "required": [
+        "gen_id",
+        "k",
+        "n"
+      ],
+      "properties": {
+        "gen_id": {
+          "$ref": "#/definitions/DkgGenId"
+        },
+        "k": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        "n": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        }
+      }
+    },
+    "Generation": {
+      "type": "object",
+      "required": [
+        "base_hash",
+        "base_pubkeys",
+        "message_cleartext",
+        "message_signature",
+        "partial_pubkey"
+      ],
+      "properties": {
+        "base_hash": {
+          "$ref": "#/definitions/SHA256Raw"
+        },
+        "base_pubkeys": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BLSPubkeyRaw"
+          }
+        },
+        "message_cleartext": {
+          "type": "string"
+        },
+        "message_signature": {
+          "$ref": "#/definitions/BLSSignatureRaw"
+        },
+        "partial_pubkey": {
+          "$ref": "#/definitions/BLSPubkeyRaw"
+        }
+      }
+    },
+    "SECP256K1PubkeyRaw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 66,
+      "minLength": 66,
+      "pattern": "^[0-9a-fA-F]{66}$"
+    },
+    "SECP256K1SignatureRaw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 128,
+      "pattern": "^[0-9a-fA-F]{128}$"
+    },
+    "SHA256Raw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-fA-F]{64}$"
+    }
+  }
+}

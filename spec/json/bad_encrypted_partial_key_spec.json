@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BadEncryptedShare",
+  "type": "object",
+  "required": [
+    "base_hashes",
+    "base_pubkeys",
+    "encrypted_data",
+    "receiver_base_secrets_commitment_hash",
+    "receiver_encr_seckey",
+    "receiver_pubkey",
+    "sender_encr_pubkey",
+    "sender_pubkey",
+    "settings"
+  ],
+  "properties": {
+    "base_hashes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/SHA256Raw"
+      }
+    },
+    "base_pubkeys": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/BLSPubkeyRaw"
+      }
+    },
+    "encrypted_data": {
+      "type": "string"
+    },
+    "receiver_base_secrets_commitment_hash": {
+      "$ref": "#/definitions/SHA256Raw"
+    },
+    "receiver_encr_seckey": {
+      "$ref": "#/definitions/BLSSecretRaw"
+    },
+    "receiver_pubkey": {
+      "$ref": "#/definitions/SECP256K1PubkeyRaw"
+    },
+    "sender_encr_pubkey": {
+      "$ref": "#/definitions/BLSPubkeyRaw"
+    },
+    "sender_pubkey": {
+      "$ref": "#/definitions/SECP256K1PubkeyRaw"
+    },
+    "settings": {
+      "$ref": "#/definitions/GenerateSettings"
+    }
+  },
+  "definitions": {
+    "BLSPubkeyRaw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 96,
+      "minLength": 96,
+      "pattern": "^[0-9a-fA-F]{96}$"
+    },
+    "BLSSecretRaw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "DkgGenId": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 32,
+      "minLength": 32,
+      "pattern": "^[0-9a-fA-F]{32}$"
+    },
+    "GenerateSettings": {
+      "type": "object",
+      "required": [
+        "gen_id",
+        "k",
+        "n"
+      ],
+      "properties": {
+        "gen_id": {
+          "$ref": "#/definitions/DkgGenId"
+        },
+        "k": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        "n": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        }
+      }
+    },
+    "SECP256K1PubkeyRaw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 66,
+      "minLength": 66,
+      "pattern": "^[0-9a-fA-F]{66}$"
+    },
+    "SHA256Raw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-fA-F]{64}$"
+    }
+  }
+}

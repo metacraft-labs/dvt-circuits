@@ -4,6 +4,8 @@ use crate::{traits::*, Secp256k1Crypto};
 use serde::{Deserialize, Serialize, Serializer};
 use std::fmt::{self};
 
+use schemars::{schema_for, JsonSchema};
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BlsDkgWithBlsCommitment {}
 
@@ -13,7 +15,7 @@ impl DkgSetup for BlsDkgWithBlsCommitment {
     type CCurve = dkg_math::BlsG1Curve;
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BlsDkgWithSecp256kCommitment {}
 
 impl DkgSetup for BlsDkgWithSecp256kCommitment {
@@ -22,7 +24,7 @@ impl DkgSetup for BlsDkgWithSecp256kCommitment {
     type CCurve = dkg_math::BlsG1Curve;
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GenerateSettings {
     #[serde(rename = "n")]
     pub n: u8,
@@ -34,20 +36,22 @@ pub struct GenerateSettings {
 
 pub type VerificationHashes = Vec<SHA256Raw>;
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct InitialCommitment<C>
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "InitialCommitment")]
+pub struct InitialCommitment<Setup>
 where
-    C: Curve,
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     #[serde(rename = "hash")]
     pub hash: SHA256Raw,
     #[serde(rename = "settings")]
     pub settings: GenerateSettings,
     #[serde(rename = "base_pubkeys")]
-    pub base_pubkeys: Vec<<C::Point as ByteConvertible>::RawBytes>,
+    pub base_pubkeys: Vec<<Setup::Point as ByteConvertible>::RawBytes>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "ExchangedSecret")]
 pub struct ExchangedSecret<Setup>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
@@ -58,20 +62,22 @@ where
     pub secret: <<Setup::TargetCryptography as CryptoKeys>::SecretKey as ByteConvertible>::RawBytes,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct Commitment<Crypto>
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "Commitment")]
+pub struct Commitment<Setup>
 where
-    Crypto: CryptoKeys,
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     #[serde(rename = "hash")]
     pub hash: SHA256Raw,
     #[serde(rename = "pubkey")]
-    pub pubkey: <Crypto::Pubkey as ByteConvertible>::RawBytes,
+    pub pubkey: <Setup::CommitmentPubkey as ByteConvertible>::RawBytes,
     #[serde(rename = "signature")]
-    pub signature: <Crypto::Signature as ByteConvertible>::RawBytes,
+    pub signature: <Setup::CommitmentSignature as ByteConvertible>::RawBytes,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "SeedExchangeCommitment")]
 pub struct SeedExchangeCommitment<Setup>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
@@ -81,10 +87,11 @@ where
     #[serde(rename = "ssecret")]
     pub shared_secret: ExchangedSecret<Setup>,
     #[serde(rename = "commitment")]
-    pub commitment: Commitment<Setup::IdentityCryptography>,
+    pub commitment: Commitment<Setup>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "SharedData")]
 pub struct SharedData<Setup>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
@@ -92,12 +99,13 @@ where
     #[serde(rename = "base_hashes")]
     pub verification_hashes: VerificationHashes,
     #[serde(rename = "initial_commitment")]
-    pub initial_commitment: InitialCommitment<Setup::Curve>,
+    pub initial_commitment: InitialCommitment<Setup>,
     #[serde(rename = "seeds_exchange_commitment")]
     pub seeds_exchange_commitment: SeedExchangeCommitment<Setup>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "Generation")]
 pub struct Generation<Setup>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
@@ -114,7 +122,8 @@ where
     pub message_signature: <Setup::DkgSignature as ByteConvertible>::RawBytes,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "FinalizationData")]
 pub struct FinalizationData<Setup>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
@@ -127,7 +136,8 @@ where
     pub aggregate_pubkey: <Setup::DkgPubkey as ByteConvertible>::RawBytes,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "BadPartialShareGeneration")]
 pub struct BadPartialShareGeneration<Setup>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
@@ -138,7 +148,8 @@ where
     pub base_hash: SHA256Raw,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "BadPartialShare")]
 pub struct BadPartialShare<Setup>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
@@ -148,10 +159,11 @@ where
     #[serde(rename = "data")]
     pub data: Generation<Setup>,
     #[serde(rename = "commitment")]
-    pub commitment: Commitment<Setup::IdentityCryptography>,
+    pub commitment: Commitment<Setup>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "BadPartialShareData")]
 pub struct BadPartialShareData<Setup>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
@@ -164,7 +176,8 @@ where
     pub bad_partial: BadPartialShare<Setup>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "BadEncryptedShare")]
 pub struct BadEncryptedShare<Setup>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
@@ -188,6 +201,23 @@ where
     #[serde(rename = "base_pubkeys")]
     pub base_pubkeys: Vec<<Setup::DkgPubkey as ByteConvertible>::RawBytes>,
 }
+
+pub fn json_schema_for_type<T>() -> String
+where
+    T: JsonSchema,
+{
+    let schema = schema_for!(T);
+    serde_json::to_string_pretty(&schema).unwrap()
+}
+
+pub fn yaml_schema_for_type<T>() -> String
+where
+    T: JsonSchema,
+{
+    let schema = schemars::schema_for!(T);
+    serde_yaml::to_string(&schema).unwrap()
+}
+
 pub struct PrettyJson<T>(pub T);
 
 impl<T> fmt::Display for PrettyJson<T>
@@ -335,6 +365,28 @@ macro_rules! define_raw_type {
 
             fn to_hex(&self) -> String {
                 hex::encode(&self.0)
+            }
+        }
+
+        impl JsonSchema for $name {
+            fn schema_name() -> String {
+                stringify!($name).to_string()
+            }
+            fn json_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+                use schemars::schema::*;
+                Schema::Object(SchemaObject {
+                    instance_type: Some(InstanceType::String.into()),
+                    string: Some(Box::new(StringValidation {
+                        min_length: Some(($size_const * 2) as u32),
+                        max_length: Some(($size_const * 2) as u32),
+                        pattern: Some(format!("^[0-9a-fA-F]{{{}}}$", $size_const * 2)),
+                    })),
+                    metadata: Some(Box::new(Metadata {
+                        description: Some("Hex encoded byte array".into()),
+                        ..Default::default()
+                    })),
+                    ..Default::default()
+                })
             }
         }
     };

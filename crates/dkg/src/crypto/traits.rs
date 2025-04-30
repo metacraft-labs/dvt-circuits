@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use hex::FromHexError;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub trait AsByteArr {
@@ -15,6 +16,7 @@ pub trait ByteConvertible {
         + AsByteArr
         + Display
         + PartialEq
+        + JsonSchema
         + for<'a> TryFrom<&'a [u8]>;
 
     fn from_bytes(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
@@ -99,6 +101,7 @@ pub trait CryptoKeys {
         + for<'a> Deserialize<'a>
         + Display
         + AsByteArr
+        + JsonSchema
         + for<'a> TryFrom<&'a [u8]>;
 
     type SecretKeyRaw: HexConvertible
@@ -107,6 +110,7 @@ pub trait CryptoKeys {
         + for<'a> Deserialize<'a>
         + Display
         + AsByteArr
+        + JsonSchema
         + for<'a> TryFrom<&'a [u8]>;
 
     type Pubkey: PublicKey<Sig = Self::Signature, MessageMapping = Self::MessageMapping>
@@ -162,6 +166,8 @@ where
     Self::Scalar: ByteConvertible<
         RawBytes = <<T::TargetCryptography as CryptoKeys>::SecretKey as ByteConvertible>::RawBytes,
     >,
+    <<T::IdentityCryptography as CryptoKeys>::Pubkey as ByteConvertible>::RawBytes: JsonSchema,
+    <<T::IdentityCryptography as CryptoKeys>::Signature as ByteConvertible>::RawBytes: JsonSchema,
 {
     type Point: TPoint<Scalar = Self::Scalar> + Clone + Display + PartialEq;
     type Scalar: TScalar + Clone + Display;

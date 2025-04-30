@@ -1,0 +1,166 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SharedData",
+  "type": "object",
+  "required": [
+    "base_hashes",
+    "initial_commitment",
+    "seeds_exchange_commitment"
+  ],
+  "properties": {
+    "base_hashes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/SHA256Raw"
+      }
+    },
+    "initial_commitment": {
+      "$ref": "#/definitions/InitialCommitment"
+    },
+    "seeds_exchange_commitment": {
+      "$ref": "#/definitions/SeedExchangeCommitment"
+    }
+  },
+  "definitions": {
+    "BLSPubkeyRaw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 96,
+      "minLength": 96,
+      "pattern": "^[0-9a-fA-F]{96}$"
+    },
+    "BLSSecretRaw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "Commitment": {
+      "type": "object",
+      "required": [
+        "hash",
+        "pubkey",
+        "signature"
+      ],
+      "properties": {
+        "hash": {
+          "$ref": "#/definitions/SHA256Raw"
+        },
+        "pubkey": {
+          "$ref": "#/definitions/SECP256K1PubkeyRaw"
+        },
+        "signature": {
+          "$ref": "#/definitions/SECP256K1SignatureRaw"
+        }
+      }
+    },
+    "DkgGenId": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 32,
+      "minLength": 32,
+      "pattern": "^[0-9a-fA-F]{32}$"
+    },
+    "ExchangedSecret": {
+      "type": "object",
+      "required": [
+        "dst_base_hash",
+        "shared_secret"
+      ],
+      "properties": {
+        "dst_base_hash": {
+          "$ref": "#/definitions/SHA256Raw"
+        },
+        "shared_secret": {
+          "$ref": "#/definitions/BLSSecretRaw"
+        }
+      }
+    },
+    "GenerateSettings": {
+      "type": "object",
+      "required": [
+        "gen_id",
+        "k",
+        "n"
+      ],
+      "properties": {
+        "gen_id": {
+          "$ref": "#/definitions/DkgGenId"
+        },
+        "k": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        "n": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        }
+      }
+    },
+    "InitialCommitment": {
+      "type": "object",
+      "required": [
+        "base_pubkeys",
+        "hash",
+        "settings"
+      ],
+      "properties": {
+        "base_pubkeys": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BLSPubkeyRaw"
+          }
+        },
+        "hash": {
+          "$ref": "#/definitions/SHA256Raw"
+        },
+        "settings": {
+          "$ref": "#/definitions/GenerateSettings"
+        }
+      }
+    },
+    "SECP256K1PubkeyRaw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 66,
+      "minLength": 66,
+      "pattern": "^[0-9a-fA-F]{66}$"
+    },
+    "SECP256K1SignatureRaw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 128,
+      "pattern": "^[0-9a-fA-F]{128}$"
+    },
+    "SHA256Raw": {
+      "description": "Hex encoded byte array",
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "SeedExchangeCommitment": {
+      "type": "object",
+      "required": [
+        "commitment",
+        "initial_commitment_hash",
+        "ssecret"
+      ],
+      "properties": {
+        "commitment": {
+          "$ref": "#/definitions/Commitment"
+        },
+        "initial_commitment_hash": {
+          "$ref": "#/definitions/SHA256Raw"
+        },
+        "ssecret": {
+          "$ref": "#/definitions/ExchangedSecret"
+        }
+      }
+    }
+  }
+}

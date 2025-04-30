@@ -5,12 +5,15 @@ use dkg::{
     FinalizationData, SharedData,
 };
 use jsonschema::JSONSchema;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sp1_sdk::{include_elf, proof::SP1ProofWithPublicValues, utils, ProverClient, SP1Stdin};
-use std::{error::Error, process};
+use std::{error::Error, fs::File, io::Write, process};
 pub mod file_utils;
 pub mod git_info;
+pub mod service;
+use service::node::HttpService;
 
 use file_utils::*;
 
@@ -36,6 +39,20 @@ enum CircuitType {
     Finalization,
     BadPartialKey,
     BadEncryptedShare,
+}
+
+impl TryFrom<&str> for CircuitType {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        CircuitType::from_str(value, false) // case-sensitive; pass true for case-insensitive
+    }
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+enum SchemaType {
+    Json,
+    Yaml,
 }
 
 #[derive(Subcommand, Debug)]
@@ -66,6 +83,14 @@ enum Commands {
         #[arg(long = "json-file", short = 'j')]
         json_file: String,
     },
+    GetSchema {
+        #[arg(long = "type", value_enum)]
+        subtype: CircuitType,
+        #[arg(long = "schema-type", value_enum)]
+        schema_type: SchemaType,
+        #[arg(long = "output-file-path", short = 'o')]
+        output_file_path: Option<String>,
+    },
     Verify {
         #[arg(long = "input-file", short = 'i')]
         proof_file: String,
@@ -73,6 +98,10 @@ enum Commands {
         subtype: CircuitType,
         #[arg(long = "show-report", default_value_t = false)]
         show_report: bool,
+    },
+    Node {
+        #[arg(long = "port", short = 'a')]
+        port: u16,
     },
 }
 
@@ -88,13 +117,125 @@ pub const FINALE_PROVER_ELF: &[u8] = include_elf!("finalization_prove");
 pub const BAD_PARTIAL_KEY_PROVER_ELF: &[u8] = include_elf!("bad_parial_key_prove");
 pub const BAD_ENCRYPTED_SHARE_PROVER_ELF: &[u8] = include_elf!("bad_encrypted_share_prove");
 
+fn schema_for<T>(t: SchemaType) -> String
+where
+    T: JsonSchema,
+{
+    match t {
+        SchemaType::Json => dkg::types::json_schema_for_type::<T>(),
+        SchemaType::Yaml => dkg::types::yaml_schema_for_type::<T>(),
+    }
+}
+
+fn on_prove<Setup>(typ: String, data: Value) -> Result<Value, service::node::DynErr>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup> + for<'a> Deserialize<'a> + Serialize,
+    SharedData<Setup>: JsonSchema,
+    FinalizationData<Setup>: JsonSchema,
+    BadPartialShareData<Setup>: JsonSchema,
+    BadEncryptedShare<Setup>: JsonSchema,
+{
+    match CircuitType::try_from(typ.as_str())? {
+        CircuitType::BadShare => {
+            let d: SharedData<Setup> = serde_json::from_value(data)?;
+            prove(&d, SHARE_PROVER_ELF, "", None).map_err(|e| e.to_string())?;
+        }
+        CircuitType::Finalization => {
+            let d: FinalizationData<Setup> = serde_json::from_value(data)?;
+            prove(&d, FINALE_PROVER_ELF, "", None).map_err(|e| e.to_string())?;
+        }
+        CircuitType::BadPartialKey => {
+            let d: BadPartialShareData<Setup> = serde_json::from_value(data)?;
+            prove(&d, BAD_PARTIAL_KEY_PROVER_ELF, "", None).map_err(|e| e.to_string())?;
+        }
+        CircuitType::BadEncryptedShare => {
+            let d: BadEncryptedShare<Setup> = serde_json::from_value(data)?;
+            prove(&d, BAD_ENCRYPTED_SHARE_PROVER_ELF, "", None).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(serde_json::json!({ "status": "proved" }))
+}
+
+fn on_execute<Setup>(typ: String, data: Value) -> Result<Value, service::node::DynErr>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup> + for<'a> Deserialize<'a> + Serialize,
+    SharedData<Setup>: JsonSchema,
+    FinalizationData<Setup>: JsonSchema,
+    BadPartialShareData<Setup>: JsonSchema,
+    BadEncryptedShare<Setup>: JsonSchema,
+{
+    match CircuitType::try_from(typ.as_str())? {
+        CircuitType::BadShare => {
+            let d: SharedData<Setup> = serde_json::from_value(data)?;
+            execute(&d, SHARE_PROVER_ELF, false).map_err(|e| e.to_string())?;
+        }
+        CircuitType::Finalization => {
+            let d: FinalizationData<Setup> = serde_json::from_value(data)?;
+            execute(&d, FINALE_PROVER_ELF, false).map_err(|e| e.to_string())?;
+        }
+        CircuitType::BadPartialKey => {
+            let d: BadPartialShareData<Setup> = serde_json::from_value(data)?;
+            execute(&d, BAD_PARTIAL_KEY_PROVER_ELF, false).map_err(|e| e.to_string())?;
+        }
+        CircuitType::BadEncryptedShare => {
+            let d: BadEncryptedShare<Setup> = serde_json::from_value(data)?;
+            execute(&d, BAD_ENCRYPTED_SHARE_PROVER_ELF, false).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(serde_json::json!({ "status": "executed" }))
+}
+
+fn on_get_spec<Setup>(typ: String) -> Result<Value, service::node::DynErr>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup> + for<'a> Deserialize<'a> + Serialize,
+    SharedData<Setup>: JsonSchema,
+    FinalizationData<Setup>: JsonSchema,
+    BadPartialShareData<Setup>: JsonSchema,
+    BadEncryptedShare<Setup>: JsonSchema,
+{
+    let schema_str = match CircuitType::try_from(typ.as_str())? {
+        CircuitType::BadShare => dkg::types::json_schema_for_type::<SharedData<Setup>>(),
+        CircuitType::Finalization => dkg::types::json_schema_for_type::<FinalizationData<Setup>>(),
+        CircuitType::BadPartialKey => {
+            dkg::types::json_schema_for_type::<BadPartialShareData<Setup>>()
+        }
+        CircuitType::BadEncryptedShare => {
+            dkg::types::json_schema_for_type::<BadEncryptedShare<Setup>>()
+        }
+    };
+
+    let lol = serde_json::from_str::<serde_json::Value>(&schema_str)
+        .map_err(|e| style_error(format!("invalid schema json: {e}")))?;
+    Ok(serde_json::json!({ "status": "ok", "schema":  lol}))
+}
+
 fn run<Setup>(cli: Cli) -> Result<(), Box<dyn Error>>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup> + for<'a> Deserialize<'a> + Serialize,
+    SharedData<Setup>: JsonSchema,
+    FinalizationData<Setup>: JsonSchema,
+    BadPartialShareData<Setup>: JsonSchema,
+    BadEncryptedShare<Setup>: JsonSchema,
 {
     utils::setup_logger();
 
     match cli.command {
+        Commands::Node { port } => {
+            let server = HttpService::new(
+                ([127, 0, 0, 1], port).into(),
+                |typ, data| on_prove::<Setup>(typ, data),
+                |typ, data| on_execute::<Setup>(typ, data),
+                |typ| on_get_spec::<Setup>(typ),
+            );
+            let rt = tokio::runtime::Runtime::new()
+                .map_err(|e| style_error(format!("failed to start Tokio runtime: {e}")))?;
+
+            rt.block_on(async {
+                if let Err(e) = server.run().await {
+                    eprintln!("server error: {e}");
+                }
+            });
+        }
         Commands::Prove {
             input_file,
             subtype,
@@ -226,6 +367,30 @@ where
                 verify_proof(BAD_ENCRYPTED_SHARE_PROVER_ELF, &proof_file, show_report)?;
             }
         },
+
+        Commands::GetSchema {
+            subtype,
+            schema_type: shema_type,
+            output_file_path,
+        } => {
+            let schema_str = match subtype {
+                CircuitType::BadShare => schema_for::<SharedData<Setup>>(shema_type),
+                CircuitType::Finalization => schema_for::<FinalizationData<Setup>>(shema_type),
+                CircuitType::BadPartialKey => schema_for::<BadPartialShareData<Setup>>(shema_type),
+                CircuitType::BadEncryptedShare => {
+                    schema_for::<BadEncryptedShare<Setup>>(shema_type)
+                }
+            };
+            match output_file_path {
+                Some(path) => {
+                    let mut file = File::create(path)
+                        .map_err(|e| style_error(format!("Failed to create output file: {e}")))?;
+                    file.write_all(schema_str.as_bytes())
+                        .map_err(|e| style_error(format!("Failed to write to output file: {e}")))?;
+                }
+                None => println!("{}", schema_str),
+            }
+        }
     }
 
     Ok(())
