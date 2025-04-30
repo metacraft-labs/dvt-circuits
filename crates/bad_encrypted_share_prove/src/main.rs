@@ -163,7 +163,7 @@ fn parse_message<Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup>>(
 
     stream.finalize();
 
-    let mut initial_commitment = dkg::InitialCommitment::<Setup::Curve> {
+    let mut initial_commitment = dkg::InitialCommitment::<Setup> {
         settings: settings,
         base_pubkeys: base_pubkeys,
         hash: SHA256Raw([0u8; SHA256_SIZE]),

@@ -67,7 +67,7 @@ pub fn get_index_in_commitments(
 pub fn verify_seed_exchange_commitment<Setup>(
     verification_hashes: &VerificationHashes,
     seed_exchange: &SeedExchangeCommitment<Setup>,
-    initial_commitment: &InitialCommitment<Setup::Curve>,
+    initial_commitment: &InitialCommitment<Setup>,
 ) -> Result<(), Box<dyn std::error::Error>>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
@@ -142,9 +142,7 @@ where
     Ok(())
 }
 
-pub fn compute_initial_commitment_hash<Setup>(
-    commitment: &InitialCommitment<Setup::Curve>,
-) -> SHA256Raw
+pub fn compute_initial_commitment_hash<Setup>(commitment: &InitialCommitment<Setup>) -> SHA256Raw
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
@@ -167,7 +165,7 @@ where
         .expect("Vec must be exactly 32 bytes")
 }
 
-pub fn verify_initial_commitment_hash<Setup>(commitment: &InitialCommitment<Setup::Curve>) -> bool
+pub fn verify_initial_commitment_hash<Setup>(commitment: &InitialCommitment<Setup>) -> bool
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
@@ -177,11 +175,11 @@ where
 fn generate_initial_commitment<Setup>(
     generation: &Generation<Setup>,
     settings: &GenerateSettings,
-) -> InitialCommitment<Setup::Curve>
+) -> InitialCommitment<Setup>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
-    InitialCommitment::<Setup::Curve> {
+    InitialCommitment::<Setup> {
         hash: generation.base_hash,
         settings: GenerateSettings {
             n: settings.n,
@@ -352,9 +350,12 @@ where
     hasher.finalize().to_vec()
 }
 
-pub fn verify_commitment<Crypto: CryptoKeys>(commitment: &Commitment<Crypto>) -> bool {
-    let key = Crypto::Pubkey::from_bytes_safe(&commitment.pubkey).unwrap();
-    let signature = Crypto::Signature::from_bytes(&commitment.signature).unwrap();
+pub fn verify_commitment<Setup>(commitment: &Commitment<Setup>) -> bool
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    let key = Setup::CommitmentPubkey::from_bytes_safe(&commitment.pubkey).unwrap();
+    let signature = Setup::CommitmentSignature::from_bytes(&commitment.signature).unwrap();
     key.verify_signature(commitment.hash.as_ref(), &signature)
 }
 
@@ -367,7 +368,7 @@ where
     verify_commitment_signature(data)?;
     // Verify that the generation base hashes are correct
     for generation in data.generations.iter() {
-        let ok = verify_initial_commitment_hash::<Setup>(&InitialCommitment::<Setup::Curve> {
+        let ok = verify_initial_commitment_hash::<Setup>(&InitialCommitment::<Setup> {
             hash: generation.base_hash,
             settings: data.settings.clone(),
             base_pubkeys: generation.verification_vector.clone(),
