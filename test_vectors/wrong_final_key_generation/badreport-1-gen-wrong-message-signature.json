@@ -1,0 +1,58 @@
+{
+  "params": {
+    "cmd_extra_args": "execute --type=bad-partial-key --json-schema-file=spec/json/bad_partial_key_spec.json",
+    "expected_exit_code": 0
+  },
+  "scenario": {
+    "settings": {
+      "gen_id": "8d17e61db7b774d16cb165662a8c2c4a",
+      "n": 3,
+      "k": 2
+    },
+    "generations": [
+      {
+        "base_pubkeys": [
+          "a080bc2369ca8df0f318a185944782d9ed5cefd97a0dd757d86f654ecd976f14a39399d73ab15d95b08351ba52b4e963",
+          "b9af73aaa6818a07968dc1507acdcb416ff8ce392d3ba855f0934b02f2171bf3345a1695ab11f84d2dd0df087b18a42d"
+        ],
+        "base_hash": "22d9ef5b03b07ef43a39044f0aba3dd584450fe9296c13d83d7120691c856c1e"
+      },
+      {
+        "base_pubkeys": [
+          "a573e141f11fb1789370dba5b68c761f914c3f1e65a2a9b8f0815696629b37f21e0568a2f4015d24b9cc2ca772faa62c",
+          "85e07ff2f989f1a7063a4556bc2e280c8de674846e870c7964552602931d101aaad433dec217ce405dc1c2db4e3e7151"
+        ],
+        "base_hash": "84a3b2e337955364dfdc606af3a5bf4dd11b2749aae02f2be79b4bbdc0bac530"
+      },
+      {
+        "base_pubkeys": [
+          "8e8f7f26e7c9b6060c635eff7f4786df4b0ab65da3152193b2b0edb3dae2665f58e9dac426e386d06b6f9440ed33020f",
+          "99da65b0d6f736fc2a4eee3fcd1b26216e5bda25ae677469d75485ada01c00a6576f982f06c612052f4acdc27a6fa0a1"
+        ],
+        "base_hash": "efe4f6c92a880da1301ddfee7a96fb2712b3c68984e4637fba5c34838a64bd76"
+      }
+    ],
+    "bad_partial": {
+      "settings": {
+        "gen_id": "8d17e61db7b774d16cb165662a8c2c4a",
+        "n": 3,
+        "k": 2
+      },
+      "data": {
+        "base_pubkeys": [
+          "a080bc2369ca8df0f318a185944782d9ed5cefd97a0dd757d86f654ecd976f14a39399d73ab15d95b08351ba52b4e963",
+          "b9af73aaa6818a07968dc1507acdcb416ff8ce392d3ba855f0934b02f2171bf3345a1695ab11f84d2dd0df087b18a42d"
+        ],
+        "base_hash": "22d9ef5b03b07ef43a39044f0aba3dd584450fe9296c13d83d7120691c856c1e",
+        "partial_pubkey": "a39ed53c850eecf70edaa9037057fe6e3a09909a16690e83c958bd2cc92b92a794c6bd0ac42b9a1c5e43169d71dd6e99",
+        "message_cleartext": "Sign with new partial key",
+        "message_signature": "abc123bacc290ad100e0a1705ee324e19f5e7809b809eccea6cc039cbfd806204faeed7ec728a301e878e829a90a95aa0feba4ef1022603d0d4ba3a16234cdacdbca7ff214901eeb05658f127480ade6141ff611cf8a14acb95b235a44b593ea"
+      },
+      "commitment": {
+        "hash": "1affc9b4fcf4836443e302dc087e7cff08319a849d8c1c80c96dd973d7b4c7fb",
+        "pubkey": "03028a576c20a2d5515db8b6aecbfcf7d55bd930d1507c6346f70175976e33adeb",
+        "signature": "d9c50b862f6528f5d5bce462d7677efecc8dabe3978ca0c1eee82127d1714da62d6a8380356f16b4ebf9f2fe44ff8b86184ba31809944a5fec826d1b059b8619"
+      }
+    }
+  }
+}

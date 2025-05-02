@@ -221,6 +221,13 @@ where
 
     match cli.command {
         Commands::Node { port } => {
+            println!(
+                "{}",
+                style_error(
+                    "WARNING: This is an experimental. Don't use this service in production."
+                )
+            );
+            println!("Starting server on port {port}");
             let server = HttpService::new(
                 ([127, 0, 0, 1], port).into(),
                 |typ, data| on_prove::<Setup>(typ, data),
