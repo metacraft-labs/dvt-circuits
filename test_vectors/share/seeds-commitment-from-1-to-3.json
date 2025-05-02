@@ -24,13 +24,13 @@
     "seeds_exchange_commitment": {
       "initial_commitment_hash": "22d9ef5b03b07ef43a39044f0aba3dd584450fe9296c13d83d7120691c856c1e",
       "ssecret": {
-        "shared_secret": "68c340484147e3a4cfb86b428eb2d10ac236ae9b62847fe0849d2f46e4bcc4c5",
-        "dst_base_hash": "84a3b2e337955364dfdc606af3a5bf4dd11b2749aae02f2be79b4bbdc0bac530"
+        "shared_secret": "2c2e8c964db0b88f96645565a30f144a786dc3435315bdb28e0506befac56cbe",
+        "dst_base_hash": "efe4f6c92a880da1301ddfee7a96fb2712b3c68984e4637fba5c34838a64bd76"
       },
       "commitment": {
-        "hash": "a6fe564621836e4a43441993d91866b8eab73c759c27f78319086c44a4fcbfff",
+        "hash": "57c4e34854b3e669eb50418bed8f5c270e842a15842bcddb25eff4742254f20b",
         "pubkey": "023b9ee324a404d31715a25ef2fdcd9f523190e1e4dca29fdb393cb7d9050bf89f",
-        "signature": "3732eb632fabae3f5d22d22b21a442405ff14726c35c32cf21b0544d808bbacc446fa002a1aa2ca3248762a2b8bdce7a4c170df0f4f8604950039a2ed06f6ad2"
+        "signature": "b909d52c730b7dae6b9d3e27a11255c923449e43653c1c86dd44f8987a994e1127ed4a151f0adcfbfba898cc620c8f8ad73b58ee20504c8b6f5d7a16360b3ac1"
       }
     }
   }

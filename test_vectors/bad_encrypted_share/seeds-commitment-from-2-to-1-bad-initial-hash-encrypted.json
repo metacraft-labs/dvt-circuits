@@ -1,0 +1,28 @@
+{
+  "params": {
+    "cmd_extra_args": "execute --type=bad-encrypted-share --json-schema-file=spec/json/bad_encrypted_partial_key_spec.json",
+    "expected_exit_code": 1
+  },
+  "scenario": {
+    "encrypted_data": "e23e570f76e0f003e9dd79698e5077042b93a9e8b3f7e4278d213425af1de61033bf06f6b9101c85b584d265b953093aa65916bf6cf40e7acfa846962d89bd1a4fd6f1752a0c789c71381c4f15aa462aa0fcd3f38ea472f1fcf79e6996ef0444a683dca86addb67b46b179f6f9f78ecdac84defbf6c446e6b7de239361025cf7ba3e3b24cb660465f2674402094c149eca2fdf322ff94f5799df597c9046df522aa0960fc0f1d78d6de2ad33c7401c0cbfba",
+    "sender_pubkey": "03028a576c20a2d5515db8b6aecbfcf7d55bd930d1507c6346f70175976e33adeb",
+    "receiver_pubkey": "023b9ee324a404d31715a25ef2fdcd9f523190e1e4dca29fdb393cb7d9050bf89f",
+    "sender_encr_pubkey": "85e07ff2f989f1a7063a4556bc2e280c8de674846e870c7964552602931d101aaad433dec217ce405dc1c2db4e3e7151",
+    "receiver_encr_seckey": "3758f3a136065232f9e5c22b1dfe1b4509f4b8aaf08f99d10967d7771608a7fa",
+    "receiver_base_secrets_commitment_hash": "22d9ef5b03b07ef43a39044f0aba3dd584450fe9296c13d83d7120691c856c1e",
+    "settings": {
+      "gen_id": "8d17e61db7b774d16cb165662a8c2c4a",
+      "n": 3,
+      "k": 2
+    },
+    "base_hashes": [
+      "22d9ef5b03b07ef43a39044f0aba3dd584450fe9296c13d83d7120691c856c1e",
+      "84a3b2e337955364dfdc606af3a5bf4dd11b2749aae02f2be79b4bbdc0bac530",
+      "efe4f6c92a880da1301ddfee7a96fb2712b3c68984e4637fba5c34838a64bd76"
+    ],
+    "base_pubkeys": [
+      "a573e141f11fb1789370dba5b68c761f914c3f1e65a2a9b8f0815696629b37f21e0568a2f4015d24b9cc2ca772faa62c",
+      "85e07ff2f989f1a7063a4556bc2e280c8de674846e870c7964552602931d101aaad433dec217ce405dc1c2db4e3e7151"
+    ]
+  }
+}
