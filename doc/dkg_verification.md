@@ -19,9 +19,9 @@ The protocol outputs:
   \(F(0) \text{ for polynom that } S_1 = f(1), S_2, = f(2), etc \)
   - \(SS\) is the shared secret between the participents
 
-The protocl ensure:
-- The secret was generated according to Shamir's Secret Sharing scheme.
-- Any deviation—intentional or not—by participants can be detected and the malicious participent can be identified.
+The protocol ensures that:
+- The secret is generated according to Shamir's Secret Sharing scheme.
+- Any deviation — whether intentional or accidental — can be detected, and the malicious participant can be identified.
 
 ## 2. DKG Process Overview
 
@@ -140,7 +140,6 @@ Each \(P_i\) computes:
 
 Where \(s_{k,i}\) is the share from \(P_k\) to \(P_i\).
 
-
 ### 2.6 Finalization
 
 During the final round, each participant \(P_i\) broadcasts a signature over message \(SM_i\) to all other participants.
@@ -150,8 +149,6 @@ Given that each participant possesses the verification vectors of all others, th
 If an invalid signature is detected, it constitutes cryptographic proof of misbehavior. However, if a participant withholds participation or provides malformed data that cannot be conclusively proven malicious, a fallback challenge mechanism is triggered. At this stage, since no private information is exchanged, both the challenge and response may occur without encryption.
 
 Once all valid signatures are collected, any participant (or a subset thereof) can construct a final proof that the secret sharing protocol has completed successfully, and that the reconstructed shared secret is \(SS\). This proof is published to the public board, finalizing the protocol execution.
-
-
 
 ## 3. Verification Circuit Analysis
 
