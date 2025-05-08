@@ -1,4 +1,4 @@
-use crate::{dkg_math, BlsCrypto, ByteConvertible, CryptoKeys};
+use crate::{dkg_math, BlsCrypto};
 use crate::{traits::*, Secp256k1Crypto};
 
 use serde::{Deserialize, Serialize, Serializer};
@@ -47,7 +47,7 @@ where
     #[serde(rename = "settings")]
     pub settings: GenerateSettings,
     #[serde(rename = "base_pubkeys")]
-    pub base_pubkeys: Vec<<Setup::Point as ByteConvertible>::RawBytes>,
+    pub base_pubkeys: Vec<RawBytes<Setup::Point>>,
 }
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
@@ -59,7 +59,7 @@ where
     #[serde(rename = "dst_base_hash")]
     pub dst_base_hash: SHA256Raw,
     #[serde(rename = "shared_secret")]
-    pub secret: <<Setup::TargetCryptography as CryptoKeys>::SecretKey as ByteConvertible>::RawBytes,
+    pub secret: RawBytes<Setup::DkgSecretKey>,
 }
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
@@ -71,9 +71,9 @@ where
     #[serde(rename = "hash")]
     pub hash: SHA256Raw,
     #[serde(rename = "pubkey")]
-    pub pubkey: <Setup::CommitmentPubkey as ByteConvertible>::RawBytes,
+    pub pubkey: RawBytes<Setup::CommitmentPubkey>,
     #[serde(rename = "signature")]
-    pub signature: <Setup::CommitmentSignature as ByteConvertible>::RawBytes,
+    pub signature: RawBytes<Setup::CommitmentSignature>,
 }
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
@@ -111,15 +111,15 @@ where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     #[serde(rename = "base_pubkeys")]
-    pub verification_vector: Vec<<Setup::Point as ByteConvertible>::RawBytes>,
+    pub verification_vector: Vec<RawBytes<Setup::Point>>,
     #[serde(rename = "base_hash")]
     pub base_hash: SHA256Raw,
     #[serde(rename = "partial_pubkey")]
-    pub partial_pubkey: <Setup::DkgPubkey as ByteConvertible>::RawBytes,
+    pub partial_pubkey: RawBytes<Setup::DkgPubkey>,
     #[serde(rename = "message_cleartext")]
     pub message_cleartext: String,
     #[serde(rename = "message_signature")]
-    pub message_signature: <Setup::DkgSignature as ByteConvertible>::RawBytes,
+    pub message_signature: RawBytes<Setup::DkgSignature>,
 }
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
@@ -133,7 +133,7 @@ where
     #[serde(rename = "generations")]
     pub generations: Vec<Generation<Setup>>,
     #[serde(rename = "aggregate_pubkey")]
-    pub aggregate_pubkey: <Setup::DkgPubkey as ByteConvertible>::RawBytes,
+    pub aggregate_pubkey: RawBytes<Setup::DkgPubkey>,
 }
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
@@ -143,7 +143,7 @@ where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     #[serde(rename = "base_pubkeys")]
-    pub verification_vector: Vec<<<Setup::Curve as Curve>::Point as ByteConvertible>::RawBytes>,
+    pub verification_vector: Vec<RawBytes<Setup::Point>>,
     #[serde(rename = "base_hash")]
     pub base_hash: SHA256Raw,
 }
@@ -183,13 +183,13 @@ where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     #[serde(rename = "sender_pubkey")]
-    pub sender_pubkey: <Setup::CommitmentPubkey as ByteConvertible>::RawBytes,
+    pub sender_pubkey: RawBytes<Setup::CommitmentPubkey>,
     #[serde(rename = "receiver_pubkey")]
-    pub receiver_pubkey: <Setup::CommitmentPubkey as ByteConvertible>::RawBytes,
+    pub receiver_pubkey: RawBytes<Setup::CommitmentPubkey>,
     #[serde(rename = "sender_encr_pubkey")]
-    pub sender_encr_pubkey: <Setup::Point as ByteConvertible>::RawBytes,
+    pub sender_encr_pubkey: RawBytes<Setup::Point>,
     #[serde(rename = "receiver_encr_seckey")]
-    pub receiver_encr_seckey: <Setup::DkgSecretKey as ByteConvertible>::RawBytes,
+    pub receiver_encr_seckey: RawBytes<Setup::DkgSecretKey>,
     #[serde(rename = "receiver_base_secrets_commitment_hash")]
     pub receiver_commitment_hash: SHA256Raw,
     #[serde(rename = "encrypted_data")]
@@ -199,7 +199,7 @@ where
     #[serde(rename = "base_hashes")]
     pub base_hashes: VerificationHashes,
     #[serde(rename = "base_pubkeys")]
-    pub base_pubkeys: Vec<<Setup::DkgPubkey as ByteConvertible>::RawBytes>,
+    pub base_pubkeys: Vec<RawBytes<Setup::DkgPubkey>>,
 }
 
 pub fn json_schema_for_type<T>() -> String

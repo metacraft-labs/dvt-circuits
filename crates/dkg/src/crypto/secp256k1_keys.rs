@@ -1,8 +1,7 @@
 use crate::crypto;
 use std::fmt;
 
-use super::{ByteConvertible, CryptoKeys, HexConvertible};
-
+use super::{CryptoKeys, HexConvertible, RawBytes};
 #[derive(PartialEq, Clone)]
 pub struct Secp256k1PublicKey {
     pub key: secp256k1::PublicKey,
@@ -55,9 +54,6 @@ impl crypto::PublicKey for Secp256k1PublicKey {
             Ok(m) => m,
             Err(_) => return false,
         };
-        println!("msg_hash: {}", msg_hash);
-        println!("signature: {}", signature);
-        println!("key: {}", self.key);
         match secp.verify_ecdsa(&msg_hash, &signature.sig, &self.key) {
             Ok(_) => true,
             Err(e) => {
@@ -176,8 +172,8 @@ pub struct Secp256k1Crypto {}
 
 impl CryptoKeys for Secp256k1Crypto {
     type Pubkey = Secp256k1PublicKey;
-    type PubkeyRaw = <Secp256k1PublicKey as ByteConvertible>::RawBytes;
-    type SecretKeyRaw = <Secp256k1SecretKey as ByteConvertible>::RawBytes;
+    type PubkeyRaw = RawBytes<Secp256k1PublicKey>;
+    type SecretKeyRaw = RawBytes<Secp256k1SecretKey>;
     type SecretKey = Secp256k1SecretKey;
     type Signature = Secp256k1Signature;
     type MessageMapping = Vec<u8>;

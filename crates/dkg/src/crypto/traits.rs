@@ -28,6 +28,8 @@ pub trait ByteConvertible {
     fn to_bytes(&self) -> Self::RawBytes;
 }
 
+pub type RawBytes<T> = <T as ByteConvertible>::RawBytes;
+
 impl<T> HexConvertible for T
 where
     T: ByteConvertible,
@@ -125,6 +127,11 @@ pub trait CryptoKeys {
     fn precompute_message_mapping(msg: &[u8]) -> Self::MessageMapping;
 }
 
+/// Helper types to reduce over usage of 'SomeType as SomeTrait'
+type PubKey<T> = <T as CryptoKeys>::Pubkey;
+type SecKey<T> = <T as CryptoKeys>::SecretKey;
+type Sig<T> = <T as CryptoKeys>::Signature;
+
 /// Core trait defining the cryptographic configuration for a DKG (Distributed Key Generation) setup.
 ///
 /// This trait specifies the types of cryptographic components used for:
@@ -136,8 +143,8 @@ pub trait DkgSetup: Clone {
     ///
     /// The `PubkeyRaw` type must match the raw bytes of the curve point used in this setup.
     type TargetCryptography: CryptoKeys<
-            PubkeyRaw = <<Self::CCurve as Curve>::Point as ByteConvertible>::RawBytes,
-            SecretKeyRaw = <<Self::CCurve as Curve>::Scalar as ByteConvertible>::RawBytes,
+            PubkeyRaw = RawBytes<<Self::CCurve as Curve>::Point>,
+            SecretKeyRaw = RawBytes<<Self::CCurve as Curve>::Scalar>,
         > + Clone;
 
     /// Cryptographic scheme used for identity and authentication.
@@ -160,48 +167,45 @@ pub trait DkgSetup: Clone {
 /// It captures common aliases used throughout DKG-related cryptographic logic.
 pub trait DkgSetupTypes<T: DkgSetup>
 where
-    Self::Point: ByteConvertible<
-        RawBytes = <<T::TargetCryptography as CryptoKeys>::Pubkey as ByteConvertible>::RawBytes,
-    >,
-    Self::Scalar: ByteConvertible<
-        RawBytes = <<T::TargetCryptography as CryptoKeys>::SecretKey as ByteConvertible>::RawBytes,
-    >,
-    <<T::IdentityCryptography as CryptoKeys>::Pubkey as ByteConvertible>::RawBytes: JsonSchema,
-    <<T::IdentityCryptography as CryptoKeys>::Signature as ByteConvertible>::RawBytes: JsonSchema,
+    Self::Point: ByteConvertible<RawBytes = RawBytes<PubKey<T::TargetCryptography>>>,
+    Self::Scalar: ByteConvertible<RawBytes = RawBytes<SecKey<T::TargetCryptography>>>,
+    RawBytes<PubKey<T::IdentityCryptography>>: JsonSchema,
+    RawBytes<<T::IdentityCryptography as CryptoKeys>::Signature>: JsonSchema,
 {
     type Point: TPoint<Scalar = Self::Scalar> + Clone + Display + PartialEq;
     type Scalar: TScalar + Clone + Display;
     type Curve: Curve<Point = Self::Point, Scalar = Self::Scalar> + Clone;
     type DkgSecretKey: SecretKey<PubKey = Self::DkgPubkey>
-        + ByteConvertible<RawBytes = <Self::Scalar as ByteConvertible>::RawBytes>
+        + ByteConvertible<RawBytes = RawBytes<Self::Scalar>>
         + Clone;
     type DkgPubkey: PublicKey<
             Sig = Self::DkgSignature,
             MessageMapping = <T::TargetCryptography as CryptoKeys>::MessageMapping,
-        > + ByteConvertible<RawBytes = <Self::Point as ByteConvertible>::RawBytes>
+        > + ByteConvertible<RawBytes = RawBytes<Self::Point>>
         + Clone;
     type DkgSignature: Signature
-        + ByteConvertible<
-            RawBytes = <<T::TargetCryptography as CryptoKeys>::Signature as ByteConvertible>::RawBytes,
-        > + Clone;
+        + ByteConvertible<RawBytes = RawBytes<Sig<T::TargetCryptography>>>
+        + Clone;
 
-    // Some questionable life choices lead to this moment
     type CommitmentPubkey: PublicKey<Sig = Self::CommitmentSignature>
         + ByteConvertible<
-            RawBytes = <<T::IdentityCryptography as CryptoKeys>::Pubkey as ByteConvertible>::RawBytes,
-            Error = <<T::IdentityCryptography as CryptoKeys>::Pubkey as ByteConvertible>::Error,
+            RawBytes = RawBytes<PubKey<T::IdentityCryptography>>,
+            Error = <PubKey<T::IdentityCryptography> as ByteConvertible>::Error,
         > + Clone;
-    type CommitmentSignature: Signature + ByteConvertible<RawBytes = <<T::IdentityCryptography as CryptoKeys>::Signature as ByteConvertible>::RawBytes,
-                                                          Error = <<T::IdentityCryptography as CryptoKeys>::Signature as ByteConvertible>::Error> + Clone;
+    type CommitmentSignature: Signature
+        + ByteConvertible<
+            RawBytes = RawBytes<Sig<T::IdentityCryptography>>,
+            Error = <Sig<T::IdentityCryptography> as ByteConvertible>::Error,
+        > + Clone;
 }
 
 impl<T: DkgSetup> DkgSetupTypes<T> for T {
     type Point = <Self::Curve as Curve>::Point;
     type Scalar = <Self::Curve as Curve>::Scalar;
     type Curve = T::CCurve;
-    type DkgPubkey = <T::TargetCryptography as CryptoKeys>::Pubkey;
-    type DkgSignature = <T::TargetCryptography as CryptoKeys>::Signature;
-    type DkgSecretKey = <T::TargetCryptography as CryptoKeys>::SecretKey;
-    type CommitmentPubkey = <T::IdentityCryptography as CryptoKeys>::Pubkey;
-    type CommitmentSignature = <T::IdentityCryptography as CryptoKeys>::Signature;
+    type DkgPubkey = PubKey<T::TargetCryptography>;
+    type DkgSignature = Sig<T::TargetCryptography>;
+    type DkgSecretKey = SecKey<T::TargetCryptography>;
+    type CommitmentPubkey = PubKey<T::IdentityCryptography>;
+    type CommitmentSignature = Sig<T::IdentityCryptography>;
 }
