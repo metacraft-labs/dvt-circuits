@@ -12,70 +12,69 @@ DKG enables a set of \(n\) participants to collaboratively generate a shared pub
 
 - **Shamir's Secret Sharing**: Distributes a secret among participants such that any subset of \(t+1\) can reconstruct it, but no subset of \(t\) or fewer can.
 - **Verifiable Secret Sharing (VSS)**: Enhances Shamir's scheme by allowing participants to verify the correctness of their received shares.
-- **Zero-Knowledge Proofs (ZKPs)**: Allow participants to prove the validity of their actions without revealing any secret information.
+- **Zero-Knowledge Proofs (ZKPs)**: Allow participants to prove the validity of their actions without revealing any secret information, ensuring that deviations can be detected without compromising the underlying secrets.
 
 The protocol outputs:
-  - Each participent will reconstruct partial secret \(S_i\) such that \(SS = L(S_0 \dots Sn)\) where L using largrange interpolation to calculate
-  \(F(0) \text{ for polynom that } S_1 = f(1), S_2, = f(2), etc \)
-  - \(SS\) is the shared secret between the participents
+  - Each participant will reconstruct a partial secret \(S_i\) such that the shared secret \(SS\) can be derived by evaluating the Lagrange interpolation of these partial secrets at \(x=0\), where the partial secrets correspond to points \((1, S_1), (2, S_2), \dots, (n, S_n)\) on a polynomial \(F(x)\) of degree at most \(t\).
+  - \(SS\) is the shared secret between the participants.
 
 The protocol ensures that:
 - The secret is generated according to Shamir's Secret Sharing scheme.
-- Any deviation — whether intentional or accidental — can be detected, and the malicious participant can be identified.
+- Any deviation — whether intentional or accidental — can be detected, and the malicious participant can be identified. Zero-knowledge proofs play a crucial role in enabling this detection without revealing any sensitive information exchanged during the process.
 
 ## 2. DKG Process Overview
 
-
 ### 2.0 High-Level Overview of Provable Distributed Key Generation (PDKG)
 
-1. **Initialization (Public Setup Phase):**  
-   One participant initializes the session by publishing the setup on a shared, publicly accessible platform (e.g., a blockchain smart contract, shared database, or bulletin board).  
+1. **Initialization (Public Setup Phase):**
+   One participant initializes the session by publishing the setup on a shared, publicly accessible platform (e.g., a blockchain smart contract, shared database, or bulletin board).
    The setup includes:
-   - **`N`**: Total number of participants  
-   - **`K`**: Threshold number of participants required to reconstruct the secret  
-   - **`sessionId`**: A unique identifier for this specific key generation session  
+   - **`n`**: Total number of participants
+   - **`t`**: Threshold number of participants required to reconstruct the secret
+   - **`sessionId`**: A unique identifier for this specific key generation session
 
-2. **Polynomial Generation (Secret Sharing Phase):**  
-   Each participant independently generates a random polynomial of degree `K - 1`, as per Shamir's Secret Sharing.
+2. **Polynomial Generation (Secret Sharing Phase):**
+   Each participant independently generates a random polynomial of degree \(t\), as per Shamir's Secret Sharing.
 
-3. **Commitment Broadcast:**  
+3. **Commitment Broadcast:**
    Each participant computes cryptographic commitments to their polynomial coefficients and the setup.
    These commitments are published to the public board to enable verifiable consistency checks.
 
-4. **Share Distribution:**  
-   Participants privately send encrypted shares (i.e., evaluations of their polynomial), along with any additional data required to prove correctness — such as the verification vector — to each of the other participants.  
-   A dispute mechanism is often included to handle missing or invalid shares via public challenges. (shares can be posted publicly in encrypted)
+4. **Share Distribution:**
+   Participants privately send encrypted shares (i.e., evaluations of their polynomial), along with any additional data required to prove correctness — such as the verification vector — to each of the other participants. The verification vector helps recipients verify the validity of the share without needing to know the sender's secret polynomial. A dispute mechanism is often included to handle missing or invalid shares via public challenges. (shares can be posted publicly in encrypted)
 
-5. **Verification and Acknowledgment:**  
-   Upon receiving shares from others, each participant:  
-   - Verifies the correctness of each received share against the sender's public commitment, the session setup, and the corresponding verification vector.  
+5. **Verification and Acknowledgment:**
+   Upon receiving shares from others, each participant:
+   - Verifies the correctness of each received share against the sender's public commitment, the session setup, and the corresponding verification vector.
    - If a share is invalid or inconsistent:
-     - Constructs and publishes a proof of misbehavior (e.g., using cryptographic evidence) on the public board.  
+     - Constructs and publishes a proof of misbehavior (e.g., using cryptographic evidence) on the public board.
    - If misbehavior cannot be proven or if a participant refuses to participate:
      - Posts a challenge on the public board to trigger the dispute resolution mechanism.
 
-7. **Finalization and Proof Construction:**  
+6. **Partial Key Generation:**
+   Each participant computes their partial secret key by summing the valid shares they received from all other participants.
+
+7. **Finalization and Proof Construction:**
    Once enough valid shares and acknowledgments have been collected, any participant can construct a publicly verifiable proof that:
-   - All distributed shares are consistent with the published commitments  
-   - The collective secret can be reconstructed from the valid shares  
+   - All distributed shares are consistent with the published commitments
+   - The collective secret can be reconstructed from the valid shares
 
    If a participant misbehaves — for example, by submitting an invalid proof (e.g., a signature that doesn't correspond to their expected public key):
-   - A proof of misbehavior can be constructed and published  
+   - A proof of misbehavior can be constructed and published
 
    If a participant refuses to cooperate (e.g., by failing to submit their signature):
    - A challenge can be posted on the public board to trigger the dispute resolution mechanism
 
    This ensures the key was generated honestly and can be used securely in threshold cryptographic schemes.
 
-
 ### 2.1 Initialization
 
 Participants agree on:
 
 - Threshold \(t\), total number of participants \(n\), message \(M\)
-- A unique  \(\text{generation\_id}\) 
-- Authentication key \(\text{AuthKey}_i\) and corresponding public key \(\text{AuthPK}_i\) for each participant \(P_i\)
-- A homomorphic function \(\text{PK}(x)\), satisfying \(\text{PK}(x + y) = \text{PK}(x) + \text{PK}(y)\). For example, \(\text{PK}(x) = g \cdot x\) in BLS12-381
+- A unique \(\text{generation\_id}\)
+- Authentication key \(\text{AuthKey}_i\) and corresponding public key \(\text{AuthPK}_i\) for each participant \(P_i\). We assume these are ECDSA or similar public/private key pairs.
+- A homomorphic function \(\text{PK}(x)\), satisfying \(\text{PK}(x + y) = \text{PK}(x) + \text{PK}(y)\). For example, \(\text{PK}(x) = g \cdot x\) in BLS12-381. This homomorphic property is crucial for verifying the correctness of combined shares without revealing the individual shares.
 
 ### 2.2 Commitment Phase
 
@@ -87,13 +86,13 @@ Where:
 - \(a_{i,j} \in \mathbb{F}_q\): Random coefficients
 - \(f_i(x)\): Secret polynomial of \(P_i\)
 
+The secret share of participant \(P_i\) is \(s_i = f_i(0) = a_{i,0}\).
+
 We define a verification vector \(\text{V}_i\) as:
 \[(\text{PK}(a_{i,0}), \dots, \text{PK}(a_{i,t}))\]
 
-The secret share is \(s_i = f_i(0)\).
-
 Commitment:
-\[C_i = \text{HASH}(k, n, \text{generation\_id}, \text{V}_i)\]
+\[C_i = \text{HASH}(n, t, \text{generation\_id}, \text{V}_i)\]
 
 Published to a public board and signed with \(\text{AuthKey}_i\).
 
@@ -102,32 +101,37 @@ Published to a public board and signed with \(\text{AuthKey}_i\).
 Each \(P_i\) computes:
 \[s_{i,j} = f_i(j)\]
 
-Sends to \(P_j\) along with \(\text{V}_i\), all signed with \(\text{AuthKey}_i\).
+Sends to \(P_j\) along with \(\text{V}_i\), all signed with \(\text{AuthKey}_i\). The verification vector \(\text{V}_i\) allows \(P_j\) to verify that the received share \(s_{i,j}\) is consistent with the polynomial committed to by \(P_i\).
 
 ### 2.4 Share Verification
 
-Upon receiving \(s_{i,j}\) and \(\text{V}_i\), participant \(P_j\) performs the following verifications:
+Upon receiving \(s_{i,j}\) and \(\text{V}_i\) from \(P_i\), participant \(P_j\) performs the following verifications:
 
 - **Hash Consistency**:
   \[
-  C_i = \text{HASH}(k, n, \text{generation\_id}, \text{V}_i)
+  C_i \stackrel{?}{=} \text{HASH}(n, t, \text{generation\_id}, \text{V}_i)
   \]
+  If the hash does not match and the discrepancy cannot be cryptographically proven (e.g., a ZKP showing a collision in the hash function, which is highly unlikely), initiate the fallback challenge mechanism.
+
+- **Signature Authentication**:
+  Verify the authenticity of \(C_i\) using the public authentication key \(\text{AuthPK}_i\). If the signature is invalid and no cryptographic proof of misbehavior is provided (e.g., a ZKP showing a flaw in the signature scheme), fall back to the challenge protocol.
 
 - **Polynomial Evaluation**:
 
   Define the verification polynomial:
   \[
-  p_i(x) = \sum_{j=0}^t \text{PK}(a_{i,j}) \cdot x^j, \quad \text{where } \text{PK}(a_{i,j}) \in \text{V}_i
+  p_i(x) = \sum_{k=0}^t \text{PK}(a_{i,k}) \cdot x^k, \quad \text{where } \text{PK}(a_{i,k}) \in \text{V}_i
   \]
 
   Then verify:
   \[
-  \text{PK}(s_{i,j}) = p_i(j)
+  \text{PK}(s_{i,j}) \stackrel{?}{=} p_i(j)
   \]
+  A mismatch here provides verifiable evidence of an invalid share because the homomorphic property of \(\text{PK}\) allows checking the evaluation without knowing the secret coefficients \(a_{i,k}\).
 
 If a participant submits a share that cannot be verified or if there is insufficient evidence to validate its correctness, and malicious intent is suspected, then participant \(P_j\) should initiate a **challenge** against \(P_i\) on the public board.
 
-The challenge must include an expiration timestamp. The response to the challenge should be **encrypted using ECDH** (Elliptic Curve Diffie-Hellman) with the `AuthKey`s of both participants.
+The challenge must include an expiration timestamp. The response to the challenge should be **encrypted using ECDH** (Elliptic Curve Diffie-Hellman) with the `AuthKey`s of both participants. Here, we assume `AuthKey_i` and `AuthPK_i` are the private and public keys, respectively, of an ECDH key pair for participant \(i\). The shared secret is derived using \(P_i\)'s private key and \(P_j\)'s public key (or vice versa), and this shared secret is used to encrypt the response. ECDH is suitable here as it allows two parties to establish a shared secret over an insecure channel using their public keys.
 
 If the challenge expires without a valid response, or if the response is invalid, the protocol can demonstrate misbehavior by \(P_i\), which may result in penalties (e.g., slashing). If the protocol fails, all participants can verify the failure based on the data recorded on the public board.
 
@@ -135,18 +139,19 @@ The use of encryption and zero-knowledge proofs guarantees that sensitive inform
 
 ### 2.5 Partial Key Generation
 
-Each \(P_i\) computes:
-\[S_i = \sum_{k=0}^{n} s_{k,i}\]
-
-Where \(s_{k,i}\) is the share from \(P_k\) to \(P_i\).
+Each \(P_i\) computes their partial secret key \(S_i\) by summing the valid shares received from all other participants:
+\[S_i = \sum_{k=1}^{n} s_{k,i}\]
+where \(s_{k,i}\) is the share sent from \(P_k\) to \(P_i\).
 
 ### 2.6 Finalization
 
-During the final round, each participant \(P_i\) broadcasts a signature over message \(SM_i\) to all other participants.
+During the final round, each participant \(P_i\) broadcasts a signature over a message \(SM_i\), which could be a hash of all the received valid partial secret keys or a predefined constant agreed upon by the participants, to all other participants.
 
-Given that each participant possesses the verification vectors of all others, they can independently verify that each \(SM_i\) is signed using the correct partial secret key associated with \(P_i\).
+Given that each participant possesses the verification vectors of all others, they can independently verify that each \(SM_i\) is signed using the correct partial secret key associated with \(P_i\). Specifically, they can reconstruct the partial public key \(PK_i\) corresponding to \(S_i\) by evaluating the sum of the verification vectors at \(x=i\):
+\[PK_i = \sum_{k=1}^{n} p_k(i) = \sum_{k=1}^{n} \sum_{j=0}^t \text{PK}(a_{k,j}) \cdot i^j\]
+and then verify the signature using \(PK_i\).
 
-If an invalid signature is detected, it constitutes cryptographic proof of misbehavior. However, if a participant withholds participation or provides malformed data that cannot be conclusively proven malicious, a fallback challenge mechanism is triggered. At this stage, since no private information is exchanged, both the challenge and response may occur without encryption.
+If an invalid signature is detected, it constitutes cryptographic proof of misbehavior. However, if a participant withholds participation or provides malformed data that cannot be conclusively proven malicious, a fallback challenge mechanism is triggered. At this stage, since the partial public keys are derived from public commitments, the challenge and response might occur without encryption, focusing on proving the validity of the derived public key or the signature.
 
 Once all valid signatures are collected, any participant (or a subset thereof) can construct a final proof that the secret sharing protocol has completed successfully, and that the reconstructed shared secret is \(SS\). This proof is published to the public board, finalizing the protocol execution.
 
@@ -154,82 +159,79 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
 
 ### Circuit 1: Incorrect Share Detection
 
-- **Objective**: Determine whether the share \(s_{i,j}\) is invalid, either due to incorrect polynomial evaluation or inconsistent public commitments.
+- **Objective**: Determine whether the share \(s_{i,j}\) sent by \(P_i\) to \(P_j\) is invalid, either due to incorrect polynomial evaluation or inconsistent public commitments.
 
 - **Verification Process**:
-  1. **Commitment Hash Check**:  
-     Confirm that the provided commitment hash \(C_i\) matches the expected hash derived from \((k, n, \text{generation\_id}, V_i)\).  
-     If the hash does not match and the discrepancy cannot be proven, initiate the fallback challenge mechanism.
+  1. **Commitment Hash Check**:
+     Confirm that the provided commitment hash \(C_i\) matches the expected hash derived from \((n, t, \text{generation\_id}, V_i)\). If the hash does not match and no cryptographic proof of a hash collision is provided, initiate the fallback challenge mechanism.
 
-  2. **Signature Authentication**:  
-     Verify the authenticity of \(C_i\) using the public authentication key \(\text{AuthPK}_i\).  
-     If the signature is invalid and lacks cryptographic proof of misbehavior, fall back to the challenge protocol.
+  2. **Signature Authentication**:
+     Verify the authenticity of \(C_i\) using the public authentication key \(\text{AuthPK}_i\). If the signature is invalid and no cryptographic proof of a flaw in the signature scheme is available, fall back to the challenge protocol.
 
-  3. **Share Evaluation**:  
+  3. **Share Evaluation**:
      Evaluate whether:
      \[
      \text{PK}(s_{i,j}) \stackrel{?}{=} \sum_{k=0}^t \text{PK}(a_{i,k}) \cdot j^k
      \]
-     A mismatch here provides verifiable evidence of an invalid share.
+     A mismatch here provides verifiable cryptographic evidence of an invalid share, as the homomorphic property of \(\text{PK}\) ensures the equality should hold for a valid share.
 
-- **Result**:  
-  The circuit succeeds if it can produce a verifiable contradiction. If no contradiction is detected and no cryptographic proof is available, the circuit defers to the challenge mechanism.
-
+- **Result**:
+  The circuit succeeds if it can produce a verifiable contradiction (a mismatch in hash, signature, or polynomial evaluation). If no contradiction is detected and no cryptographic proof of misbehavior is available, the circuit defers to the challenge mechanism.
 
 ### Circuit 2: Incorrect Partial Public Key Detection
 
-1. **Signature Verification**:  
-   Verify the signature over the input data using the authentication key \(\text{AuthPK}_i\).  
-   If the signature is invalid but not provably malicious, fallback to the challenge mechanism.
+1. **Signature Verification**:
+   Verify the signature over the input data (likely related to their partial key contribution) using the authentication key \(\text{AuthPK}_i\). If the signature is invalid but not provably malicious, fallback to the challenge mechanism.
 
-2. **Construct the Aggregated Polynomial**:  
+2. **Construct the Aggregated Polynomial**:
    \[
-   P(x) = \sum_{k=0}^t \left( \sum_{s=0}^n \text{PK}(a_{s,k}) \right) x^k, \quad \text{where } \text{PK}(a_{s,k}) \in V_s
+   P(x) = \sum_{k=1}^n f_k(x) = \sum_{k=1}^n \left( \sum_{j=0}^t a_{k,j} x^j \right) = \sum_{j=0}^t \left( \sum_{k=1}^n a_{k,j} \right) x^j
    \]
-   **Note**:  
-   The public key of the aggregated secret share can be represented as:  
+   Applying the homomorphic function \(\text{PK}\) to this polynomial gives:
    \[
-   \text{PK}\left( \sum_{j=0}^n s_{j,i} \right) = \sum_{j=0}^n \text{PK}(s_{j,i})
+   \text{PK}(P(x)) = \sum_{j=0}^t \left( \sum_{k=1}^n \text{PK}(a_{k,j}) \right) x^j, \quad \text{where } \text{PK}(a_{k,j}) \in V_k
    \]
-
-3. **Proof of Correct Reconstruction**:  
-   Prove that:
+   **Note**:
+   The partial public key of participant \(i\), denoted as \(PK_i\), is the homomorphic encryption of their partial secret key \(S_i\):
    \[
-   P(i) = \text{PK}(s_i) = PK_i
+   PK_i = \text{PK}(S_i) = \text{PK}\left( \sum_{j=1}^n s_{j,i} \right) = \sum_{j=1}^n \text{PK}(s_{j,i})
    \]
 
-4. **Signature Validation**:  
-   Verify that the message signature \(SM_i\) is valid using the public key \(\text{PK}(s_i)\).
+3. **Proof of Correct Reconstruction**:
+   Prove that the partial public key \(PK_i\) is consistent with the aggregated polynomial evaluated at \(x=i\):
+   \[
+   PK_i \stackrel{?}{=} \text{PK}(P(i)) = \sum_{j=0}^t \left( \sum_{k=1}^n \text{PK}(a_{k,j}) \right) i^j
+   \]
 
-- **Expected Output**:  
-  Successfully generate a proof if either step (3) or (4) fails, indicating incorrect share reconstruction or invalid signature.
+4. **Signature Validation**:
+   Verify that the message signature \(SM_i\) was generated using the private key corresponding to the partial public key \(PK_i\).
 
+- **Expected Output**:
+  Successfully generate a proof if either step (3) or (4) fails, indicating incorrect share reconstruction leading to a wrong partial public key or an invalid signature using the claimed partial private key.
 
 ### Circuit 3: Malicious Encryption Detection
 
-- **Objective**: Verify that encrypted shares decrypt correctly and correspond to valid values.
+- **Objective**: Verify that encrypted shares sent from \(P_i\) to \(P_j\) decrypt correctly and correspond to valid shares as per \(P_i\)'s committed polynomial.
 
 - **Verification Steps**:
-  1. **Key Derivation (ECDH)**:  
-     TODO: explain how to derive the key
-  2. **Decryption and Share Extraction**:  
-     Decrypt the ciphertext using \(K_{i,j}\) to obtain the share \(s_{i,j}\).
+  1. **Key Derivation (ECDH)**:
+     The shared secret \(K_{i,j}\) between \(P_i\) and \(P_j\) is derived using Elliptic Curve Diffie-Hellman. \(P_i\) uses their private ECDH key \(\text{AuthKey}_i\) and \(P_j\)'s public ECDH key \(\text{AuthPK}_j\) to compute \(K_{i,j}\). Similarly, \(P_j\) uses their private key \(\text{AuthKey}_j\) and \(P_i\)'s public key \(\text{AuthPK}_i\) to compute the same shared secret.
+  2. **Decryption and Share Extraction**:
+     The ciphertext containing the share \(s_{i,j}\) is decrypted using the derived shared secret \(K_{i,j}\) and the agreed-upon decryption algorithm.
 
-  3. **Share Validation**:  
-     Apply the same validation logic as in **Circuit 1** to accept or reject the decrypted share.  
-     This includes checking commitment consistency and verifying that the share satisfies the expected polynomial evaluation.
+  3. **Share Validation**:
+     Apply the same validation logic as in **Circuit 1** to accept or reject the decrypted share. This includes checking commitment consistency (using \(C_i\) and \(V_i\)) and verifying that the decrypted share \(s_{i,j}\) satisfies the expected polynomial evaluation: \(\text{PK}(s_{i,j}) \stackrel{?}{=} p_i(j)\).
 
-- **Expected Output**:  
-  The circuit fails if the decrypted share is invalid or inconsistent with the public commitments.
-
+- **Expected Output**:
+  The circuit fails if the decrypted share is invalid (doesn't match the committed polynomial) or inconsistent with the public commitments made by \(P_i\).
 
 ### Circuit 4: Successful Finalization
 
 - **Objective**: Verify the correctness of the final reconstructed key and confirm that all participants have properly completed the protocol.
 
 - **Verification Steps**:
-  1. **Commitment Validation**:  
-     Prove that each commitment \(C_i\) is consistent with the corresponding verification vector \(V_i\).
+  1. **Commitment Validation**:
+     Prove that each commitment \(C_i\) is consistent with the corresponding verification vector \(V_i\). This likely involves demonstrating that hashing \(V_i\) (along with \(n, t, \text{generation\_id}\)) results in \(C_i\).
 
   2. **Partial Key Consistency**:  
      Verify that each participant’s public key satisfies:
