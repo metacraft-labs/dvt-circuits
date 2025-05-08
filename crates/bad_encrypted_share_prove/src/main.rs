@@ -104,7 +104,9 @@ impl BinaryStream {
                 remain: self.bytes_left(),
             });
         }
-        let bytes = self.data[self.pos..self.pos + N].try_into().unwrap();
+        let bytes = self.data[self.pos..self.pos + N]
+            .try_into()
+            .expect("Invalid length");
         self.pos += N;
         println!("Read bytes: {}", hex::encode(&bytes));
         Ok(bytes)
@@ -209,8 +211,8 @@ where
     let data: dkg::BadEncryptedShare<Setup> =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
-    let our = Setup::Scalar::from_bytes(&data.receiver_encr_seckey).unwrap();
-    let their = Setup::Point::from_bytes(&data.sender_encr_pubkey).unwrap();
+    let our = Setup::Scalar::from_bytes(&data.receiver_encr_seckey).expect("Invalid seckey");
+    let their = Setup::Point::from_bytes(&data.sender_encr_pubkey).expect("Invalid pubkey");
 
     let p = their.mul_scalar(&our);
 

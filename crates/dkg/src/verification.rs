@@ -354,8 +354,9 @@ pub fn verify_commitment<Setup>(commitment: &Commitment<Setup>) -> bool
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
-    let key = Setup::CommitmentPubkey::from_bytes_safe(&commitment.pubkey).unwrap();
-    let signature = Setup::CommitmentSignature::from_bytes(&commitment.signature).unwrap();
+    let key = Setup::CommitmentPubkey::from_bytes_safe(&commitment.pubkey).expect("Invalid pubkey");
+    let signature =
+        Setup::CommitmentSignature::from_bytes(&commitment.signature).expect("Invalid signature");
     key.verify_signature(commitment.hash.as_ref(), &signature)
 }
 

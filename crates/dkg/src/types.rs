@@ -207,7 +207,7 @@ where
     T: JsonSchema,
 {
     let schema = schema_for!(T);
-    serde_json::to_string_pretty(&schema).unwrap()
+    serde_json::to_string_pretty(&schema).expect("failed to serialize schema")
 }
 
 pub fn yaml_schema_for_type<T>() -> String
@@ -215,7 +215,7 @@ where
     T: JsonSchema,
 {
     let schema = schemars::schema_for!(T);
-    serde_yaml::to_string(&schema).unwrap()
+    serde_yaml::to_string(&schema).expect("failed to serialize schema")
 }
 
 pub struct PrettyJson<T>(pub T);
@@ -359,7 +359,8 @@ macro_rules! define_raw_type {
 
         impl HexConvertible for $name {
             fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
-                let bytes: [u8; $size_const] = hex::decode(hex)?.try_into().unwrap();
+                let bytes: [u8; $size_const] =
+                    hex::decode(hex)?.try_into().expect("Invalid hex string");
                 Ok(Self(bytes))
             }
 
