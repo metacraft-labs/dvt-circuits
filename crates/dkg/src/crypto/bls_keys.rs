@@ -205,8 +205,8 @@ impl fmt::Display for BlsSignature {
 pub struct BlsCrypto {}
 
 impl CryptoKeys for BlsCrypto {
-    type PubkeyRaw = <BlsPublicKey as ByteConvertible>::RawBytes;
-    type SecretKeyRaw = <BlsSecretKey as ByteConvertible>::RawBytes;
+    type PubkeyRaw = RawBytes<BlsPublicKey>;
+    type SecretKeyRaw = RawBytes<BlsSecretKey>;
     type Pubkey = BlsPublicKey;
     type SecretKey = BlsSecretKey;
     type Signature = BlsSignature;

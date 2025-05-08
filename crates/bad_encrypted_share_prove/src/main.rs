@@ -133,7 +133,7 @@ impl BinaryStream {
 fn parse_message<Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup>>(
     msg: &[u8],
     settings: dkg::GenerateSettings,
-    base_pubkeys: Vec<<Setup::Point as ByteConvertible>::RawBytes>,
+    base_pubkeys: Vec<RawBytes<Setup::Point>>,
     commitment_hashes: Vec<SHA256Raw>,
     receiver_commitment_hash: SHA256Raw,
 ) -> Result<dkg::SharedData<Setup>, String> {
@@ -149,16 +149,16 @@ fn parse_message<Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup>>(
         .read_byte_array::<1>()
         .map_err(|e| format!("Invalid msg_type: {e}"))?[0];
     let secret = stream
-        .read::<<Setup::DkgSecretKey as ByteConvertible>::RawBytes>()
+        .read::<RawBytes<Setup::DkgSecretKey>>()
         .map_err(|e| format!("Invalid secret: {e}"))?;
     let commitment_hash = stream
         .read_byte_array::<{ SHA256_SIZE }>()
         .map_err(|e| format!("Invalid commitment_hash: {e}"))?;
     let commitment_pubkey = stream
-        .read::<<Setup::CommitmentPubkey as ByteConvertible>::RawBytes>()
+        .read::<RawBytes<Setup::CommitmentPubkey>>()
         .map_err(|e| format!("Invalid commitment_pubkey: {e}"))?;
     let commitment_signature = stream
-        .read::<<Setup::CommitmentSignature as ByteConvertible>::RawBytes>()
+        .read::<RawBytes<Setup::CommitmentSignature>>()
         .map_err(|e| format!("Invalid commitment_signature: {e}"))?;
 
     stream.finalize();
