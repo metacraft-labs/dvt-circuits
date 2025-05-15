@@ -160,12 +160,9 @@ fn parse_message<Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup>>(
 
     stream.finalize();
 
-    println!("gen_id: {}", gen_id);
-    println!("msg_type: {}", msg_type);
-    println!("secret: {}", secret);
-    println!("commitment_hash: {}", commitment_hash);
-    println!("commitment_pubkey: {}", commitment_pubkey);
-    println!("commitment_signature: {}", commitment_signature);
+    if stream.bytes_left() != 0 {
+        return Err("Invalid message".to_string());
+    }
 
     if settings.gen_id != gen_id {
         return Err("Invalid gen_id".to_string());
@@ -299,19 +296,6 @@ where
         }
 
         Err(e) => {
-            // if let Some(verification_error) = e.downcast_ref::<VerificationErrors>() {
-            //     match verification_error {
-            //         VerificationErrors::SlashableError(err) => {
-
-            //             return;
-            //         }
-            //         VerificationErrors::UnslashableError(err) => {
-            //             panic!("Unslashable error seed exchange commitment: {}", err);
-            //         }
-            //     }
-            // } else {
-            //     panic!("Unknown error seed exchange commitment: {}", e);
-            // }
             println!("Slashable error seed exchange commitment: {}", e);
 
             println!(
