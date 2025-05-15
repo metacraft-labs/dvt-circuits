@@ -4,11 +4,10 @@
   "type": "object",
   "required": [
     "base_hashes",
-    "base_pubkeys",
     "encrypted_data",
-    "receiver_base_secrets_commitment_hash",
+    "receiver_base_pubkeys",
     "receiver_encr_seckey",
-    "receiver_pubkey",
+    "sender_base_pubkeys",
     "sender_encr_pubkey",
     "sender_pubkey",
     "settings"
@@ -20,23 +19,23 @@
         "$ref": "#/definitions/SHA256Raw"
       }
     },
-    "base_pubkeys": {
+    "encrypted_data": {
+      "type": "string"
+    },
+    "receiver_base_pubkeys": {
       "type": "array",
       "items": {
         "$ref": "#/definitions/BLSPubkeyRaw"
       }
     },
-    "encrypted_data": {
-      "type": "string"
-    },
-    "receiver_base_secrets_commitment_hash": {
-      "$ref": "#/definitions/SHA256Raw"
-    },
     "receiver_encr_seckey": {
       "$ref": "#/definitions/BLSSecretRaw"
     },
-    "receiver_pubkey": {
-      "$ref": "#/definitions/SECP256K1PubkeyRaw"
+    "sender_base_pubkeys": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/BLSPubkeyRaw"
+      }
     },
     "sender_encr_pubkey": {
       "$ref": "#/definitions/BLSPubkeyRaw"

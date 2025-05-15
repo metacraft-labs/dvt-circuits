@@ -142,20 +142,23 @@ where
     Ok(())
 }
 
-pub fn compute_initial_commitment_hash<Setup>(commitment: &InitialCommitment<Setup>) -> SHA256Raw
+pub fn compute_initial_commitment_hash<Setup>(
+    settings: &GenerateSettings,
+    base_pubkeys: &Vec<RawBytes<Setup::Point>>,
+) -> SHA256Raw
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     let mut hasher = Sha256::new();
 
-    hasher.update(commitment.settings.gen_id.as_ref());
-    hasher.update([commitment.settings.n]);
-    hasher.update([commitment.settings.k]);
+    hasher.update(settings.gen_id.as_ref());
+    hasher.update([settings.n]);
+    hasher.update([settings.k]);
 
-    let len = commitment.base_pubkeys.len() as u8;
+    let len = base_pubkeys.len() as u8;
     hasher.update([len]);
 
-    for pubkey in &commitment.base_pubkeys {
+    for pubkey in base_pubkeys {
         hasher.update(pubkey.as_arr());
     }
     hasher
@@ -169,7 +172,8 @@ pub fn verify_initial_commitment_hash<Setup>(commitment: &InitialCommitment<Setu
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
-    compute_initial_commitment_hash::<Setup>(commitment) == commitment.hash
+    compute_initial_commitment_hash::<Setup>(&commitment.settings, &commitment.base_pubkeys)
+        == commitment.hash
 }
 
 fn generate_initial_commitment<Setup>(
@@ -354,7 +358,8 @@ pub fn verify_commitment<Setup>(commitment: &Commitment<Setup>) -> bool
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
-    let key = Setup::CommitmentPubkey::from_bytes_safe(&commitment.pubkey).expect("Invalid pubkey");
+    let key = Setup::CommitmentPubkey::from_bytes_safe(&commitment.pubkey)
+        .unwrap_or_else(|_| panic!("Invalid pubkey {}", commitment.pubkey));
     let signature =
         Setup::CommitmentSignature::from_bytes(&commitment.signature).expect("Invalid signature");
     key.verify_signature(commitment.hash.as_ref(), &signature)

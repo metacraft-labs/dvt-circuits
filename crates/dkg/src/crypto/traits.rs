@@ -17,7 +17,8 @@ pub trait ByteConvertible {
         + Display
         + PartialEq
         + JsonSchema
-        + for<'a> TryFrom<&'a [u8]>;
+        + for<'a> TryFrom<&'a [u8]>
+        + std::cmp::Ord;
 
     fn from_bytes(bytes: &Self::RawBytes) -> Result<Self, Self::Error>
     where

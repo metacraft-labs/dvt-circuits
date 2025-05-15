@@ -2,7 +2,7 @@
 
 sp1_zkvm::entrypoint!(main);
 
-use dkg::{self, for_each_raw_type, VerificationErrors};
+use dkg::{self, compute_initial_commitment_hash, for_each_raw_type, VerificationErrors};
 
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20::{ChaCha20, Key, Nonce};
@@ -19,14 +19,12 @@ fn new_chacha20_cipher(base: &[u8], _key_salt: &str, _nonce_salt: &str) -> ChaCh
     key_hasher.update(base);
     //key_hasher.update(key_salt.as_bytes());
     let key_hash = key_hasher.finalize();
-    println!("key_hash: {}", hex::encode(key_hash));
     let key = Key::from_slice(&key_hash[..32]);
 
     let mut nonce_hasher = Sha256::new();
     nonce_hasher.update(base);
     //nonce_hasher.update(nonce_salt.as_bytes());
     let nonce_hash = nonce_hasher.finalize();
-    println!("nonce_hash: {}", hex::encode(&nonce_hash[..12]));
     let nonce = Nonce::from_slice(&nonce_hash[..12]);
 
     ChaCha20::new(key, nonce)
@@ -108,7 +106,6 @@ impl BinaryStream {
             .try_into()
             .expect("Invalid length");
         self.pos += N;
-        println!("Read bytes: {}", hex::encode(&bytes));
         Ok(bytes)
     }
 
@@ -123,7 +120,6 @@ impl BinaryStream {
         }
         let bytes = &self.data[self.pos..self.pos + size];
         self.pos += size;
-        println!("Read bytes: {}", hex::encode(bytes));
         Ok(T::from_bytes(bytes))
     }
 
@@ -133,28 +129,27 @@ impl BinaryStream {
 }
 
 fn parse_message<Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup>>(
-    msg: &[u8],
+    msg: Vec<u8>,
     settings: dkg::GenerateSettings,
     base_pubkeys: Vec<RawBytes<Setup::Point>>,
     commitment_hashes: Vec<SHA256Raw>,
     receiver_commitment_hash: SHA256Raw,
+    sender_commitment_hash: SHA256Raw,
 ) -> Result<dkg::SharedData<Setup>, String> {
-    let mut stream = BinaryStream {
-        data: msg.to_vec(),
-        pos: 0,
-    };
+    let mut stream = BinaryStream { data: msg, pos: 0 };
 
     let gen_id = stream
-        .read_byte_array::<{ GEN_ID_SIZE }>()
+        .read::<DkgGenId>()
         .map_err(|e| format!("Invalid gen_id: {e}"))?;
-    let _msg_type = stream
+    let msg_type = stream
         .read_byte_array::<1>()
         .map_err(|e| format!("Invalid msg_type: {e}"))?[0];
+
     let secret = stream
         .read::<RawBytes<Setup::DkgSecretKey>>()
         .map_err(|e| format!("Invalid secret: {e}"))?;
     let commitment_hash = stream
-        .read_byte_array::<{ SHA256_SIZE }>()
+        .read::<SHA256Raw>()
         .map_err(|e| format!("Invalid commitment_hash: {e}"))?;
     let commitment_pubkey = stream
         .read::<RawBytes<Setup::CommitmentPubkey>>()
@@ -165,33 +160,38 @@ fn parse_message<Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup>>(
 
     stream.finalize();
 
+    println!("gen_id: {}", gen_id);
+    println!("msg_type: {}", msg_type);
+    println!("secret: {}", secret);
+    println!("commitment_hash: {}", commitment_hash);
+    println!("commitment_pubkey: {}", commitment_pubkey);
+    println!("commitment_signature: {}", commitment_signature);
+
+    if settings.gen_id != gen_id {
+        return Err("Invalid gen_id".to_string());
+    }
+
+    if msg_type != 3 {
+        return Err("Invalid msg_type".to_string());
+    }
+
     let mut initial_commitment = dkg::InitialCommitment::<Setup> {
         settings: settings,
         base_pubkeys: base_pubkeys,
-        hash: SHA256Raw([0u8; SHA256_SIZE]),
+        hash: sender_commitment_hash.clone(),
     };
 
-    let initial_commitment_hash =
-        dkg::compute_initial_commitment_hash::<Setup>(&initial_commitment);
-
-    initial_commitment.hash = initial_commitment_hash.clone();
-    println!("gen_id {}", hex::encode(&gen_id));
-    println!("_msg_type {}", hex::encode(&[_msg_type]));
-    println!("secret {}", &secret);
-    println!("commitment_hash {}", hex::encode(&commitment_hash));
-    println!("commitment_pubkey {}", &commitment_pubkey);
-    println!("commitment_signature {}", &commitment_signature);
     Ok(dkg::SharedData::<Setup> {
         verification_hashes: commitment_hashes,
         initial_commitment: initial_commitment,
         seeds_exchange_commitment: dkg::SeedExchangeCommitment {
-            initial_commitment_hash: initial_commitment_hash,
+            initial_commitment_hash: sender_commitment_hash,
             shared_secret: dkg::ExchangedSecret {
                 secret: secret,
                 dst_base_hash: receiver_commitment_hash,
             },
             commitment: dkg::Commitment {
-                hash: SHA256Raw(commitment_hash),
+                hash: commitment_hash,
                 pubkey: commitment_pubkey,
                 signature: commitment_signature,
             },
@@ -211,6 +211,51 @@ where
     let data: dkg::BadEncryptedShare<Setup> =
         serde_cbor::from_slice(&input).expect("Failed to deserialize share data");
 
+    let sender_commitment_hash =
+        compute_initial_commitment_hash::<Setup>(&data.settings, &data.sender_base_pubkeys);
+
+    if !data
+        .base_hashes
+        .iter()
+        .any(|h| h == &sender_commitment_hash)
+    {
+        panic!("Invalid sender_commitment_hash {}", sender_commitment_hash);
+    }
+
+    let receiver_commitment_hash =
+        compute_initial_commitment_hash::<Setup>(&data.settings, &data.receiver_base_pubkeys);
+
+    if !data
+        .base_hashes
+        .iter()
+        .any(|h| h == &receiver_commitment_hash)
+    {
+        panic!(
+            "Invalid receiver_commitment_hash {}",
+            receiver_commitment_hash
+        );
+    }
+
+    let mut keys = data.receiver_base_pubkeys.clone();
+    keys.sort();
+
+    if Setup::DkgSecretKey::from_bytes(&data.receiver_encr_seckey)
+        .expect("Invalid seckey")
+        .to_public_key()
+        .to_bytes()
+        != keys[keys.len() - 1]
+    {
+        panic!("Invalid seckey");
+    };
+
+    if data.base_hashes.len() != data.settings.n as usize {
+        panic!("The number of verification hashes does not match the number of keys\n");
+    }
+
+    if data.settings.n < data.settings.k {
+        panic!("N should be greater than or equal to k\n");
+    }
+
     let our = Setup::Scalar::from_bytes(&data.receiver_encr_seckey).expect("Invalid seckey");
     let their = Setup::Point::from_bytes(&data.sender_encr_pubkey).expect("Invalid pubkey");
 
@@ -218,97 +263,67 @@ where
 
     let mut cipher2 = new_chacha20_cipher(&p.to_bytes().as_arr(), "", "");
 
-    let mut decrypted =
+    let encrypted_bytes =
         hex::decode(&data.encrypted_message).expect("invalid hex in encrypted_message");
+    let mut decrypted = encrypted_bytes.clone();
     cipher2.apply_keystream(&mut decrypted);
-    println!("decrypted {:?}", hex::encode(&decrypted));
-    let data = match parse_message::<Setup>(
-        &decrypted,
+    let shared_data = match parse_message::<Setup>(
+        decrypted,
         data.settings,
-        data.base_pubkeys,
+        data.sender_base_pubkeys,
         data.base_hashes,
-        data.receiver_commitment_hash,
+        receiver_commitment_hash,
+        sender_commitment_hash,
     ) {
         Ok(data) => data,
         Err(e) => {
             println!("Error: {}", e);
+            sp1_zkvm::io::commit(&sender_commitment_hash);
+            sp1_zkvm::io::commit(&receiver_commitment_hash);
             sp1_zkvm::io::commit(&data.encrypted_message);
             return;
         }
     };
 
-    if data.verification_hashes.len() != data.initial_commitment.settings.n as usize {
-        panic!("The number of verification hashes does not match the number of keys\n");
-    }
-
-    if data.initial_commitment.settings.n < data.initial_commitment.settings.k {
-        panic!("N should be greater than or equal to k\n");
-    }
-
-    let found = data
-        .verification_hashes
-        .iter()
-        .any(|h| h == &data.initial_commitment.hash);
-
-    if !found {
-        panic!(
-            "The seed exchange commitment hash {} is not part of the verification hashes  {} \n",
-            data.initial_commitment.hash,
-            data.verification_hashes
-                .iter()
-                .map(|h| h.to_hex())
-                .collect::<Vec<String>>()
-                .join(", ")
-        );
-    }
-
-    if !dkg::verify_initial_commitment_hash::<Setup>(&data.initial_commitment) {
+    if !dkg::verify_initial_commitment_hash::<Setup>(&shared_data.initial_commitment) {
         panic!("Unsalshable error while verifying commitment hash\n");
     }
 
     match dkg::verify_seed_exchange_commitment::<Setup>(
-        &data.verification_hashes,
-        &data.seeds_exchange_commitment,
-        &data.initial_commitment,
+        &shared_data.verification_hashes,
+        &shared_data.seeds_exchange_commitment,
+        &shared_data.initial_commitment,
     ) {
         Ok(()) => {
             println!("The share is valid. We can't that the prove participant share is corrupted.");
         }
 
         Err(e) => {
-            if let Some(verification_error) = e.downcast_ref::<VerificationErrors>() {
-                match verification_error {
-                    VerificationErrors::SlashableError(err) => {
-                        println!("Slashable error seed exchange commitment: {}", err);
+            // if let Some(verification_error) = e.downcast_ref::<VerificationErrors>() {
+            //     match verification_error {
+            //         VerificationErrors::SlashableError(err) => {
 
-                        for h in data.verification_hashes.iter() {
-                            println!("Verification hash: {}", h);
-                            sp1_zkvm::io::commit(h.as_ref());
-                        }
+            //             return;
+            //         }
+            //         VerificationErrors::UnslashableError(err) => {
+            //             panic!("Unslashable error seed exchange commitment: {}", err);
+            //         }
+            //     }
+            // } else {
+            //     panic!("Unknown error seed exchange commitment: {}", e);
+            // }
+            println!("Slashable error seed exchange commitment: {}", e);
 
-                        println!(
-                            "Perpetrator public key: {}",
-                            data.seeds_exchange_commitment.commitment.pubkey
-                        );
-                        for byte in data
-                            .seeds_exchange_commitment
-                            .commitment
-                            .pubkey
-                            .as_arr()
-                            .iter()
-                        {
-                            sp1_zkvm::io::commit(&byte);
-                        }
+            println!(
+                "Perpetrator public key: {}\n Sender commitment hash: {}\n Receiver commitment hash: {}",
+                shared_data.seeds_exchange_commitment.commitment.pubkey,
+                sender_commitment_hash,
+                receiver_commitment_hash,
+            );
 
-                        return;
-                    }
-                    VerificationErrors::UnslashableError(err) => {
-                        panic!("Unslashable error seed exchange commitment: {}", err);
-                    }
-                }
-            } else {
-                panic!("Unknown error seed exchange commitment: {}", e);
-            }
+            sp1_zkvm::io::commit(&sender_commitment_hash);
+            sp1_zkvm::io::commit(&receiver_commitment_hash);
+            sp1_zkvm::io::commit(&encrypted_bytes);
         }
     }
     panic!("The seed exchange commitment is valid");
