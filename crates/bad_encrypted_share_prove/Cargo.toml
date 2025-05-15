@@ -15,6 +15,6 @@ dkg = { path = "../dkg" }
 bls12_381 = { git = "https://github.com/NDobrev/bls12_381", branch="fp-to-bytes", features = ["experimental"]}
 hex = "0.4"
 chacha20 = "0.9.1"
-sha2 = "0.9"
+sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag= "sha2-v0.9.9-patch-v1" }
 
 hex-literal = "0.4.1"
