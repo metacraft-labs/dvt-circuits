@@ -184,22 +184,20 @@ where
 {
     #[serde(rename = "sender_pubkey")]
     pub sender_pubkey: RawBytes<Setup::CommitmentPubkey>,
-    #[serde(rename = "receiver_pubkey")]
-    pub receiver_pubkey: RawBytes<Setup::CommitmentPubkey>,
     #[serde(rename = "sender_encr_pubkey")]
     pub sender_encr_pubkey: RawBytes<Setup::Point>,
     #[serde(rename = "receiver_encr_seckey")]
     pub receiver_encr_seckey: RawBytes<Setup::DkgSecretKey>,
-    #[serde(rename = "receiver_base_secrets_commitment_hash")]
-    pub receiver_commitment_hash: SHA256Raw,
     #[serde(rename = "encrypted_data")]
     pub encrypted_message: String,
     #[serde(rename = "settings")]
     pub settings: GenerateSettings,
     #[serde(rename = "base_hashes")]
     pub base_hashes: VerificationHashes,
-    #[serde(rename = "base_pubkeys")]
-    pub base_pubkeys: Vec<RawBytes<Setup::DkgPubkey>>,
+    #[serde(rename = "sender_base_pubkeys")]
+    pub sender_base_pubkeys: Vec<RawBytes<Setup::DkgPubkey>>,
+    #[serde(rename = "receiver_base_pubkeys")]
+    pub receiver_base_pubkeys: Vec<RawBytes<Setup::DkgPubkey>>,
 }
 
 pub fn json_schema_for_type<T>() -> String
