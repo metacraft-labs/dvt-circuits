@@ -21,6 +21,16 @@ install-git-hooks:
 	@rm before.txt after.txt
 	@echo "Hooks installed successfully."
 
+fmt:
+	@cd "$(REPO_ROOT)" && cargo fmt
+
+check:
+	@cd "$(REPO_ROOT)" && cargo fmt --check
+	@cd "$(REPO_ROOT)" && cargo clippy --all-targets -- -D warnings
+
+gen-spec:
+	@cd "$(REPO_ROOT)" && ./script/gen_spec.sh
+
 test:
 	@if [ ! -f "$(TEST_SCRIPT)" ]; then \
 		echo "Error: run_tests.sh not found in repository root."; \
