@@ -4,7 +4,7 @@
 
 ### Purpose and Scope
 
-This specification provides a detailed framework for zero-knowledge (ZK) verification circuits within a Distributed Key Generation (DKG) protocol. It emphasizes precise cryptographic formulations to ensure the correctness and security of each verification step.
+This specification provides a framework for zero-knowledge (ZK) verification circuits within a Distributed Key Generation (DKG) protocol. It emphasizes cryptographic formulations to ensure the correctness and security of each verification step.
 
 ### Overview of Distributed Key Generation (DKG)
 
@@ -22,9 +22,7 @@ The protocol ensures that:
 - The secret is generated according to Shamir's Secret Sharing scheme.
 - Any deviation — whether intentional or accidental — can be detected, and the malicious participant can be identified. Zero-knowledge proofs play a crucial role in enabling this detection without revealing any sensitive information exchanged during the process.
 
-## 2. DKG Process Overview
-
-### 2.0 High-Level Overview of Provable Distributed Key Generation (PDKG)
+## 2.0 High-Level Overview of Provable Distributed Key Generation (PDKG)
 
 1. **Initialization (Public Setup Phase):**
    One participant initializes the session by publishing the setup on a shared, publicly accessible platform (e.g., a blockchain smart contract, shared database, or bulletin board).
@@ -86,7 +84,7 @@ Where:
 - \(a_{i,j} \in \mathbb{F}_q\): Random coefficients
 - \(f_i(x)\): Secret polynomial of \(P_i\)
 
-The secret share of participant \(P_i\) is \(s_i = f_i(0) = a_{i,0}\).
+The secret sub share of participant \(P_j\) is \(s_{i,j} = f_i(j)\).
 
 We define a verification vector \(\text{V}_i\) as:
 \[(\text{PK}(a_{i,0}), \dots, \text{PK}(a_{i,t}))\]
@@ -101,7 +99,7 @@ Published to a public board and signed with \(\text{AuthKey}_i\).
 Each \(P_i\) computes:
 \[s_{i,j} = f_i(j)\]
 
-Sends to \(P_j\) along with \(\text{V}_i\), all signed with \(\text{AuthKey}_i\). The verification vector \(\text{V}_i\) allows \(P_j\) to verify that the received share \(s_{i,j}\) is consistent with the polynomial committed to by \(P_i\).
+Sends to \(P_j\) along with \(\text{V}_i\), all signed with \(\text{AuthKey}_i\). The verification vector \(\text{V}_i\) allows \(P_j\) to verify that the received share \(s_{i,j}\) is consistent with the polynomial committed to by \(P_i\) (\(P_i\) can take the \(C_i\) from the public board).
 
 ### 2.4 Share Verification
 
@@ -131,7 +129,21 @@ Upon receiving \(s_{i,j}\) and \(\text{V}_i\) from \(P_i\), participant \(P_j\) 
 
 If a participant submits a share that cannot be verified or if there is insufficient evidence to validate its correctness, and malicious intent is suspected, then participant \(P_j\) should initiate a **challenge** against \(P_i\) on the public board.
 
-The challenge must include an expiration timestamp. The response to the challenge should be **encrypted using ECDH** (Elliptic Curve Diffie-Hellman) with the `AuthKey`s of both participants. Here, we assume `AuthKey_i` and `AuthPK_i` are the private and public keys, respectively, of an ECDH key pair for participant \(i\). The shared secret is derived using \(P_i\)'s private key and \(P_j\)'s public key (or vice versa), and this shared secret is used to encrypt the response. ECDH is suitable here as it allows two parties to establish a shared secret over an insecure channel using their public keys.
+The challenge must include an expiration timestamp. The response to the challenge must be **encrypted using a deterministic ECDH scheme** based on the sender’s published verification vector.
+
+Specifically:
+
+- The verification vector \(\mathbf{V}_i\) (published by \(P_i\)) is **sorted deterministically**, for example, lexicographically by public key bytes.
+- The **last element** of this sorted vector is used for key agreement:
+  - \(P_i\) uses the **private key** from their own last element.
+  - \(P_j\) uses the **public key** from the corresponding last element of \(P_i\)'s vector.
+- They derive a shared secret using ECDH:
+  \[
+  K_{i,j} = \text{ECDH}(\text{PrivKey}_{i}^{\text{last}}, \text{PubKey}_{j}^{\text{last}})
+  \]
+- This shared secret is passed through a key derivation function (e.g., HKDF) to obtain a symmetric key \(K_{\text{enc}}\).
+
+This encryption scheme ensures that only the intended recipient (with access to the corresponding private key) can decrypt the response, while preserving deterministic behavior and cryptographic soundness necessary for verifiability and zero-knowledge applications.
 
 If the challenge expires without a valid response, or if the response is invalid, the protocol can demonstrate misbehavior by \(P_i\), which may result in penalties (e.g., slashing). If the protocol fails, all participants can verify the failure based on the data recorded on the public board.
 
@@ -140,8 +152,8 @@ The use of encryption and zero-knowledge proofs guarantees that sensitive inform
 ### 2.5 Partial Key Generation
 
 Each \(P_i\) computes their partial secret key \(S_i\) by summing the valid shares received from all other participants:
-\[S_i = \sum_{k=1}^{n} s_{k,i}\]
-where \(s_{k,i}\) is the share sent from \(P_k\) to \(P_i\).
+\[S_i = \sum_{j=1}^{n} s_{j,i}\]
+where \(s_{j,i}\) is the share sent from \(P_j\) to \(P_i\).
 
 ### 2.6 Finalization
 
@@ -211,19 +223,47 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
 
 ### Circuit 3: Malicious Encryption Detection
 
-- **Objective**: Verify that encrypted shares sent from \(P_i\) to \(P_j\) decrypt correctly and correspond to valid shares as per \(P_i\)'s committed polynomial.
+- **Objective**:  
+  Verify that an encrypted share sent from \(P_i\) to \(P_j\) can be correctly decrypted using a shared key derived via ECDH and that the resulting plaintext corresponds to a valid share consistent with \(P_i\)'s committed polynomial.
 
 - **Verification Steps**:
-  1. **Key Derivation (ECDH)**:
-     The shared secret \(K_{i,j}\) between \(P_i\) and \(P_j\) is derived using Elliptic Curve Diffie-Hellman. \(P_i\) uses their private ECDH key \(\text{AuthKey}_i\) and \(P_j\)'s public ECDH key \(\text{AuthPK}_j\) to compute \(K_{i,j}\). Similarly, \(P_j\) uses their private key \(\text{AuthKey}_j\) and \(P_i\)'s public key \(\text{AuthPK}_i\) to compute the same shared secret.
+
+  1. **Deterministic Key Derivation via ECDH**:
+     - The vector \(\mathbf{V}_i\) is **sorted deterministically** (e.g., lexicographically by public key bytes).
+     - The **last element** of the sorted verification vector is used for key agreement:
+       - Participant \(P_i\) uses the **private key** from their own last element.
+       - Participant \(P_j\) uses the **public key** from the corresponding last element of \(P_i\)'s vector.
+     - They perform ECDH:
+       \[
+       K_{i,j} = \text{ECDH}(\text{PrivKey}_{i}^{\text{last}}, \text{PubKey}_{j}^{\text{last}})
+       \]
+     - The result is passed through a key derivation function (e.g., HKDF) to produce a symmetric key \(K_{\text{enc}}\) for encryption with a cipher like ChaCha20-Poly1305.
+
+     - This shared secret is used to derive a symmetric encryption key (e.g., via HKDF), which is then used with a cipher like ChaCha20 to encrypt:
+       - The generation id
+       - The share \(s_{i,j}\)
+       - The  \(\text{HASH}(n, t, \text{generation\_id}, \mathbf{V}_i)\)
+       -  \(\text{AuthPK}_i\)
+       -  \(\text{SIGN(AuthPK, HASH)}\)
+
   2. **Decryption and Share Extraction**:
-     The ciphertext containing the share \(s_{i,j}\) is decrypted using the derived shared secret \(K_{i,j}\) and the agreed-upon decryption algorithm.
+     - Participant \(P_j\) derives the shared key:
+       \[
+       K_{j,i} = \text{ECDH}(\text{AuthKey}_j, \text{AuthPK}_i)
+       \]
+     - Since ECDH is symmetric, \(K_{i,j} = K_{j,i}\).
+     - \(P_j\) uses the derived key to decrypt the ciphertext and extract the share \(s_{i,j}\) and accompanying data.
 
   3. **Share Validation**:
-     Apply the same validation logic as in **Circuit 1** to accept or reject the decrypted share. This includes checking commitment consistency (using \(C_i\) and \(V_i\)) and verifying that the decrypted share \(s_{i,j}\) satisfies the expected polynomial evaluation: \(\text{PK}(s_{i,j}) \stackrel{?}{=} p_i(j)\).
+     - The circuit first proves that the correct decryption key was derived from the initial secrets using the specified ECDH protocol and verification vector.
+     - Then, two possible outcomes are evaluated:
+       1. If decryption fails (e.g., due to incorrect key derivation, incomplete or malformed ciphertext, or tampering), this constitutes a verifiable failure of proper encryption.
+       2. If decryption succeeds but the decrypted share is inconsistent with the committed polynomial (e.g., does not satisfy the homomorphic evaluation check), the logic from **Circuit 1** is applied to prove inconsistency or misbehavior in the share itself.
 
-- **Expected Output**:
-  The circuit fails if the decrypted share is invalid (doesn't match the committed polynomial) or inconsistent with the public commitments made by \(P_i\).
+- **Expected Output**:  
+  The circuit succeeds if the decrypted share can be verified as correct and consistent with the sender’s public commitments. Otherwise, it produces a verifiable contradiction, proving either encryption-level tampering or an invalid share.
+
+
 
 ### Circuit 4: Successful Finalization
 
