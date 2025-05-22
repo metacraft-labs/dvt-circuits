@@ -3,12 +3,24 @@ use bls12_381::{
     pairing, G1Affine, G1Projective, G2Affine, G2Projective, Scalar,
 };
 
+use core::convert::AsRef;
+
 use crate::types::*;
 use sha2::Sha256;
 
 pub fn hash_message_to_g2(msg: &[u8]) -> G2Projective {
     let domain = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
-    <G2Projective as HashToCurve<ExpandMsgXmd<Sha256>>>::hash_to_curve(msg, domain)
+
+    struct MsgInternal<'a> {
+        msg: &'a [u8],
+    }
+
+    impl bls12_381::hash_to_curve::Message for MsgInternal<'_> {
+        fn input_message(self, mut f: impl FnMut(&[u8])) {
+            f(self.msg);
+        }
+    }
+    <G2Projective as HashToCurve<ExpandMsgXmd<Sha256>>>::hash_to_curve(MsgInternal { msg }, domain)
 }
 
 pub fn bls_verify_precomputed_hash(

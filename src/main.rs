@@ -435,9 +435,9 @@ where
     let bin = serde_cbor::to_vec(data).expect("Failed to serialize data");
     println!("input len: {}", bin.len());
     stdin.write(&bin);
-    let client = ProverClient::new();
+    let client = ProverClient::from_env();
     let (_public_values, report) = client
-        .execute(elf, stdin)
+        .execute(elf, &stdin)
         .run()
         .map_err(|e| style_error(format!("Verification failed: {e}")))?;
     if show_report {
@@ -458,10 +458,10 @@ where
     let mut stdin = SP1Stdin::new();
     let bin = serde_cbor::to_vec(data).expect("Failed to serialize data");
     stdin.write(&bin);
-    let client = ProverClient::new();
+    let client = ProverClient::from_env();
     let (pk, _) = client.setup(elf);
     let proof = client
-        .prove(&pk, stdin)
+        .prove(&pk, &stdin)
         .run()
         .map_err(|e| style_error(format!("Proof generation failed: {e}")))?;
 
@@ -478,7 +478,7 @@ where
 }
 
 fn verify_proof(elf: &[u8], proof_file: &str, show_report: bool) -> Result<(), Box<dyn Error>> {
-    let client = ProverClient::new();
+    let client = ProverClient::from_env();
     let (_, vk) = client.setup(elf);
 
     let proof_with_pub_values = SP1ProofWithPublicValues::load(proof_file).map_err(|e| {
@@ -496,7 +496,7 @@ fn verify_proof(elf: &[u8], proof_file: &str, show_report: bool) -> Result<(), B
     stdin.write(&vk);
 
     let (_, report) = client
-        .execute(elf, stdin)
+        .execute(elf, &stdin)
         .run()
         .map_err(|e| style_error(format!("Verification failed: {e}")))?;
 

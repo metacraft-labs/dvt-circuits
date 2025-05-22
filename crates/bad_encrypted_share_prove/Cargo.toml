@@ -5,14 +5,14 @@ edition = "2021"
 publish = false
 
 [dependencies]
-sp1-zkvm = "3.4.0"
+sp1-zkvm = "4.2.1"
 ff = "0.13.0"
 rand = "0.8.5"
 group = "0.13.0"
 serde = "1.0.216"
 serde_cbor = "0.10"
 dkg = { path = "../dkg" }
-bls12_381 = { git = "https://github.com/NDobrev/bls12_381", branch="fp-to-bytes", features = ["experimental"]}
+bls12_381 =  { git = "https://github.com/sp1-patches/bls12_381", tag = "patch-0.8.0-sp1-4.0.0-v2", features = ["experimental"]}
 hex = "0.4"
 chacha20 = "0.9.1"
 sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag= "sha2-v0.9.9-patch-v1" }
