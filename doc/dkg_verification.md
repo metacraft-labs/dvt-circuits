@@ -301,3 +301,32 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
   The circuit succeeds only if all commitments, partial keys, signatures, and the reconstructed final key are valid.
 
 
+## References for Zero-Knowledge Verification of Distributed Key Generation
+
+- **Shamir’s Secret Sharing (SSS)**  
+  A method to divide a secret into multiple parts, requiring a minimum number of parts to reconstruct the original secret.  
+  [Shamir's Secret Sharing - Wikipedia](https://en.wikipedia.org/wiki/Shamir%27s_secret_sharing)
+
+- **Verifiable Secret Sharing (VSS)**  
+  An extension of Shamir’s Secret Sharing that enables participants to verify the validity of their shares.  
+  [Verifiable Secret Sharing - Wikipedia](https://en.wikipedia.org/wiki/Verifiable_secret_sharing)
+
+- **Zero-Knowledge Proofs (ZKPs)**  
+  Cryptographic methods enabling proof of validity without revealing underlying information.  
+  [Zero-Knowledge Proof (ZKP) — Chainlink](https://chain.link/education/zero-knowledge-proof-zkp)
+
+- **Distributed Key Generation Protocols**  
+  Protocols allowing multiple participants to jointly generate a shared public/private key pair without exposing private keys.  
+  [Distributed Key Generation - Wikipedia](https://en.wikipedia.org/wiki/Distributed_key_generation)
+
+- **Lagrange Interpolation**  
+  Mathematical method used in Shamir’s Secret Sharing to reconstruct secrets from polynomial interpolation.  
+  [Lagrange Polynomial - Wikipedia](https://en.wikipedia.org/wiki/Lagrange_polynomial)
+
+- **Elliptic Curve Diffie–Hellman (ECDH)**  
+  Key agreement protocol for securely deriving shared keys over an insecure channel.  
+  [Elliptic-Curve Diffie–Hellman - Wikipedia](https://en.wikipedia.org/wiki/Elliptic-curve_Diffie%E2%80%93Hellman)
+
+- **ChaCha20-Poly1305**  
+  Authenticated encryption algorithm combining confidentiality and integrity protection.  
+  [ChaCha20-Poly1305 - Wikipedia](https://en.wikipedia.org/wiki/ChaCha20-Poly1305)
