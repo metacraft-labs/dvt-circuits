@@ -365,6 +365,52 @@ where
     key.verify_signature(commitment.hash.as_ref(), &signature)
 }
 
+fn verify_generation_base_hashes<Setup>(
+    data: &BadPartialShareData<Setup>,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    for generation in &data.generations {
+        let initial_commitment = InitialCommitment::<Setup> {
+            hash: generation.base_hash,
+            settings: data.settings.clone(),
+            base_pubkeys: generation.verification_vector.clone(),
+        };
+
+        if !verify_initial_commitment_hash::<Setup>(&initial_commitment) {
+            return Err(Box::new(VerificationErrors::UnslashableError(format!(
+                "Invalid generation base hash {}",
+                generation.base_hash
+            ))));
+        }
+    }
+    Ok(())
+}
+
+fn verify_expected_key<Setup>(
+    sorted_generation: &[BadPartialShareGeneration<Setup>],
+    perpetrator_index: usize,
+    key: &Setup::DkgPubkey,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    let perpetrator_id = Setup::Scalar::from_u32((perpetrator_index + 1) as u32);
+    let expected_key = compute_pubkey_share(sorted_generation, &perpetrator_id);
+
+    let actual_key_point = Setup::Point::from_bytes(&key.to_bytes())
+        .map_err(|_| VerificationErrors::SlashableError("Invalid point".to_string()))?;
+
+    if expected_key != actual_key_point {
+        return Err(Box::new(VerificationErrors::SlashableError(format!(
+            "Computed key {} does not match expected key {}",
+            expected_key, key
+        ))));
+    }
+    Ok(())
+}
+
 pub fn prove_wrong_final_key_generation<Setup>(
     data: &BadPartialShareData<Setup>,
 ) -> Result<(), Box<dyn std::error::Error>>
@@ -372,20 +418,7 @@ where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
     verify_commitment_signature(data)?;
-    // Verify that the generation base hashes are correct
-    for generation in data.generations.iter() {
-        let ok = verify_initial_commitment_hash::<Setup>(&InitialCommitment::<Setup> {
-            hash: generation.base_hash,
-            settings: data.settings.clone(),
-            base_pubkeys: generation.verification_vector.clone(),
-        });
-        if !ok {
-            return Err(Box::new(VerificationErrors::UnslashableError(format!(
-                "Invalid generation base hash {}",
-                generation.base_hash
-            ))));
-        }
-    }
+    verify_generation_base_hashes(data)?;
 
     let mut sorted_generation = data.generations.to_vec();
     sorted_generation.sort_by(|a, b| a.base_hash.cmp(&b.base_hash));
@@ -393,25 +426,21 @@ where
     let perpetrator_index =
         find_perpetrator_index(&data.bad_partial.data.base_hash, &sorted_generation)?;
 
-    let key = match Setup::DkgPubkey::from_bytes_safe(&data.bad_partial.data.partial_pubkey) {
-        Ok(key) => key,
-        Err(e) => {
-            return Err(Box::new(VerificationErrors::SlashableError(format!(
+    let key =
+        Setup::DkgPubkey::from_bytes_safe(&data.bad_partial.data.partial_pubkey).map_err(|e| {
+            VerificationErrors::SlashableError(format!(
                 "While uncompressing data.bad_partial.data.partial_pubkey {}",
                 e
-            ))));
-        }
-    };
+            ))
+        })?;
 
-    let sig = match Setup::DkgSignature::from_bytes_safe(&data.bad_partial.data.message_signature) {
-        Ok(sig) => sig,
-        Err(e) => {
-            return Err(Box::new(VerificationErrors::SlashableError(format!(
+    let sig = Setup::DkgSignature::from_bytes_safe(&data.bad_partial.data.message_signature)
+        .map_err(|e| {
+            VerificationErrors::SlashableError(format!(
                 "While uncompressing data.bad_partial.data.message_signature {}",
                 e
-            ))));
-        }
-    };
+            ))
+        })?;
 
     if !key.verify_signature(data.bad_partial.data.message_cleartext.as_bytes(), &sig) {
         return Err(Box::new(VerificationErrors::SlashableError(format!(
@@ -420,16 +449,7 @@ where
         ))));
     }
 
-    let perpetrator_id = Setup::Scalar::from_u32((perpetrator_index + 1) as u32);
-
-    let expected_key = compute_pubkey_share(&sorted_generation, &perpetrator_id);
-
-    if expected_key != Setup::Point::from_bytes(&key.to_bytes()).expect("Invalid point") {
-        return Err(Box::new(VerificationErrors::SlashableError(format!(
-            "Computed key {} does not match expected key {}",
-            expected_key, key,
-        ))));
-    }
+    verify_expected_key::<Setup>(&sorted_generation, perpetrator_index, &key)?;
 
     Ok(())
 }
