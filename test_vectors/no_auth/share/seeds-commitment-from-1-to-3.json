@@ -1,0 +1,37 @@
+{
+  "params": {
+    "cmd_extra_args": "execute --type=bad-share --json-schema-file=spec/json/share_exchange_spec.json",
+    "expected_exit_code": 1
+  },
+  "scenario": {
+    "base_hashes": [
+      "22d9ef5b03b07ef43a39044f0aba3dd584450fe9296c13d83d7120691c856c1e",
+      "84a3b2e337955364dfdc606af3a5bf4dd11b2749aae02f2be79b4bbdc0bac530",
+      "efe4f6c92a880da1301ddfee7a96fb2712b3c68984e4637fba5c34838a64bd76"
+    ],
+    "initial_commitment": {
+      "settings": {
+        "gen_id": "8d17e61db7b774d16cb165662a8c2c4a",
+        "n": 3,
+        "k": 2
+      },
+      "base_pubkeys": [
+        "a080bc2369ca8df0f318a185944782d9ed5cefd97a0dd757d86f654ecd976f14a39399d73ab15d95b08351ba52b4e963",
+        "b9af73aaa6818a07968dc1507acdcb416ff8ce392d3ba855f0934b02f2171bf3345a1695ab11f84d2dd0df087b18a42d"
+      ],
+      "hash": "22d9ef5b03b07ef43a39044f0aba3dd584450fe9296c13d83d7120691c856c1e"
+    },
+    "seeds_exchange_commitment": {
+      "initial_commitment_hash": "22d9ef5b03b07ef43a39044f0aba3dd584450fe9296c13d83d7120691c856c1e",
+      "ssecret": {
+        "shared_secret": "2c2e8c964db0b88f96645565a30f144a786dc3435315bdb28e0506befac56cbe",
+        "dst_base_hash": "efe4f6c92a880da1301ddfee7a96fb2712b3c68984e4637fba5c34838a64bd76"
+      },
+      "commitment": {
+        "hash": "57c4e34854b3e669eb50418bed8f5c270e842a15842bcddb25eff4742254f20b",
+        "pubkey": "023b9ee324a404d31715a25ef2fdcd9f523190e1e4dca29fdb393cb7d9050bf89f",
+        "signature": "b909d52c730b7dae6b9d3e27a11255c923449e43653c1c86dd44f8987a994e1127ed4a151f0adcfbfba898cc620c8f8ad73b58ee20504c8b6f5d7a16360b3ac1"
+      }
+    }
+  }
+}

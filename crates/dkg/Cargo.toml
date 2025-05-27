@@ -4,6 +4,10 @@ version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
 
+[features]
+default = []
+auth_commitment = []
+
 [dependencies]
 ff = "0.13.0"
 rand = "0.8.5"

@@ -2,12 +2,11 @@
 
 sp1_zkvm::entrypoint!(main);
 
-use dkg::{self, compute_initial_commitment_hash, for_each_raw_type, VerificationErrors};
+use dkg::{self, compute_initial_commitment_hash};
 
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20::{ChaCha20, Key, Nonce};
 
-use bls12_381::{self, G1Affine, G2Affine};
 use dkg::crypto::*;
 use dkg::types::*;
 use serde::Deserialize;
@@ -123,11 +122,21 @@ impl BinaryStream {
         Ok(T::from_bytes(bytes))
     }
 
+    pub fn remain_len(&self) -> usize {
+        self.data.len() - self.pos
+    }
+
     pub fn finalize(&mut self) {
+        println!(
+            "Read {} bytes, {} remain",
+            self.pos,
+            self.data.len() - self.pos
+        );
         assert!(self.pos == self.data.len());
     }
 }
 
+#[cfg(feature = "auth_commitment")]
 fn parse_message<Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup>>(
     msg: Vec<u8>,
     settings: dkg::GenerateSettings,
@@ -141,22 +150,28 @@ fn parse_message<Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup>>(
     let gen_id = stream
         .read::<DkgGenId>()
         .map_err(|e| format!("Invalid gen_id: {e}"))?;
+
+    println!("remain_len {}", stream.remain_len());
     let msg_type = stream
         .read_byte_array::<1>()
         .map_err(|e| format!("Invalid msg_type: {e}"))?[0];
-
+    println!("remain_len {}", stream.remain_len());
     let secret = stream
         .read::<RawBytes<Setup::DkgSecretKey>>()
         .map_err(|e| format!("Invalid secret: {e}"))?;
+    println!("remain_len {}", stream.remain_len());
     let commitment_hash = stream
         .read::<SHA256Raw>()
         .map_err(|e| format!("Invalid commitment_hash: {e}"))?;
+    println!("remain_len {}", stream.remain_len());
     let commitment_pubkey = stream
         .read::<RawBytes<Setup::CommitmentPubkey>>()
         .map_err(|e| format!("Invalid commitment_pubkey: {e}"))?;
+    println!("remain_len {}", stream.remain_len());
     let commitment_signature = stream
         .read::<RawBytes<Setup::CommitmentSignature>>()
         .map_err(|e| format!("Invalid commitment_signature: {e}"))?;
+    println!("remain_len {}", stream.remain_len());
 
     stream.finalize();
 
@@ -172,7 +187,7 @@ fn parse_message<Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup>>(
         return Err("Invalid msg_type".to_string());
     }
 
-    let mut initial_commitment = dkg::InitialCommitment::<Setup> {
+    let initial_commitment = dkg::InitialCommitment::<Setup> {
         settings: settings,
         base_pubkeys: base_pubkeys,
         hash: sender_commitment_hash.clone(),
@@ -191,6 +206,69 @@ fn parse_message<Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup>>(
                 hash: commitment_hash,
                 pubkey: commitment_pubkey,
                 signature: commitment_signature,
+            },
+        },
+    })
+}
+
+#[cfg(not(feature = "auth_commitment"))]
+fn parse_message<Setup: dkg::DkgSetup + dkg::DkgSetupTypes<Setup>>(
+    msg: Vec<u8>,
+    settings: dkg::GenerateSettings,
+    base_pubkeys: Vec<RawBytes<Setup::Point>>,
+    commitment_hashes: Vec<SHA256Raw>,
+    receiver_commitment_hash: SHA256Raw,
+    sender_commitment_hash: SHA256Raw,
+) -> Result<dkg::SharedData<Setup>, String> {
+    let mut stream = BinaryStream { data: msg, pos: 0 };
+
+    let gen_id = stream
+        .read::<DkgGenId>()
+        .map_err(|e| format!("Invalid gen_id: {e}"))?;
+    //println!("remain_len {}", stream.remain_len());
+    let msg_type = stream
+        .read_byte_array::<1>()
+        .map_err(|e| format!("Invalid msg_type: {e}"))?[0];
+    //println!("remain_len {}", stream.remain_len());
+    let secret = stream
+        .read::<RawBytes<Setup::DkgSecretKey>>()
+        .map_err(|e| format!("Invalid secret: {e}"))?;
+    //println!("remain_len {}", stream.remain_len());
+    let commitment_pubkey = stream
+        .read::<RawBytes<Setup::CommitmentPubkey>>()
+        .map_err(|e| format!("Invalid commitment_pubkey: {e}"))?;
+    //println!("remain_len {}", stream.remain_len());
+    stream.finalize();
+
+    if stream.bytes_left() != 0 {
+        return Err("Invalid message".to_string());
+    }
+
+    if settings.gen_id != gen_id {
+        return Err("Invalid gen_id".to_string());
+    }
+
+    if msg_type != 3 {
+        return Err("Invalid msg_type".to_string());
+    }
+
+    let initial_commitment = dkg::InitialCommitment::<Setup> {
+        settings: settings,
+        base_pubkeys: base_pubkeys,
+        hash: sender_commitment_hash.clone(),
+    };
+
+    Ok(dkg::SharedData::<Setup> {
+        verification_hashes: commitment_hashes,
+        initial_commitment: initial_commitment,
+        seeds_exchange_commitment: dkg::SeedExchangeCommitment {
+            initial_commitment_hash: sender_commitment_hash,
+            shared_secret: dkg::ExchangedSecret {
+                secret: secret,
+                dst_base_hash: receiver_commitment_hash,
+            },
+            commitment: dkg::Commitment {
+                pubkey: commitment_pubkey,
             },
         },
     })
