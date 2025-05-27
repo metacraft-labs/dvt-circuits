@@ -26,6 +26,7 @@ impl std::error::Error for VerificationErrors {
     }
 }
 
+#[cfg(feature = "auth_commitment")]
 pub fn compute_seed_exchange_hash<Setup>(seed_exchange: &SeedExchangeCommitment<Setup>) -> SHA256Raw
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
@@ -72,20 +73,22 @@ pub fn verify_seed_exchange_commitment<Setup>(
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
-    let commitment = &seed_exchange.commitment;
+    #[cfg(feature = "auth_commitment")]
+    {
+        let commitment = &seed_exchange.commitment;
 
-    let shared_secret = &seed_exchange.shared_secret;
-
-    if !verify_commitment(&seed_exchange.commitment) {
-        return Err(Box::new(VerificationErrors::UnslashableError(format!(
-            "Invalid field seeds_exchange_commitment.commitment.signature {},
-            message: {}
-            pubkey: {},
-            \n",
-            commitment.signature, commitment.hash, commitment.pubkey
-        ))));
+        if !verify_commitment(&seed_exchange.commitment) {
+            return Err(Box::new(VerificationErrors::UnslashableError(format!(
+                "Invalid field seeds_exchange_commitment.commitment.signature {},
+                message: {}
+                pubkey: {},
+                \n",
+                commitment.signature, commitment.hash, commitment.pubkey
+            ))));
+        }
     }
 
+    let shared_secret = &seed_exchange.shared_secret;
     let sk = match Setup::DkgSecretKey::from_bytes(&shared_secret.secret) {
         Ok(sk) => sk,
         Err(e) => {
@@ -95,16 +98,19 @@ where
         }
     };
 
-    let computed_commitment_hash = compute_seed_exchange_hash::<Setup>(seed_exchange);
+    #[cfg(feature = "auth_commitment")]
+    {
+        let computed_commitment_hash = compute_seed_exchange_hash::<Setup>(seed_exchange);
 
-    if computed_commitment_hash.to_vec() != seed_exchange.commitment.hash.as_ref() {
-        return Err(Box::new(VerificationErrors::SlashableError(
-            format!(
-                "Invalid field seeds_exchange_commitment.commitment.hash. Expected: {:?}, got hash: {:?}\n",
-                seed_exchange.commitment.hash,
-                hex::encode(computed_commitment_hash.to_vec())
-            ),
-        )));
+        if computed_commitment_hash.to_vec() != seed_exchange.commitment.hash.as_ref() {
+            return Err(Box::new(VerificationErrors::SlashableError(
+                format!(
+                    "Invalid field seeds_exchange_commitment.commitment.hash. Expected: {:?}, got hash: {:?}\n",
+                    seed_exchange.commitment.hash,
+                    hex::encode(computed_commitment_hash.to_vec())
+                ),
+            )));
+        }
     }
 
     let dest_id = match get_index_in_commitments(
@@ -324,6 +330,7 @@ where
     Ok(())
 }
 
+#[cfg(feature = "auth_commitment")]
 pub fn compute_partial_share_hash<Setup>(
     settings: &GenerateSettings,
     partial_share: &BadPartialShare<Setup>,
@@ -354,6 +361,7 @@ where
     hasher.finalize().to_vec()
 }
 
+#[cfg(feature = "auth_commitment")]
 pub fn verify_commitment<Setup>(commitment: &Commitment<Setup>) -> bool
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
@@ -417,7 +425,10 @@ pub fn prove_wrong_final_key_generation<Setup>(
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
-    verify_commitment_signature(data)?;
+    #[cfg(feature = "auth_commitment")]
+    {
+        verify_commitment_signature(data)?;
+    }
     verify_generation_base_hashes(data)?;
 
     let mut sorted_generation = data.generations.to_vec();
@@ -454,6 +465,7 @@ where
     Ok(())
 }
 
+#[cfg(feature = "auth_commitment")]
 fn verify_commitment_signature<Setup>(
     data: &BadPartialShareData<Setup>,
 ) -> Result<(), Box<dyn std::error::Error>>

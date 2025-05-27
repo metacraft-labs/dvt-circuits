@@ -68,10 +68,12 @@ pub struct Commitment<Setup>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
+    #[cfg(feature = "auth_commitment")]
     #[serde(rename = "hash")]
     pub hash: SHA256Raw,
     #[serde(rename = "pubkey")]
     pub pubkey: RawBytes<Setup::CommitmentPubkey>,
+    #[cfg(feature = "auth_commitment")]
     #[serde(rename = "signature")]
     pub signature: RawBytes<Setup::CommitmentSignature>,
 }

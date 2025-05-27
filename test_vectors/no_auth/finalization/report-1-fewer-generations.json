@@ -1,0 +1,38 @@
+{
+  "params": {
+    "cmd_extra_args": "execute --type=finalization --json-schema-file=spec/json/finalization_spec.json",
+    "expected_exit_code": 1
+  },
+  "scenario": {
+    "settings": {
+      "gen_id": "8d17e61db7b774d16cb165662a8c2c4a",
+      "n": 3,
+      "k": 2
+    },
+    "generations": [
+      {
+        "base_pubkeys": [
+          "a080bc2369ca8df0f318a185944782d9ed5cefd97a0dd757d86f654ecd976f14a39399d73ab15d95b08351ba52b4e963",
+          "b9af73aaa6818a07968dc1507acdcb416ff8ce392d3ba855f0934b02f2171bf3345a1695ab11f84d2dd0df087b18a42d"
+        ],
+        "base_hash": "22d9ef5b03b07ef43a39044f0aba3dd584450fe9296c13d83d7120691c856c1e",
+        "partial_pubkey": "a39ed53c850eecf70edaa9037057fe6e3a09909a16690e83c958bd2cc92b92a794c6bd0ac42b9a1c5e43169d71dd6e99",
+        "message_cleartext": "Sign with new partial key",
+        "message_signature": "87fa83e052f07b9edab5cbcd5f8ad87e00f89fa3382892fad4c32a057df5d7c7240f4994c3bab4b4aed0e33cbd35f9ce120d3db98ff83040fcf9f088333569074a0a72c3214c75cfb636f85c451cfa0656790d276731d98dfdd5cb1e623949d1"
+      },
+      {
+        "base_pubkeys": [
+          "a573e141f11fb1789370dba5b68c761f914c3f1e65a2a9b8f0815696629b37f21e0568a2f4015d24b9cc2ca772faa62c",
+          "85e07ff2f989f1a7063a4556bc2e280c8de674846e870c7964552602931d101aaad433dec217ce405dc1c2db4e3e7151"
+        ],
+        "base_hash": "84a3b2e337955364dfdc606af3a5bf4dd11b2749aae02f2be79b4bbdc0bac530",
+        "partial_pubkey": "8cc3a8f33d252ba45e2fb8e977259ce04645597ba50d37664bb8246374ca355c14553e52694a646502582eee1a45d539",
+        "message_cleartext": "Sign with new partial key",
+        "message_signature": "b6696a6a6720a5cfde1996ccc511a0b04004447a72ef0cd26b6d717dce4eb3aff9d087b76e3e62490a79c9871b079673135ce7899db69c20b988e75267b35517dad41e10dca9bf8dcdca8a2c9bf5219980672b64faee2b9cd8f35e9ad0dca9d8"
+      }
+    ],
+    "aggregate_pubkey": "81fb122614e1a7d75b7cb5c8db1098db157f919961a0a86cbc556999fffe65d8aee7a75899837113f7b7be1d988fd15f",
+    "message_cleartext": "Sign with new partial key",
+    "message_signature": "a0216fdcfe0b021d3391bd5cb1712754b66f021858fc93fd5f6e599d8cfb98d71efba80299dc438c9d71aacec74b1bef1411dce60ad049321fac0fd8128e138ad0112d59e8ca516e46e3a6a77276e4bab89710a21cae668eb7f850bc3bbf8033"
+  }
+}

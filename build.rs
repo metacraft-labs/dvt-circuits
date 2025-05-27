@@ -53,8 +53,22 @@ pub use git_info_contents::*;
 
     fs::write(dest_path, git_info_content).expect("Failed to write git_info.rs");
 
-    sp1_build::build_program("crates/bad_share_exchange_prove");
-    sp1_build::build_program("crates/finalization_prove");
-    sp1_build::build_program("crates/bad_parial_key_prove");
-    sp1_build::build_program("crates/bad_encrypted_share_prove");
+    #[cfg(feature = "auth_commitment")]
+    {
+        let args = sp1_build::BuildArgs {
+            features: vec!["auth_commitment".to_string()],
+            ..Default::default()
+        };
+        sp1_build::build_program_with_args("crates/bad_share_exchange_prove", args.clone());
+        sp1_build::build_program_with_args("crates/finalization_prove", args.clone());
+        sp1_build::build_program_with_args("crates/bad_parial_key_prove", args.clone());
+        sp1_build::build_program_with_args("crates/bad_encrypted_share_prove", args);
+    }
+    #[cfg(not(feature = "auth_commitment"))]
+    {
+        sp1_build::build_program("crates/bad_share_exchange_prove");
+        sp1_build::build_program("crates/finalization_prove");
+        sp1_build::build_program("crates/bad_parial_key_prove");
+        sp1_build::build_program("crates/bad_encrypted_share_prove");
+    }
 }

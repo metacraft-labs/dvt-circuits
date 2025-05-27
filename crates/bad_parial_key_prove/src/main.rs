@@ -29,7 +29,7 @@ where
                 match verification_error {
                     VerificationErrors::SlashableError(e) => {
                         for h in data.generations.iter() {
-                            println!("Verification hash: {}", h.base_hash.to_hex());
+                            println!("Verification hash: {}, {}", h.base_hash.to_hex(), e);
                             sp1_zkvm::io::commit(h.base_hash.as_ref());
                         }
 

@@ -7,9 +7,6 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Configuration
-TEST_DIR="$REPO_ROOT/test_vectors"   # The directory where your .json test files are located
-
 GREEN="\e[32m"
 RED="\e[31m"
 YELLOW="\e[33m"
@@ -102,52 +99,68 @@ run_tests_in_dir() {
     fi
 }
 
-cargo  build --release
-exit_code=$?
-if [ $exit_code -ne 0 ]; then
-    echo -e "${RED}Error: Cargo build failed.${RESET}"
-    exit 1
-fi
+total_pass_count=0
+total_fail_count=0
+total_disabled_count=0
+total_skip_count=0
 
-# Header
-echo -e "${BOLD}${BLUE}========================================"
-echo -e "       Running Test Suites"
-echo -e "========================================${RESET}"
+run_test_suites() {
+    local TEST_DIR=$1
+    local FEATURES=$2
 
-if [[ ! -d "$TEST_DIR" ]]; then
-    echo -e "${RED}Error: Test directory '$TEST_DIR' not found.${RESET}"
-    exit 1
-fi
-
-for SUITE in "$TEST_DIR"/*/; do
-    if [[ -d "$SUITE" ]]; then
-        run_tests_in_dir "$SUITE"
-
-        if [ $execution_count -gt 0 ]; then
-            echo -e "${BOLD}${BLUE}----------------------------------------${RESET}"
-            echo -e "${BOLD} $SUITE Summary:${RESET}"
-            echo -e "  ${GREEN}Passed: $pass_count${RESET}"
-            echo -e "  ${RED}Failed: $fail_count${RESET}"
-            if [ $disabled_count -gt 0 ]; then
-                echo -e "  ${BLUE}Disabled: $disabled_count${RESET}"
-            fi
-            if [ $skip_count -gt 0 ]; then
-                echo -e "  ${YELLOW}Skipped: $skip_count${RESET}"
-            fi
-            echo -e "${BOLD}${BLUE}----------------------------------------${RESET}"
-        fi
-
-        total_pass_count=$((total_pass_count + pass_count))
-        total_fail_count=$((total_fail_count + fail_count))
-        total_disabled_count=$((total_disabled_count + disabled_count))
-        total_skip_count=$((total_skip_count + skip_count))
-        pass_count=0
-        fail_count=0
-        disabled_count=0
-        skip_count=0
-        execution_count=0
+    cargo clean --release
+    cargo build --release $FEATURES
+    local exit_code=$?
+    if [ $exit_code -ne 0 ]; then
+        echo -e "${RED}Error: Cargo build failed.${RESET}"
+        exit 1
     fi
-done
+
+    # Header
+    echo -e "${BOLD}${BLUE}========================================"
+    echo -e "       Running Test Suites"
+    echo -e "========================================${RESET}"
+
+    if [[ ! -d "$TEST_DIR" ]]; then
+        echo -e "${RED}Error: Test directory '$TEST_DIR' not found.${RESET}"
+        exit 1
+    fi
+
+
+    for SUITE in "$TEST_DIR"/*/; do
+        if [[ -d "$SUITE" ]]; then
+            run_tests_in_dir "$SUITE"
+
+            if [ $execution_count -gt 0 ]; then
+                echo -e "${BOLD}${BLUE}----------------------------------------${RESET}"
+                echo -e "${BOLD} $SUITE Summary:${RESET}"
+                echo -e "  ${GREEN}Passed: $pass_count${RESET}"
+                echo -e "  ${RED}Failed: $fail_count${RESET}"
+                if [ $disabled_count -gt 0 ]; then
+                    echo -e "  ${BLUE}Disabled: $disabled_count${RESET}"
+                fi
+                if [ $skip_count -gt 0 ]; then
+                    echo -e "  ${YELLOW}Skipped: $skip_count${RESET}"
+                fi
+                echo -e "${BOLD}${BLUE}----------------------------------------${RESET}"
+            fi
+
+            total_pass_count=$((total_pass_count + pass_count))
+            total_fail_count=$((total_fail_count + fail_count))
+            total_disabled_count=$((total_disabled_count + disabled_count))
+            total_skip_count=$((total_skip_count + skip_count))
+            pass_count=0
+            fail_count=0
+            disabled_count=0
+            skip_count=0
+            execution_count=0
+        fi
+    done
+}
+
+run_test_suites "$REPO_ROOT/test_vectors/auth" "--features auth_commitment"
+
+run_test_suites "$REPO_ROOT/test_vectors/no_auth" ""
 
 echo -e "${BOLD}${BLUE}----------------------------------------${RESET}"
 echo -e "${BOLD}Test Summary:${RESET}"
