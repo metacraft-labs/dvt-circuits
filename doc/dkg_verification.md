@@ -11,8 +11,8 @@ This specification provides a framework for zero-knowledge (ZK) verification cir
 DKG enables a set of \(n\) participants to collaboratively generate a shared public key without any single party knowing the corresponding private key. This is achieved through:
 
 - **Shamir's Secret Sharing [1]**: Distributes a secret among participants such that any subset of \(t+1\) can reconstruct it, but no subset of \(t\) or fewer can.
-- **Verifiable Secret Sharing (VSS)**: Enhances Shamir's scheme by allowing participants to verify the correctness of their received shares.
-- **Zero-Knowledge Proofs (ZKPs) [2]**: Allow participants to prove the validity of their actions without revealing any secret information, ensuring that deviations can be detected without compromising the underlying secrets.
+- **Verifiable Secret Sharing (VSS) [2]**: Enhances Shamir's scheme by allowing participants to verify the correctness of their received shares.
+- **Zero-Knowledge Proofs (ZKPs) [3]**: Allow participants to prove the validity of their actions without revealing any secret information, ensuring that deviations can be detected without compromising the underlying secrets.
 
 The protocol outputs:
   - Each participant will reconstruct a partial secret \(S_i\) such that the shared secret \(SS\) can be derived by evaluating the Lagrange interpolation[5] of these partial secrets at \(x=0\), where the partial secrets correspond to points \((1, S_1), (2, S_2), \dots, (n, S_n)\) on a polynomial \(F(x)\) of degree at most \(t\).
@@ -129,7 +129,7 @@ Upon receiving \(s_{i,j}\) and \(\text{V}_i\) from \(P_i\), participant \(P_j\) 
 
 If a participant submits a share that cannot be verified or if there is insufficient evidence to validate its correctness, and malicious intent is suspected, then participant \(P_j\) should initiate a **challenge** against \(P_i\) on the public board.
 
-The challenge must include an expiration timestamp. The response to the challenge must be **encrypted using a deterministic ECDH scheme[5]** based on the sender’s published verification vector.
+The challenge must include an expiration timestamp. The response to the challenge must be **encrypted using a deterministic ECDH scheme[6]** based on the sender’s published verification vector.
 
 Specifically:
 
@@ -245,9 +245,9 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
        \[
        K_{i,j} = \text{ECDH}(\text{PrivKey}_{i}^{\text{last}}, \text{PubKey}_{j}^{\text{last}})
        \]
-    - The result is passed through a key derivation function (e.g., HKDF) to produce a symmetric key \(K_{\text{enc}}\) for encryption with a cipher like ChaCha20-Poly1305[6].
+    - The result is passed through a key derivation function (e.g., HKDF) to produce a symmetric key \(K_{\text{enc}}\) for encryption with a cipher like ChaCha20-Poly1305[7].
 
-    - This shared secret is used to derive a symmetric encryption key (e.g., via HKDF), which is then used with a cipher like ChaCha20[6] to encrypt:
+    - This shared secret is used to derive a symmetric encryption key (e.g., via HKDF), which is then used with a cipher like ChaCha20[7] to encrypt:
        - The generation id
        - The share \(s_{i,j}\)
        - The  \(\text{HASH}(n, t, \text{generation\_id}, \mathbf{V}_i)\)
@@ -299,7 +299,7 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
   3. **Message Signature Validation**:  
      Prove that each signature over message \(M\) was generated using the corresponding partial secret key.
 
-  4. **Final Key Reconstruction via Lagrange Interpolation[4]**:
+  4. **Final Key Reconstruction via Lagrange Interpolation[5]**:
      Use Lagrange interpolation \(L\) to reconstruct the final public key:
      \[
      L(PK_0, \dots, PK_n) = \text{PK}(SS) = \text{P}(0)
@@ -326,23 +326,32 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
   A method to divide a secret into multiple parts, requiring a minimum number of parts to reconstruct the original secret.
   [Shamir's Secret Sharing - Wikipedia](https://en.wikipedia.org/wiki/Shamir%27s_secret_sharing)
 
+2. **Verifiable Secret Sharing (VSS)**
+  An extension of Shamir’s Secret Sharing that enables participants to verify the validity of their shares.
+  [Verifiable Secret Sharing - Wikipedia](https://en.wikipedia.org/wiki/Verifiable_secret_sharing)
 
-2. **Zero-Knowledge Proofs (ZKPs)**
+3. **Zero-Knowledge Proofs (ZKPs)**
   Cryptographic methods enabling proof of validity without revealing underlying information.
   [Zero-Knowledge Proof (ZKP) — Chainlink](https://chain.link/education/zero-knowledge-proof-zkp)
 
-3. **Distributed Key Generation Protocols**
+4. **Distributed Key Generation Protocols**
   Protocols allowing multiple participants to jointly generate a shared public/private key pair without exposing private keys.
   [Distributed Key Generation - Wikipedia](https://en.wikipedia.org/wiki/Distributed_key_generation)
 
-4. **Lagrange Interpolation**
+5. **Lagrange Interpolation**
   Mathematical method used in Shamir’s Secret Sharing to reconstruct secrets from polynomial interpolation.
   [Lagrange Polynomial - Wikipedia](https://en.wikipedia.org/wiki/Lagrange_polynomial)
 
-5. **Elliptic Curve Diffie–Hellman (ECDH)**
+6. **Elliptic Curve Diffie–Hellman (ECDH)**
   Key agreement protocol for securely deriving shared keys over an insecure channel.
   [Elliptic-Curve Diffie–Hellman - Wikipedia](https://en.wikipedia.org/wiki/Elliptic-curve_Diffie%E2%80%93Hellman)
 
 7. **ChaCha20-Poly1305**
   Authenticated encryption algorithm combining confidentiality and integrity protection.
   [ChaCha20-Poly1305 - Wikipedia](https://en.wikipedia.org/wiki/ChaCha20-Poly1305)
+
+8. **Open-Source DKG Implementations**
+  Community-maintained repositories showcasing practical DKG algorithms.
+  - [celo-org/bls-dkg](https://github.com/celo-org/bls-dkg)
+  - [axelarnetwork/tofn](https://github.com/axelarnetwork/tofn)
+  - [nucypher/nucypher](https://github.com/nucypher/nucypher)
