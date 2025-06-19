@@ -549,3 +549,119 @@ where
     let expected_key = evaluate_polynomial::<Setup::Curve>(&computed_keys, perpetrator_id);
     Setup::Point::from_bytes(&expected_key.to_bytes()).expect("Invalid pubkey")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::crypto::*;
+
+    #[test]
+    fn test_get_index_in_commitments() {
+        let mut hashes = vec![
+            SHA256Raw::from([1u8; 32]),
+            SHA256Raw::from([2u8; 32]),
+            SHA256Raw::from([0u8; 32]),
+        ];
+        let dst = SHA256Raw::from([2u8; 32]);
+        let index = get_index_in_commitments(&hashes, &dst).unwrap();
+        assert_eq!(index, 2);
+        hashes.sort();
+        assert_eq!(hashes[index as usize], dst);
+    }
+
+    #[test]
+    fn test_initial_commitment_hash_roundtrip() {
+        type Setup = BlsDkgWithSecp256kCommitment;
+
+        let settings = GenerateSettings {
+            n: 2,
+            k: 1,
+            gen_id: DkgGenId::from([1u8; 16]),
+        };
+
+        let pk = <Setup as DkgSetupTypes<Setup>>::Point::identity().to_bytes();
+        let base_pubkeys = vec![pk.clone(), pk];
+
+        let hash = compute_initial_commitment_hash::<Setup>(&settings, &base_pubkeys);
+        let commitment = InitialCommitment::<Setup> {
+            hash,
+            settings: settings.clone(),
+            base_pubkeys: base_pubkeys.clone(),
+        };
+
+        assert!(verify_initial_commitment_hash::<Setup>(&commitment));
+
+        let mut bad = commitment.clone();
+        bad.base_pubkeys[0].as_mut()[0] ^= 1;
+        assert!(!verify_initial_commitment_hash::<Setup>(&bad));
+    }
+
+    #[test]
+    fn test_get_index_in_commitments_not_found() {
+        let hashes = vec![
+            SHA256Raw::from([1u8; 32]),
+            SHA256Raw::from([2u8; 32]),
+            SHA256Raw::from([3u8; 32]),
+        ];
+        let dst = SHA256Raw::from([9u8; 32]);
+        assert!(get_index_in_commitments(&hashes, &dst).is_err());
+    }
+
+    fn dummy_generation(msg: &str) -> Generation<BlsDkgWithSecp256kCommitment> {
+        Generation {
+            verification_vector: vec![<BlsDkgWithSecp256kCommitment as DkgSetupTypes<
+                BlsDkgWithSecp256kCommitment,
+            >>::Point::identity()
+            .to_bytes()],
+            base_hash: SHA256Raw::from([0u8; 32]),
+            partial_pubkey: <BlsDkgWithSecp256kCommitment as DkgSetupTypes<
+                BlsDkgWithSecp256kCommitment,
+            >>::Point::identity()
+            .to_bytes(),
+            message_cleartext: msg.to_string(),
+            message_signature: BLSSignatureRaw([0u8; BLS_SIGNATURE_SIZE]),
+        }
+    }
+
+    #[test]
+    fn test_verify_generation_hashes_empty() {
+        type Setup = BlsDkgWithSecp256kCommitment;
+        let settings = GenerateSettings {
+            n: 1,
+            k: 1,
+            gen_id: DkgGenId::from([0u8; 16]),
+        };
+        assert!(verify_generation_hashes::<Setup>(&[], &settings).is_err());
+    }
+
+    #[test]
+    fn test_verify_generation_hashes_message_mismatch() {
+        type Setup = BlsDkgWithSecp256kCommitment;
+        let settings = GenerateSettings {
+            n: 2,
+            k: 1,
+            gen_id: DkgGenId::from([0u8; 16]),
+        };
+        let g1 = dummy_generation("hello");
+        let mut g2 = dummy_generation("hello");
+        g2.message_cleartext = "world".to_string();
+        let gens = vec![g1, g2];
+        assert!(verify_generation_hashes::<Setup>(&gens, &settings).is_err());
+    }
+
+    #[test]
+    fn test_verify_generations_wrong_n() {
+        type Setup = BlsDkgWithSecp256kCommitment;
+        let settings = GenerateSettings {
+            n: 2,
+            k: 1,
+            gen_id: DkgGenId::from([0u8; 16]),
+        };
+        let g = dummy_generation("hello");
+        let agg_key = <Setup as DkgSetupTypes<Setup>>::DkgPubkey::from_bytes(
+            &<Setup as DkgSetupTypes<Setup>>::Point::identity().to_bytes(),
+        )
+        .unwrap();
+        assert!(verify_generations::<Setup>(&[g], &settings, &agg_key).is_err());
+    }
+}
