@@ -1,3 +1,5 @@
+
+
 ## Install SP1
 
 ```
@@ -20,7 +22,13 @@ to run single test
 
 ## Build
 
-cargo build
+cargo build --release --features auth_commitment
+
+## Regenerate json and yaml spec
+
+```
+make gen-spec
+```
 
 ## Produce prove
 
