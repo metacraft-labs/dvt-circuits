@@ -1,4 +1,8 @@
+## Purpose
 
+This repository provides zero-knowledge circuits and tooling for a Distributed Key Generation (DKG) protocol. 
+
+**Warning**: The code has not been audited and should not be used in production systems.
 
 ## Install SP1
 
@@ -7,7 +11,6 @@ curl -L https://sp1.succinct.xyz | bash
 PATH="$PATH:~/.sp1/bin"
 sp1up
 ```
-
 
 ## Run test
 
