@@ -25,7 +25,7 @@ cargo build
 ./target/release/dkg_prover_host --input-file input_file.json --type share
 ```
 
-for more information 
+For more information:
 
 ```
 ./target/release/dkg_prover_host --help
