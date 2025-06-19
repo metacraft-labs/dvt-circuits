@@ -2,7 +2,7 @@
 
 sp1_zkvm::entrypoint!(main);
 
-use dkg::{BlsDkgWithBlsCommitment, ByteConvertible, DkgSetupTypes};
+use dkg::{AsByteArr, BlsDkgWithBlsCommitment, ByteConvertible, DkgSetupTypes};
 
 pub fn main() {
     let input: Vec<u8> = sp1_zkvm::io::read();
@@ -25,11 +25,9 @@ pub fn main() {
 
     for g in data.generations.iter() {
         println!("Verification hash: {}", g.base_hash);
-        sp1_zkvm::io::commit(g.base_hash.as_ref());
+        sp1_zkvm::io::commit(&g.base_hash);
     }
 
     println!("Aggregate pubkey: {}", data.aggregate_pubkey);
-    for byte in data.aggregate_pubkey.iter() {
-        sp1_zkvm::io::commit(byte);
-    }
+    sp1_zkvm::io::commit(&data.aggregate_pubkey);
 }

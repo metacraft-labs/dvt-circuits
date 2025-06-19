@@ -30,16 +30,14 @@ where
                     VerificationErrors::SlashableError(e) => {
                         for h in data.generations.iter() {
                             println!("Verification hash: {}, {}", h.base_hash.to_hex(), e);
-                            sp1_zkvm::io::commit(h.base_hash.as_ref());
+                            sp1_zkvm::io::commit(&h.base_hash);
                         }
 
                         println!(
                             "Perpetrator public key: {}",
                             data.bad_partial.commitment.pubkey.to_hex()
                         );
-                        for byte in data.bad_partial.commitment.pubkey.as_arr().iter() {
-                            sp1_zkvm::io::commit(&byte);
-                        }
+                        sp1_zkvm::io::commit(&data.bad_partial.commitment.pubkey);
                         return;
                     }
                     VerificationErrors::UnslashableError(e) => {

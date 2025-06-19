@@ -58,18 +58,15 @@ where
                         println!("Slashable error seed exchange commitment: {}", err);
 
                         for h in data.verification_hashes.iter() {
-                            println!("Verification hash: {}", h.to_hex());
-                            sp1_zkvm::io::commit(h.as_ref());
+                            println!("Verification hash: {}", h);
+                            sp1_zkvm::io::commit(&h);
                         }
 
                         println!(
                             "Perpetrator public key: {}",
-                            data.seeds_exchange_commitment.commitment.pubkey.to_hex()
+                            data.seeds_exchange_commitment.commitment.pubkey
                         );
-                        for byte in data.seeds_exchange_commitment.commitment.pubkey.as_arr() {
-                            sp1_zkvm::io::commit(&byte);
-                        }
-
+                        sp1_zkvm::io::commit(&data.seeds_exchange_commitment.commitment.pubkey);
                         return;
                     }
                     VerificationErrors::UnslashableError(err) => {
