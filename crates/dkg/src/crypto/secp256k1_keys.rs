@@ -182,3 +182,64 @@ impl CryptoKeys for Secp256k1Crypto {
         msg.to_vec()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::crypto::traits::ByteConvertible;
+    use crate::*;
+    #[test]
+    fn test_secp256k1_public_key_from_bytes_error() {
+        let invalid: SECP256K1PubkeyRaw = [0u8; SECP256K1_PUBKEY_SIZE].into();
+        assert!(Secp256k1PublicKey::from_bytes(&invalid).is_err());
+    }
+
+    #[test]
+    fn test_secp256k1_secret_key_from_bytes_error() {
+        let invalid: SECP256K1SecretRaw = [0u8; SECP256K1_SECRET_SIZE].into();
+        assert!(Secp256k1SecretKey::from_bytes(&invalid).is_err());
+    }
+
+    #[test]
+    fn test_verify_signature_invalid_message_len() {
+        let sk_bytes: [u8; 32] = [1u8; 32];
+        let sk = Secp256k1SecretKey::from_bytes(&crate::types::SECP256K1SecretRaw::from(sk_bytes))
+            .unwrap();
+        let pk = sk.to_public_key();
+
+        let secp = secp256k1::Secp256k1::new();
+        let msg = [2u8; 32];
+        let m = secp256k1::Message::from_digest_slice(&msg).unwrap();
+        let sig = secp.sign_ecdsa(&m, &sk.secret);
+        let sig = Secp256k1Signature { sig };
+
+        // message that's not 32 bytes should fail
+        let bad_msg = [1u8; 31];
+        assert!(!pk.verify_signature(&bad_msg, &sig));
+    }
+
+    #[test]
+    fn test_secp256k1_roundtrip_and_sign() {
+        let sk_bytes: [u8; 32] = [1u8; 32];
+        let raw_sk = crate::types::SECP256K1SecretRaw::from(sk_bytes);
+        let sk = Secp256k1SecretKey::from_bytes(&raw_sk).unwrap();
+        let pk = sk.to_public_key();
+
+        let raw_pk = pk.to_bytes();
+        let decoded_pk = Secp256k1PublicKey::from_bytes(&raw_pk).unwrap();
+        assert_eq!(decoded_pk.to_bytes(), raw_pk);
+
+        // sign a hashed message
+        let msg = [2u8; 32];
+        let secp = secp256k1::Secp256k1::new();
+        let m = secp256k1::Message::from_digest_slice(&msg).unwrap();
+        let sig = secp.sign_ecdsa(&m, &sk.secret);
+        let sig = Secp256k1Signature { sig };
+
+        assert!(pk.verify_signature(&msg, &sig));
+
+        // wrong message fails
+        let bad_msg = [3u8; 32];
+        assert!(!pk.verify_signature(&bad_msg, &sig));
+    }
+}
