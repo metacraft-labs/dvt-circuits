@@ -8,7 +8,7 @@ if [ $? -ne 0 ]; then
 fi
 
 
-cargo  build --release
+cargo  build --release --features auth_commitment
 exit_code=$?
 if [ $exit_code -ne 0 ]; then
     echo -e "${RED}Error: Cargo build failed.${RESET}"

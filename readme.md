@@ -1,8 +1,16 @@
+## Purpose
+
+This repository provides zero-knowledge circuits and tooling for a Distributed Key Generation (DKG) protocol. 
+
+**Warning**: The code has not been audited and should not be used in production systems.
+
 ## Install SP1
+
+```
 curl -L https://sp1.succinct.xyz | bash
 PATH="$PATH:~/.sp1/bin"
 sp1up
-
+```
 
 ## Run test
 
@@ -17,7 +25,13 @@ to run single test
 
 ## Build
 
-cargo build
+cargo build --release --features auth_commitment
+
+## Regenerate json and yaml spec
+
+```
+make gen-spec
+```
 
 ## Produce prove
 
@@ -25,7 +39,7 @@ cargo build
 ./target/release/dkg_prover_host --input-file input_file.json --type share
 ```
 
-for more information 
+For more information:
 
 ```
 ./target/release/dkg_prover_host --help

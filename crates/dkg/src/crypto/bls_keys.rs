@@ -223,6 +223,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_bls_public_key_from_bytes_error() {
+        let invalid: BLSPubkeyRaw = [0u8; BLS_PUBKEY_SIZE].into();
+        assert!(BlsPublicKey::from_bytes(&invalid).is_err());
+    }
+
+    #[test]
+    fn test_bls_secret_key_from_bytes_error() {
+        let invalid: BLSSecretRaw = [0xffu8; BLS_SECRET_SIZE].into();
+        assert!(BlsSecretKey::from_bytes(&invalid).is_err());
+    }
+
+    #[test]
+    fn test_bls_signature_from_bytes_error() {
+        let invalid: BLSSignatureRaw = [0u8; BLS_SIGNATURE_SIZE].into();
+        assert!(BlsSignature::from_bytes(&invalid).is_err());
+    }
+
+    #[test]
     fn test_bls_id_from_u32() {
         let mut bytes: [u8; 32] = [
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

@@ -114,3 +114,69 @@ pub fn to_g1_affine(pubkey: &BLSPubkeyRaw) -> G1Affine {
 pub fn to_g1_projection(pubkey: &BLSPubkeyRaw) -> G1Projective {
     G1Projective::from(to_g1_affine(pubkey))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hash_message_to_g2_deterministic() {
+        let msg = b"hello";
+        let p1 = G2Affine::from(hash_message_to_g2(msg));
+        let p2 = G2Affine::from(hash_message_to_g2(msg));
+        assert_eq!(p1, p2);
+
+        let p3 = G2Affine::from(hash_message_to_g2(b"world"));
+        assert_ne!(p1, p3);
+    }
+
+    #[test]
+    fn test_bls_verify_precomputed_hash() {
+        // Sample values taken from other tests
+        let data = hex::decode("2f901d5cec8722e44afd59e94d0a56bf1506a72a0a60709920aad714d1a2ece0")
+            .unwrap();
+        let pk: BLSPubkeyRaw = hex::decode(
+            "90346f9c5f3c09d96ea02acd0220daa8459f03866ed938c798e3716e42c7e033c9a7ef66a10f83af06d5c00b508c6d0f",
+        )
+        .unwrap()
+        .try_into()
+        .unwrap();
+        let sig: BLSSignatureRaw = hex::decode("a9c08eff13742f78f1e5929888f223b5b5b12b4836b5417c5a135cf24f4e2a4c66a6cdef91be3098b7e7a6a63903b61302e3cf2b8653101da245cf01a8d82b25debe7b18a3a2eb1778f8628fd2c59c8687f6e048a31250fbc2804c20043b8443")
+            .unwrap()
+            .try_into()
+            .unwrap();
+
+        let pk = G1Affine::from_compressed(&pk).into_option().unwrap();
+        let sig = G2Affine::from_compressed(&sig).into_option().unwrap();
+        let hashed = G2Affine::from(hash_message_to_g2(&data));
+
+        assert!(bls_verify_precomputed_hash(&pk, &sig, &hashed));
+
+        // wrong signature should fail
+        let mut wrong_sig = sig;
+        wrong_sig = G2Affine::from(hash_message_to_g2(b"bad"));
+        assert!(!bls_verify_precomputed_hash(&pk, &wrong_sig, &hashed));
+    }
+
+    #[test]
+    fn test_to_g1_affine_slow_errors() {
+        let invalid: BLSPubkeyRaw = [0u8; BLS_PUBKEY_SIZE].into();
+        assert!(to_g1_affine_slow(&invalid).is_err());
+
+        let valid_bytes: BLSPubkeyRaw = hex::decode(
+            "90346f9c5f3c09d96ea02acd0220daa8459f03866ed938c798e3716e42c7e033c9a7ef66a10f83af06d5c00b508c6d0f",
+        )
+        .unwrap()
+        .try_into()
+        .unwrap();
+        let slow = to_g1_affine_slow(&valid_bytes).unwrap();
+        let fast = to_g1_affine(&valid_bytes);
+        assert_eq!(slow, fast);
+    }
+
+    #[test]
+    fn test_to_g2_affine_slow_errors() {
+        let invalid: BLSSignatureRaw = [0u8; BLS_SIGNATURE_SIZE].into();
+        assert!(to_g2_affine_slow(&invalid).is_err());
+    }
+}

@@ -10,12 +10,12 @@ This specification provides a framework for zero-knowledge (ZK) verification cir
 
 DKG enables a set of \(n\) participants to collaboratively generate a shared public key without any single party knowing the corresponding private key. This is achieved through:
 
-- **Shamir's Secret Sharing**: Distributes a secret among participants such that any subset of \(t+1\) can reconstruct it, but no subset of \(t\) or fewer can.
+- **Shamir's Secret Sharing [1]**: Distributes a secret among participants such that any subset of \(t+1\) can reconstruct it, but no subset of \(t\) or fewer can.
 - **Verifiable Secret Sharing (VSS)**: Enhances Shamir's scheme by allowing participants to verify the correctness of their received shares.
-- **Zero-Knowledge Proofs (ZKPs)**: Allow participants to prove the validity of their actions without revealing any secret information, ensuring that deviations can be detected without compromising the underlying secrets.
+- **Zero-Knowledge Proofs (ZKPs) [2]**: Allow participants to prove the validity of their actions without revealing any secret information, ensuring that deviations can be detected without compromising the underlying secrets.
 
 The protocol outputs:
-  - Each participant will reconstruct a partial secret \(S_i\) such that the shared secret \(SS\) can be derived by evaluating the Lagrange interpolation of these partial secrets at \(x=0\), where the partial secrets correspond to points \((1, S_1), (2, S_2), \dots, (n, S_n)\) on a polynomial \(F(x)\) of degree at most \(t\).
+  - Each participant will reconstruct a partial secret \(S_i\) such that the shared secret \(SS\) can be derived by evaluating the Lagrange interpolation[5] of these partial secrets at \(x=0\), where the partial secrets correspond to points \((1, S_1), (2, S_2), \dots, (n, S_n)\) on a polynomial \(F(x)\) of degree at most \(t\).
   - \(SS\) is the shared secret between the participants.
 
 The protocol ensures that:
@@ -29,7 +29,7 @@ The protocol ensures that:
    The setup includes:
    - **`n`**: Total number of participants
    - **`t`**: Threshold number of participants required to reconstruct the secret
-   - **`sessionId`**: A unique identifier for this specific key generation session
+   - **`generationId`**: A unique identifier for this specific key generation session
 
 2. **Polynomial Generation (Secret Sharing Phase):**
    Each participant independently generates a random polynomial of degree \(t\), as per Shamir's Secret Sharing.
@@ -39,7 +39,7 @@ The protocol ensures that:
    These commitments are published to the public board to enable verifiable consistency checks.
 
 4. **Share Distribution:**
-   Participants privately send encrypted shares (i.e., evaluations of their polynomial), along with any additional data required to prove correctness — such as the verification vector — to each of the other participants. The verification vector helps recipients verify the validity of the share without needing to know the sender's secret polynomial. A dispute mechanism is often included to handle missing or invalid shares via public challenges. (shares can be posted publicly in encrypted)
+   Participants privately send encrypted shares (i.e., evaluations of their polynomial), along with any additional data required to prove correctness — such as the verification vector — to each of the other participants. The verification vector helps recipients verify the validity of the share without needing to know the sender's secret polynomial. A dispute mechanism is included to handle missing or invalid shares via public challenges (shares can be posted publicly in encrypted).
 
 5. **Verification and Acknowledgment:**
    Upon receiving shares from others, each participant:
@@ -47,21 +47,21 @@ The protocol ensures that:
    - If a share is invalid or inconsistent:
      - Constructs and publishes a proof of misbehavior (e.g., using cryptographic evidence) on the public board.
    - If misbehavior cannot be proven or if a participant refuses to participate:
-     - Posts a challenge on the public board to trigger the dispute resolution mechanism.
+     - Posts a challenge on the public board to trigger a dispute-resolution mechanism that ensures the protocol's progress.
 
 6. **Partial Key Generation:**
    Each participant computes their partial secret key by summing the valid shares they received from all other participants.
 
 7. **Finalization and Proof Construction:**
    Once enough valid shares and acknowledgments have been collected, any participant can construct a publicly verifiable proof that:
-   - All distributed shares are consistent with the published commitments
-   - The collective secret can be reconstructed from the valid shares
+   - All distributed shares are consistent with the published commitments.
+   - The collective secret can be reconstructed from the valid shares.
 
    If a participant misbehaves — for example, by submitting an invalid proof (e.g., a signature that doesn't correspond to their expected public key):
-   - A proof of misbehavior can be constructed and published
+   - A proof of misbehavior can be constructed and published.
 
    If a participant refuses to cooperate (e.g., by failing to submit their signature):
-   - A challenge can be posted on the public board to trigger the dispute resolution mechanism
+   - A challenge can be posted on the public board to trigger the dispute resolution mechanism.
 
    This ensures the key was generated honestly and can be used securely in threshold cryptographic schemes.
 
@@ -69,22 +69,22 @@ The protocol ensures that:
 
 Participants agree on:
 
-- Threshold \(t\), total number of participants \(n\), message \(M\)
-- A unique \(\text{generation\_id}\)
+- Threshold \(t\), total number of participants \(n\), message \(M\).
+- A unique \(\text{generation\_id}\).
 - Authentication key \(\text{AuthKey}_i\) and corresponding public key \(\text{AuthPK}_i\) for each participant \(P_i\). We assume these are ECDSA or similar public/private key pairs.
-- A homomorphic function \(\text{PK}(x)\), satisfying \(\text{PK}(x + y) = \text{PK}(x) + \text{PK}(y)\). For example, \(\text{PK}(x) = g \cdot x\) in BLS12-381. This homomorphic property is crucial for verifying the correctness of combined shares without revealing the individual shares.
+- A homomorphic function \(\text{PK}(x)\), satisfying \(\text{PK}(x + y) = \text{PK}(x) + \text{PK}(y)\). For example, \(\text{PK}(x) = g \cdot x\) in BLS12-381. Being homomorphic is crucial is crucial for verifying the correctness of combined shares without revealing the individual shares.
 
 ### 2.2 Commitment Phase
 
-Each participant \(P_i\) samples a random polynomial:
+Each participant \(P_i\) creates a random polynomial:
 \[f_i(x) = a_{i,0} + a_{i,1}x + \dots + a_{i,t}x^t\]
 
 Where:
 
-- \(a_{i,j} \in \mathbb{F}_q\): Random coefficients
-- \(f_i(x)\): Secret polynomial of \(P_i\)
+- \(a_{i,j} \in \mathbb{F}_q\): Random coefficients.
+- \(f_i(x)\): Secret polynomial of \(P_i\).
 
-The secret sub share of participant \(P_j\) is \(s_{i,j} = f_i(j)\).
+The secret partial share of participant \(P_j\) is \(s_{i,j} = f_i(j)\).
 
 We define a verification vector \(\text{V}_i\) as:
 \[(\text{PK}(a_{i,0}), \dots, \text{PK}(a_{i,t}))\]
@@ -99,7 +99,7 @@ Published to a public board and signed with \(\text{AuthKey}_i\).
 Each \(P_i\) computes:
 \[s_{i,j} = f_i(j)\]
 
-Sends to \(P_j\) along with \(\text{V}_i\), all signed with \(\text{AuthKey}_i\). The verification vector \(\text{V}_i\) allows \(P_j\) to verify that the received share \(s_{i,j}\) is consistent with the polynomial committed to by \(P_i\) (\(P_i\) can take the \(C_i\) from the public board).
+Sends to \(P_j\) along with \(\text{V}_i\), all signed with \(\text{AuthKey}_i\). The verification vector \(\text{V}_i\) allows \(P_j\) to verify that the received share \(s_{i,j}\) is consistent with the polynomial committed to by \(P_i\) (\(P_j\) can take the \(C_i\) from the public board).
 
 ### 2.4 Share Verification
 
@@ -112,7 +112,7 @@ Upon receiving \(s_{i,j}\) and \(\text{V}_i\) from \(P_i\), participant \(P_j\) 
   If the hash does not match and the discrepancy cannot be cryptographically proven (e.g., a ZKP showing a collision in the hash function, which is highly unlikely), initiate the fallback challenge mechanism.
 
 - **Signature Authentication**:
-  Verify the authenticity of \(C_i\) using the public authentication key \(\text{AuthPK}_i\). If the signature is invalid and no cryptographic proof of misbehavior is provided (e.g., a ZKP showing a flaw in the signature scheme), fall back to the challenge protocol.
+  Verify the authenticity of \(C_i\) using the public authentication key \(\text{AuthPK}_i\). If the signature is invalid and no cryptographic proof of misbehavior is provided (e.g., a ZKP showing a flaw in the signature scheme), fall back to the challenge protocol (use Circuit 3 to prove misbehavior).
 
 - **Polynomial Evaluation**:
 
@@ -125,11 +125,11 @@ Upon receiving \(s_{i,j}\) and \(\text{V}_i\) from \(P_i\), participant \(P_j\) 
   \[
   \text{PK}(s_{i,j}) \stackrel{?}{=} p_i(j)
   \]
-  A mismatch here provides verifiable evidence of an invalid share because the homomorphic property of \(\text{PK}\) allows checking the evaluation without knowing the secret coefficients \(a_{i,k}\).
+  A mismatch here provides verifiable evidence of an invalid share because the homomorphic property of \(\text{PK}\) allows checking the evaluation without knowing the secret coefficients \(a_{i,k}\) (Circuit 1).
 
 If a participant submits a share that cannot be verified or if there is insufficient evidence to validate its correctness, and malicious intent is suspected, then participant \(P_j\) should initiate a **challenge** against \(P_i\) on the public board.
 
-The challenge must include an expiration timestamp. The response to the challenge must be **encrypted using a deterministic ECDH scheme** based on the sender’s published verification vector.
+The challenge must include an expiration timestamp. The response to the challenge must be **encrypted using a deterministic ECDH scheme[5]** based on the sender’s published verification vector.
 
 Specifically:
 
@@ -157,15 +157,15 @@ where \(s_{j,i}\) is the share sent from \(P_j\) to \(P_i\).
 
 ### 2.6 Finalization
 
-During the final round, each participant \(P_i\) broadcasts a signature over a message \(SM_i\), which could be a hash of all the received valid partial secret keys or a predefined constant agreed upon by the participants, to all other participants.
+During the final round, each participant \(P_i\) broadcasts a signature over a message \(SM_i\) (predefined constant agreed upon by the participants) to all other participants.
 
 Given that each participant possesses the verification vectors of all others, they can independently verify that each \(SM_i\) is signed using the correct partial secret key associated with \(P_i\). Specifically, they can reconstruct the partial public key \(PK_i\) corresponding to \(S_i\) by evaluating the sum of the verification vectors at \(x=i\):
 \[PK_i = \sum_{k=1}^{n} p_k(i) = \sum_{k=1}^{n} \sum_{j=0}^t \text{PK}(a_{k,j}) \cdot i^j\]
 and then verify the signature using \(PK_i\).
 
-If an invalid signature is detected, it constitutes cryptographic proof of misbehavior. However, if a participant withholds participation or provides malformed data that cannot be conclusively proven malicious, a fallback challenge mechanism is triggered. At this stage, since the partial public keys are derived from public commitments, the challenge and response might occur without encryption, focusing on proving the validity of the derived public key or the signature.
+If an invalid signature is detected, it constitutes cryptographic proof of misbehavior (Circuit 2). However, if a participant withholds participation or provides malformed data that cannot be conclusively proven malicious, a fallback challenge mechanism is triggered. At this stage, since the partial public keys are derived from public commitments, the challenge and response might occur without encryption, focusing on proving the validity of the derived public key or the signature.
 
-Once all valid signatures are collected, any participant (or a subset thereof) can construct a final proof that the secret sharing protocol has completed successfully, and that the reconstructed shared secret is \(SS\). This proof is published to the public board, finalizing the protocol execution.
+Once all valid signatures are collected, any participant (or a subset thereof) can construct a final proof (Circuit 4) that the secret sharing protocol has completed successfully, and that the reconstructed shared secret is \(SS\). This proof is published to the public board, finalizing the protocol execution.
 
 ## 3. Verification Circuit Analysis
 
@@ -189,6 +189,10 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
 
 - **Result**:
   The circuit succeeds if it can produce a verifiable contradiction (a mismatch in hash, signature, or polynomial evaluation). If no contradiction is detected and no cryptographic proof of misbehavior is available, the circuit defers to the challenge mechanism.
+
+- **Public outputs**
+  - All commitement set C = { \(C_1\), ..., \(C_t\)}.
+  - Public key of the sender \(\text{AuthKey}_i\).
 
 ### Circuit 2: Incorrect Partial Public Key Detection
 
@@ -221,6 +225,10 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
 - **Expected Output**:
   Successfully generate a proof if either step (3) or (4) fails, indicating incorrect share reconstruction leading to a wrong partial public key or an invalid signature using the claimed partial private key.
 
+- **Public outputs**
+  - All commitement set C = { \(C_1\), ... \(C_t\)}.
+  - Public key of the sender \(\text{AuthKey}_i\).
+
 ### Circuit 3: Malicious Encryption Detection
 
 - **Objective**:  
@@ -237,9 +245,9 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
        \[
        K_{i,j} = \text{ECDH}(\text{PrivKey}_{i}^{\text{last}}, \text{PubKey}_{j}^{\text{last}})
        \]
-     - The result is passed through a key derivation function (e.g., HKDF) to produce a symmetric key \(K_{\text{enc}}\) for encryption with a cipher like ChaCha20-Poly1305.
+    - The result is passed through a key derivation function (e.g., HKDF) to produce a symmetric key \(K_{\text{enc}}\) for encryption with a cipher like ChaCha20-Poly1305[6].
 
-     - This shared secret is used to derive a symmetric encryption key (e.g., via HKDF), which is then used with a cipher like ChaCha20 to encrypt:
+    - This shared secret is used to derive a symmetric encryption key (e.g., via HKDF), which is then used with a cipher like ChaCha20[6] to encrypt:
        - The generation id
        - The share \(s_{i,j}\)
        - The  \(\text{HASH}(n, t, \text{generation\_id}, \mathbf{V}_i)\)
@@ -261,9 +269,17 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
        2. If decryption succeeds but the decrypted share is inconsistent with the committed polynomial (e.g., does not satisfy the homomorphic evaluation check), the logic from **Circuit 1** is applied to prove inconsistency or misbehavior in the share itself.
 
 - **Expected Output**:  
-  The circuit succeeds if the decrypted share can be verified as correct and consistent with the sender’s public commitments. Otherwise, it produces a verifiable contradiction, proving either encryption-level tampering or an invalid share.
+  The circuit succeeds if it can produce a verifiable contradiction:
+    - Enability to decrypt the message.
+    - Parsing of the mssages fail.
+    - A mismatch in hash.
+    - Invalid signature.
+    - Invalid polynomial evaluation.
 
-
+- **Public outputs**
+  - All commitement set C = { \(C_1\), ... \(C_t\)}.
+  - \(\text{PubkKey}_{i}\) and \(\text{PubkKey}_j\) (they are used to prove that the prover use correct keys in ECDH).
+  - Whole encrypted message.
 
 ### Circuit 4: Successful Finalization
 
@@ -283,7 +299,7 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
   3. **Message Signature Validation**:  
      Prove that each signature over message \(M\) was generated using the corresponding partial secret key.
 
-  4. **Final Key Reconstruction via Lagrange Interpolation**:  
+  4. **Final Key Reconstruction via Lagrange Interpolation[4]**:
      Use Lagrange interpolation \(L\) to reconstruct the final public key:
      \[
      L(PK_0, \dots, PK_n) = \text{PK}(SS) = \text{P}(0)
@@ -300,33 +316,33 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
 - **Expected Output**:  
   The circuit succeeds only if all commitments, partial keys, signatures, and the reconstructed final key are valid.
 
+- **Public outputs**
+  - All commitement set C = { \(C_1\), ... \(C_t\)}.
+  - Public key of the sender \(\text{AuthKey}_i\).
 
 ## References for Zero-Knowledge Verification of Distributed Key Generation
 
-- **Shamir’s Secret Sharing (SSS)**  
-  A method to divide a secret into multiple parts, requiring a minimum number of parts to reconstruct the original secret.  
+1. **Shamir’s Secret Sharing (SSS)**
+  A method to divide a secret into multiple parts, requiring a minimum number of parts to reconstruct the original secret.
   [Shamir's Secret Sharing - Wikipedia](https://en.wikipedia.org/wiki/Shamir%27s_secret_sharing)
 
-- **Verifiable Secret Sharing (VSS)**  
-  An extension of Shamir’s Secret Sharing that enables participants to verify the validity of their shares.  
-  [Verifiable Secret Sharing - Wikipedia](https://en.wikipedia.org/wiki/Verifiable_secret_sharing)
 
-- **Zero-Knowledge Proofs (ZKPs)**  
-  Cryptographic methods enabling proof of validity without revealing underlying information.  
+2. **Zero-Knowledge Proofs (ZKPs)**
+  Cryptographic methods enabling proof of validity without revealing underlying information.
   [Zero-Knowledge Proof (ZKP) — Chainlink](https://chain.link/education/zero-knowledge-proof-zkp)
 
-- **Distributed Key Generation Protocols**  
-  Protocols allowing multiple participants to jointly generate a shared public/private key pair without exposing private keys.  
+3. **Distributed Key Generation Protocols**
+  Protocols allowing multiple participants to jointly generate a shared public/private key pair without exposing private keys.
   [Distributed Key Generation - Wikipedia](https://en.wikipedia.org/wiki/Distributed_key_generation)
 
-- **Lagrange Interpolation**  
-  Mathematical method used in Shamir’s Secret Sharing to reconstruct secrets from polynomial interpolation.  
+4. **Lagrange Interpolation**
+  Mathematical method used in Shamir’s Secret Sharing to reconstruct secrets from polynomial interpolation.
   [Lagrange Polynomial - Wikipedia](https://en.wikipedia.org/wiki/Lagrange_polynomial)
 
-- **Elliptic Curve Diffie–Hellman (ECDH)**  
-  Key agreement protocol for securely deriving shared keys over an insecure channel.  
+5. **Elliptic Curve Diffie–Hellman (ECDH)**
+  Key agreement protocol for securely deriving shared keys over an insecure channel.
   [Elliptic-Curve Diffie–Hellman - Wikipedia](https://en.wikipedia.org/wiki/Elliptic-curve_Diffie%E2%80%93Hellman)
 
-- **ChaCha20-Poly1305**  
-  Authenticated encryption algorithm combining confidentiality and integrity protection.  
+7. **ChaCha20-Poly1305**
+  Authenticated encryption algorithm combining confidentiality and integrity protection.
   [ChaCha20-Poly1305 - Wikipedia](https://en.wikipedia.org/wiki/ChaCha20-Poly1305)

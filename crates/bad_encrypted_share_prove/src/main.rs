@@ -311,17 +311,22 @@ where
         );
     }
 
-    let mut keys = data.receiver_base_pubkeys.clone();
-    keys.sort();
+    let mut ordered_receiver_base_pubkeys = data.receiver_base_pubkeys.clone();
+    ordered_receiver_base_pubkeys.sort();
 
-    if Setup::DkgSecretKey::from_bytes(&data.receiver_encr_seckey)
-        .expect("Invalid seckey")
-        .to_public_key()
-        .to_bytes()
-        != keys[keys.len() - 1]
-    {
-        panic!("Invalid seckey");
+    let receiver_sk =
+        Setup::DkgSecretKey::from_bytes(&data.receiver_encr_seckey).expect("Invalid seckey");
+    let receiver_pk_bytes = receiver_sk.to_public_key().to_bytes();
+    if receiver_pk_bytes != ordered_receiver_base_pubkeys[ordered_receiver_base_pubkeys.len() - 1] {
+        panic!("Invalid encryption key");
     };
+
+    let mut ordered_sender_base_pubkeys = data.sender_base_pubkeys.clone();
+    ordered_sender_base_pubkeys.sort();
+    if data.sender_encr_pubkey != ordered_sender_base_pubkeys[ordered_sender_base_pubkeys.len() - 1]
+    {
+        panic!("Invalid encryption key");
+    }
 
     if data.base_hashes.len() != data.settings.n as usize {
         panic!("The number of verification hashes does not match the number of keys\n");
@@ -346,15 +351,19 @@ where
         decrypted,
         data.settings,
         data.sender_base_pubkeys,
-        data.base_hashes,
+        data.base_hashes.clone(),
         receiver_commitment_hash,
         sender_commitment_hash,
     ) {
         Ok(data) => data,
         Err(e) => {
             println!("Error: {}", e);
-            sp1_zkvm::io::commit(&sender_commitment_hash);
-            sp1_zkvm::io::commit(&receiver_commitment_hash);
+            for h in data.base_hashes.iter() {
+                println!("Verification hash: {}, {}", h, e);
+                sp1_zkvm::io::commit(h);
+            }
+            sp1_zkvm::io::commit(&receiver_pk_bytes);
+            sp1_zkvm::io::commit(&data.sender_encr_pubkey);
             sp1_zkvm::io::commit(&data.encrypted_message);
             return;
         }
@@ -383,9 +392,13 @@ where
                 receiver_commitment_hash,
             );
 
-            sp1_zkvm::io::commit(&sender_commitment_hash);
-            sp1_zkvm::io::commit(&receiver_commitment_hash);
-            sp1_zkvm::io::commit(&encrypted_bytes);
+            for h in data.base_hashes.iter() {
+                println!("Verification hash: {}, {}", h, e);
+                sp1_zkvm::io::commit(h);
+            }
+            sp1_zkvm::io::commit(&receiver_pk_bytes);
+            sp1_zkvm::io::commit(&data.sender_encr_pubkey);
+            sp1_zkvm::io::commit(&data.encrypted_message);
         }
     }
     panic!("The seed exchange commitment is valid");
