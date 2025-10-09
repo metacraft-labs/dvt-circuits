@@ -10,12 +10,12 @@ This specification provides a framework for zero-knowledge (ZK) verification cir
 
 DKG enables a set of \(n\) participants to collaboratively generate a shared public key without any single party knowing the corresponding private key. This is achieved through:
 
-- **Shamir's Secret Sharing [1]**: Distributes a secret among participants such that any subset of \(t+1\) can reconstruct it, but no subset of \(t\) or fewer can.
+- **Shamir's Secret Sharing [1]**: Distributes a secret among participants such that any subset of \(k\) can reconstruct it, but no subset of \(k-1\) or fewer can.
 - **Verifiable Secret Sharing (VSS)**: Enhances Shamir's scheme by allowing participants to verify the correctness of their received shares.
 - **Zero-Knowledge Proofs (ZKPs) [2]**: Allow participants to prove the validity of their actions without revealing any secret information, ensuring that deviations can be detected without compromising the underlying secrets.
 
 The protocol outputs:
-  - Each participant will reconstruct a partial secret \(S_i\) such that the shared secret \(SS\) can be derived by evaluating the Lagrange interpolation[4] of these partial secrets at \(x=0\), where the partial secrets correspond to points \((1, S_1), (2, S_2), \dots, (n, S_n)\) on a polynomial \(F(x)\) of degree at most \(t\).
+  - Each participant will reconstruct a partial secret \(S_i\) such that the shared secret \(SS\) can be derived by evaluating the Lagrange interpolation[4] of these partial secrets at \(x=0\), where the partial secrets correspond to points \((1, S_1), (2, S_2), \dots, (n, S_n)\) on a polynomial \(F(x)\) of degree at most \(k-1\).
   - \(SS\) is the shared secret between the participants.
 
 The protocol ensures that:
@@ -28,11 +28,11 @@ The protocol ensures that:
    One participant initializes the session by publishing the setup on a shared, publicly accessible platform (e.g., a blockchain smart contract, shared database, or bulletin board).
    The setup includes:
    - **`n`**: Total number of participants
-   - **`t`**: Threshold number of participants required to reconstruct the secret
+   - **`k`**: Threshold number of participants required to reconstruct the secret
    - **`generationId`**: A unique identifier for this specific key generation session
 
 2. **Polynomial Generation (Secret Sharing Phase):**
-   Each participant independently generates a random polynomial of degree \(t\), as per Shamir's Secret Sharing.
+   Each participant independently generates a random polynomial of degree \(k-1\), as per Shamir's Secret Sharing.
 
 3. **Commitment Broadcast:**
    Each participant computes cryptographic commitments to their polynomial coefficients and the setup.
@@ -69,7 +69,7 @@ The protocol ensures that:
 
 Participants agree on:
 
-- Threshold \(t\), total number of participants \(n\), message \(M\).
+- Threshold \(k\), total number of participants \(n\), message \(M\).
 - A unique \(\text{generation\_id}\).
 - Authentication key \(\text{AuthKey}_i\) and corresponding public key \(\text{AuthPK}_i\) for each participant \(P_i\). We assume these are ECDSA or similar public/private key pairs.
 - A homomorphic function \(\text{PK}(x)\), satisfying \(\text{PK}(x + y) = \text{PK}(x) + \text{PK}(y)\). For example, \(\text{PK}(x) = g \cdot x\) in BLS12-381. Being homomorphic is crucial for verifying the correctness of combined shares without revealing the individual shares.
@@ -77,20 +77,20 @@ Participants agree on:
 ### 2.2 Commitment Phase
 
 Each participant \(P_i\) creates a random polynomial:
-\[f_i(x) = a_{i,0} + a_{i,1}x + \dots + a_{i,t}x^t\]
+\[f_i(x) = a_{i,0} + a_{i,1}x + \dots + a_{i,k-1}x^{k-1}\]
 
 Where:
 
 - \(a_{i,j} \in \mathbb{F}_q\): Random coefficients.
-- \(f_i(x)\): Secret polynomial of \(P_i\).
+- \(f_i(x)\): Secret polynomial of degree \(k-1\) (threshold is \(k\)).
 
 The secret partial share of participant \(P_j\) is \(s_{i,j} = f_i(j)\).
 
 We define a verification vector \(\text{V}_i\) as:
-\[(\text{PK}(a_{i,0}), \dots, \text{PK}(a_{i,t}))\]
+\[(\text{PK}(a_{i,0}), \dots, \text{PK}(a_{i,k-1}))\]
 
 Commitment:
-\[C_i = \text{HASH}(n, t, \text{generation\_id}, \text{V}_i)\]
+\[C_i = \text{HASH}(n, k, \text{generation\_id}, \text{base\_pubkeys})\]
 
 Published to a public board and signed with \(\text{AuthKey}_i\).
 
@@ -107,7 +107,7 @@ Upon receiving \(s_{i,j}\) and \(\text{V}_i\) from \(P_i\), participant \(P_j\) 
 
 - **Hash Consistency**:
   \[
-  C_i \stackrel{?}{=} \text{HASH}(n, t, \text{generation\_id}, \text{V}_i)
+  C_i \stackrel{?}{=} \text{HASH}(n, k, \text{generation\_id}, \text{base\_pubkeys})
   \]
   If the hash does not match and the discrepancy cannot be cryptographically proven (e.g., a ZKP showing a collision in the hash function, which is highly unlikely), initiate the fallback challenge mechanism.
 
@@ -118,7 +118,7 @@ Upon receiving \(s_{i,j}\) and \(\text{V}_i\) from \(P_i\), participant \(P_j\) 
 
   Define the verification polynomial:
   \[
-  p_i(x) = \sum_{k=0}^t \text{PK}(a_{i,k}) \cdot x^k, \quad \text{where } \text{PK}(a_{i,k}) \in \text{V}_i
+  p_i(x) = \sum_{j=0}^{k-1} \text{PK}(a_{i,j}) \cdot x^j, \quad \text{where } \text{PK}(a_{i,j}) \in \text{V}_i
   \]
 
   Then verify:
@@ -182,9 +182,9 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
 
   3. **Share Evaluation**:
      Evaluate whether:
-     \[
-     \text{PK}(s_{i,j}) \stackrel{?}{=} \sum_{k=0}^t \text{PK}(a_{i,k}) \cdot j^k
-     \]
+    \[
+    \text{PK}(s_{i,j}) \stackrel{?}{=} \sum_{k=0}^{k-1} \text{PK}(a_{i,k}) \cdot j^k
+    \]
      A mismatch here provides verifiable cryptographic evidence of an invalid share, as the homomorphic property of \(\text{PK}\) ensures the equality should hold for a valid share.
 
 - **Result**:
@@ -201,11 +201,11 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
 
 2. **Construct the Aggregated Polynomial**:
    \[
-   P(x) = \sum_{k=1}^n f_k(x) = \sum_{k=1}^n \left( \sum_{j=0}^t a_{k,j} x^j \right) = \sum_{j=0}^t \left( \sum_{k=1}^n a_{k,j} \right) x^j
+   P(x) = \sum_{k=1}^n f_k(x) = \sum_{k=1}^n \left( \sum_{j=0}^{k-1} a_{k,j} x^j \right) = \sum_{j=0}^{k-1} \left( \sum_{k=1}^n a_{k,j} \right) x^j
    \]
    Applying the homomorphic function \(\text{PK}\) to this polynomial gives:
    \[
-   \text{PK}(P(x)) = \sum_{j=0}^t \left( \sum_{k=1}^n \text{PK}(a_{k,j}) \right) x^j, \quad \text{where } \text{PK}(a_{k,j}) \in V_k
+   \text{PK}(P(x)) = \sum_{j=0}^{k-1} \left( \sum_{k=1}^n \text{PK}(a_{k,j}) \right) x^j, \quad \text{where } \text{PK}(a_{k,j}) \in V_k
    \]
    **Note**:
    The partial public key of participant \(i\), denoted as \(PK_i\), is the homomorphic encryption of their partial secret key \(S_i\):
@@ -216,7 +216,7 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
 3. **Proof of Correct Reconstruction**:
    Prove that the partial public key \(PK_i\) is consistent with the aggregated polynomial evaluated at \(x=i\):
    \[
-   PK_i \stackrel{?}{=} \text{PK}(P(i)) = \sum_{j=0}^t \left( \sum_{k=1}^n \text{PK}(a_{k,j}) \right) i^j
+   PK_i \stackrel{?}{=} \text{PK}(P(i)) = \sum_{j=0}^{k-1} \left( \sum_{m=1}^n \text{PK}(a_{m,j}) \right) i^j
    \]
 
 4. **Signature Validation**:
@@ -250,9 +250,9 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
     - This shared secret is used to derive a symmetric encryption key (e.g., via HKDF), which is then used with a cipher like ChaCha20[7] to encrypt:
        - The generation id
        - The share \(s_{i,j}\)
-       - The commitment hash \(\text{HASH}(n, t, \text{generation\_id}, \mathbf{V}_i)\)
+       - The commitment hash \(\text{HASH}(n, k, \text{generation\_id}, \text{base\_pubkeys})\)
        - The sender's public key \(\text{AuthPK}_i\)
-       - The signature \(\text{SIGN}(\text{AuthKey}_i, \text{HASH}(n, t, \text{generation\_id}, \mathbf{V}_i))\)
+       - The signature \(\text{SIGN}(\text{AuthKey}_i, \text{HASH}(n, k, \text{generation\_id}, \text{base\_pubkeys}))\)
 
   2. **Decryption and Share Extraction**:
      - Participant \(P_j\) derives the shared key using the same method as in the challenge encryption:
@@ -292,7 +292,7 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
 
 - **Verification Steps**:
   1. **Commitment Validation**:
-     Prove that each commitment \(C_i\) is consistent with the corresponding verification vector \(V_i\). This likely involves demonstrating that hashing \(V_i\) (along with \(n, t, \text{generation\_id}\)) results in \(C_i\).
+     Prove that each commitment \(C_i\) is consistent with the corresponding verification vector \(V_i\). This involves demonstrating that hashing the base public keys (along with \(n, k, \text{generation\_id}\)) results in \(C_i\).
 
   2. **Partial Key Consistency**:  
      Verify that each participant’s public key satisfies:
