@@ -9,8 +9,10 @@ TEST_SCRIPT := $(REPO_ROOT)/script/run.sh
 
 help:
 	@echo "Makefile targets:"
-	@echo "  test       Run all tests using the run_tests.sh script"
-	@echo "  help       Show this help message"
+	@echo "  test              Run all tests using the run_tests.sh script"
+	@echo "  instruction-compare     Compare instruction counts against baseline"
+	@echo "  instruction-baseline    Create new instruction count baseline"
+	@echo "  help              Show this help message"
 
 install-git-hooks:
 	@ls -R ./.git/hooks > before.txt
@@ -38,4 +40,10 @@ test:
 	fi
 	@cd "$(REPO_ROOT)/crates/dkg" && cargo test
 	@cd "$(REPO_ROOT)" && $(TEST_SCRIPT) $(ARGS)
+
+perf-compare:
+	@cd "$(REPO_ROOT)" && python3 script/instruction_count.py compare
+
+gen-perf-baseline:
+	@cd "$(REPO_ROOT)" && python3 script/instruction_count.py create-baseline
 	

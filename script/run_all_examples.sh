@@ -8,7 +8,7 @@ if [ $? -ne 0 ]; then
 fi
 
 
-cargo  build --release
+cargo  build --release --features auth_commitment
 exit_code=$?
 if [ $exit_code -ne 0 ]; then
     echo -e "${RED}Error: Cargo build failed.${RESET}"
@@ -17,7 +17,7 @@ fi
 
 HOST_BIN_PATH=target/release/dkg_prover_host 
 
-$HOST_BIN_PATH execute --type bad-share -i $REPO_ROOT/examples/dkg_bad_share.json  --show-report --json-schema-file $REPO_ROOT/spec/share_exchange_spec.json
-$HOST_BIN_PATH execute --type bad-encrypted-share -i $REPO_ROOT/examples/bad_encrypted_bad_share.json  --show-report --json-schema-file $REPO_ROOT/spec/bad_encrypted_partial_key_spec.json
-$HOST_BIN_PATH execute --type bad-partial-key -i $REPO_ROOT/examples/bad_partial_key.json  --show-report --json-schema-file $REPO_ROOT/spec/bad_partial_key_spec.json
-$HOST_BIN_PATH execute --type finalization -i $REPO_ROOT/examples/finalization_test.json  --show-report --json-schema-file $REPO_ROOT/spec/finalization_spec.json
+$HOST_BIN_PATH execute --type bad-share -i $REPO_ROOT/examples/dvt_bad_share.json  --show-report --json-schema-file $REPO_ROOT/spec/json/share_exchange_spec.json
+$HOST_BIN_PATH execute --type bad-encrypted-share -i $REPO_ROOT/examples/bad_encrypted_bad_share.json  --show-report --json-schema-file $REPO_ROOT/spec/json/bad_encrypted_partial_key_spec.json
+$HOST_BIN_PATH execute --type bad-partial-key -i $REPO_ROOT/examples/bad_partial_key.json  --show-report --json-schema-file $REPO_ROOT/spec/json/bad_partial_key_spec.json
+$HOST_BIN_PATH execute --type finalization -i $REPO_ROOT/examples/finalization_test.json  --show-report --json-schema-file $REPO_ROOT/spec/json/finalization_spec.json

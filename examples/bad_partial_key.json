@@ -7,24 +7,24 @@
     "generations": [
         {
             "base_pubkeys": [
-                "a6602d395e8fbf67269a41a208613e42795c9e66d365dd87287162e31484cb0f84efaec36220714022bbd296e5357bc9",
-                "8a64f40fe2e976d01227b4085b42421c8c4c3549f539b8eb7ecad8833b5855ae1994126bfb9b6ff56a5f131f407462d8"
+                "a080bc2369ca8df0f318a185944782d9ed5cefd97a0dd757d86f654ecd976f14a39399d73ab15d95b08351ba52b4e963",
+                "b9af73aaa6818a07968dc1507acdcb416ff8ce392d3ba855f0934b02f2171bf3345a1695ab11f84d2dd0df087b18a42d"
             ],
-            "base_hash": "2cc6b806b3215210122226629b0d0872484d43754668bb90c4d1b5e401377890"
+            "base_hash": "22d9ef5b03b07ef43a39044f0aba3dd584450fe9296c13d83d7120691c856c1e"
         },
         {
             "base_pubkeys": [
-                "b66242ce81deb25d60560c0c8f7e35e4ed9760887d7e877461bc2ded650c7d2728bd0f657baa071842c3ea744e7696f3",
-                "b23adea88f2fec6830a1f5ffb50015d01cd78eb6fe4f13981d23e4b8e2d2b2735729e79acbcecff74cb1571f529fbbce"
+                "a573e141f11fb1789370dba5b68c761f914c3f1e65a2a9b8f0815696629b37f21e0568a2f4015d24b9cc2ca772faa62c",
+                "85e07ff2f989f1a7063a4556bc2e280c8de674846e870c7964552602931d101aaad433dec217ce405dc1c2db4e3e7151"
             ],
-            "base_hash": "6568dd285df3bf23d7697217273249841707951516e67c4954243d5d80ad23da"
+            "base_hash": "84a3b2e337955364dfdc606af3a5bf4dd11b2749aae02f2be79b4bbdc0bac530"
         },
         {
             "base_pubkeys": [
-                "954be017bd960e3208f1661c1e5f372d5d5ec0955d3db00b14438d9b90ebc3f6a67853ee82e29bd5325888cc73e1ed67",
-                "8dc5afd8b102920503849b4a89165d75741163c690f2557d77fd3bad75a142f00197aa9f5fbde27926374bd0b29a7c96"
+                "8e8f7f26e7c9b6060c635eff7f4786df4b0ab65da3152193b2b0edb3dae2665f58e9dac426e386d06b6f9440ed33020f",
+                "99da65b0d6f736fc2a4eee3fcd1b26216e5bda25ae677469d75485ada01c00a6576f982f06c612052f4acdc27a6fa0a1"
             ],
-            "base_hash": "bdf6925e576dc08431ac6a590a64263c5ac3d8e5bd88113ac5777762fabd71a6"
+            "base_hash": "efe4f6c92a880da1301ddfee7a96fb2712b3c68984e4637fba5c34838a64bd76"
         }
     ],
     "bad_partial": {
@@ -35,18 +35,18 @@
         },
         "data": {
             "base_pubkeys": [
-                "a6602d395e8fbf67269a41a208613e42795c9e66d365dd87287162e31484cb0f84efaec36220714022bbd296e5357bc9",
-                "8a64f40fe2e976d01227b4085b42421c8c4c3549f539b8eb7ecad8833b5855ae1994126bfb9b6ff56a5f131f407462d8"
+                "a080bc2369ca8df0f318a185944782d9ed5cefd97a0dd757d86f654ecd976f14a39399d73ab15d95b08351ba52b4e963",
+                "b9af73aaa6818a07968dc1507acdcb416ff8ce392d3ba855f0934b02f2171bf3345a1695ab11f84d2dd0df087b18a42d"
             ],
-            "base_hash": "2cc6b806b3215210122226629b0d0872484d43754668bb90c4d1b5e401377890",
-            "partial_pubkey": "b6ac8c28c5f722cf095f83005bbfb403364231cd202e0793bfb69cd631e5cbc8d337a8dbe8dcb30615eea0a9dca98746",
+            "base_hash": "22d9ef5b03b07ef43a39044f0aba3dd584450fe9296c13d83d7120691c856c1e",
+            "partial_pubkey": "a39ed53c850eecf70edaa9037057fe6e3a09909a16690e83c958bd2cc92b92a794c6bd0ac42b9a1c5e43169d71dd6e99",
             "message_cleartext": "Sign with new partial key",
-            "message_signature": "b296d5309403d063f172cf97811f19cd1404f7b05f956d7b7ceaed375db1d3e6dc1b9f0544591bb562d25f7596abc9bd0d38c6759bdc8d89ea7d81560b7d00a24ba718dc0f9c3fea06430eafec4097dc992519b03c32d96e2d4fbc08bfa088f0"
+            "message_signature": "87fa83e052f07b9edab5cbcd5f8ad87e00f89fa3382892fad4c32a057df5d7c7240f4994c3bab4b4aed0e33cbd35f9ce0d0af2d13f7356909f3cacf92c390fbafd2ad252866ff0f98344cf34630171aab7ae1f9d8e76d48a38aa4d779a44e746"
         },
         "commitment": {
-            "hash": "abe672d20ba7fac6e6a32d9a68dfa9d4e47bbfa9600b1fd3e877b47b43c4b5a4",
-            "pubkey": "b33a4b42995a61ee35a99de7f087233c572a48ff83cce22daa18d54c99b31bdcd16005f9e6384752a38ed44917257dde",
-            "signature": "a89970d8e0b945855cf6d302357e11d75ddce1de6255e78caa553ab38b46cca06d6d0b07283f2961ebc1d8ffb94ffdca06253ef6aa544f9b1c695ae5c97e7d4aa9482158e33d549e4d686ed32c3bc1014e85ca3a91504348fd4ebbf87480e619"
+            "hash": "e319740bfa3278a8c4d7b34c22f69f1ae10d63266b6cea51b82ef8d4c48370c6",
+            "pubkey": "03028a576c20a2d5515db8b6aecbfcf7d55bd930d1507c6346f70175976e33adeb",
+            "signature": "8bbd5bd9c2818081655fbf23fefc27e5e5607b508e257406c2dc2efeeed55914433a0fc622fe360bfc38140398f9f68dce3909d38ba8b24f11ebb683b81b1157"
         }
     }
 }
