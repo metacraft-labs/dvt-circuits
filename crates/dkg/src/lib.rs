@@ -9,4 +9,5 @@ pub use verification::{
 };
 
 pub use crypto::*;
+pub use dkg_math::batch_add_points;
 pub use types::*;

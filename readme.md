@@ -27,6 +27,26 @@ to run single test
 
 cargo build --release --features auth_commitment
 
+## Instruction Count Monitoring
+
+Monitor and track detailed instruction counts for performance regression testing:
+
+```bash
+# Create a baseline of current instruction counts
+make gen-perf-baseline
+
+# Compare current instruction counts against baseline
+make perf-compare
+```
+
+This runs all examples and provides granular comparison of:
+- **Total opcode counts** - Overall instruction count
+- **Individual opcodes** - Breakdown by instruction type (add, sw, lw, mul, etc.)
+- **Total syscall counts** - Cryptographic operation counts
+- **Individual syscalls** - Breakdown by syscall type (bls12381_fp_mul, sha_compress, etc.)
+
+Useful for detecting performance regressions and understanding optimization impacts on specific instruction types.
+
 ## Regenerate json and yaml spec
 
 ```
