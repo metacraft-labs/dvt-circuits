@@ -148,10 +148,10 @@ where
     Ok(())
 }
 
-pub fn compute_initial_commitment_hash<Setup>(
+fn compute_base_hash<Setup>(
     settings: &GenerateSettings,
-    base_pubkeys: &Vec<RawBytes<Setup::Point>>,
-) -> SHA256Raw
+    pubkeys: &[RawBytes<Setup::Point>],
+) -> Sha256
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
@@ -161,13 +161,24 @@ where
     hasher.update([settings.n]);
     hasher.update([settings.k]);
 
-    let len = base_pubkeys.len() as u8;
+    let len = pubkeys.len() as u8;
     hasher.update([len]);
 
-    for pubkey in base_pubkeys {
+    for pubkey in pubkeys {
         hasher.update(pubkey.as_arr());
     }
+
     hasher
+}
+
+pub fn compute_initial_commitment_hash<Setup>(
+    settings: &GenerateSettings,
+    base_pubkeys: &Vec<RawBytes<Setup::Point>>,
+) -> SHA256Raw
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    compute_base_hash::<Setup>(settings, base_pubkeys)
         .finalize()
         .to_vec()
         .try_into()
@@ -198,6 +209,42 @@ where
         },
         base_pubkeys: generation.verification_vector.clone(),
     }
+}
+
+fn deserialize_verification_vectors<Setup>(
+    generations: &[Generation<Setup>],
+) -> Vec<Vec<Setup::Point>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    generations
+        .iter()
+        .map(|generation| -> Vec<Setup::Point> {
+            generation
+                .verification_vector
+                .iter()
+                .map(|pt| Setup::Point::from_bytes(pt).expect("Invalid point"))
+                .collect()
+        })
+        .collect()
+}
+
+fn deserialize_bad_partial_share_verification_vectors<Setup>(
+    generations: &[BadPartialShareGeneration<Setup>],
+) -> Vec<Vec<Setup::Point>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    generations
+        .iter()
+        .map(|generation| -> Vec<Setup::Point> {
+            generation
+                .verification_vector
+                .iter()
+                .map(|pt| Setup::Point::from_bytes(pt).expect("Invalid point"))
+                .collect()
+        })
+        .collect()
 }
 
 fn compute_agg_key_from_dkg<C: Curve>(
@@ -285,16 +332,7 @@ where
     let mut sorted = generations.to_vec();
     sorted.sort_by(|a, b| a.base_hash.cmp(&b.base_hash));
 
-    let verification_vectors: Vec<Vec<Setup::Point>> = sorted
-        .iter()
-        .map(|generation| -> Vec<Setup::Point> {
-            generation
-                .verification_vector
-                .iter()
-                .map(|pt| Setup::Point::from_bytes(pt).expect("Invalid point"))
-                .collect()
-        })
-        .collect();
+    let verification_vectors = deserialize_verification_vectors::<Setup>(&sorted);
 
     let ids: Vec<Setup::Scalar> = sorted
         .iter()
@@ -344,17 +382,7 @@ pub fn compute_partial_share_hash<Setup>(
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
-    let mut hasher = Sha256::new();
-    hasher.update(settings.gen_id.as_ref());
-    hasher.update([settings.n]);
-    hasher.update([settings.k]);
-
-    let len = partial_share.data.verification_vector.len() as u8;
-    hasher.update([len]);
-
-    for pubkey in &partial_share.data.verification_vector {
-        hasher.update(pubkey.as_arr());
-    }
+    let mut hasher = compute_base_hash::<Setup>(settings, &partial_share.data.verification_vector);
 
     hasher.update(partial_share.data.base_hash.as_ref());
     hasher.update(partial_share.data.partial_pubkey.as_arr());
@@ -533,17 +561,7 @@ fn compute_pubkey_share<Setup>(
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
-    let verification_vectors: Vec<Vec<Setup::Point>> = sorted
-        .iter()
-        .map(|generation| {
-            generation
-                .verification_vector
-                .iter()
-                .map(Setup::Point::from_bytes)
-                .map(|x| x.expect("Invalid pubkey"))
-                .collect()
-        })
-        .collect();
+    let verification_vectors = deserialize_bad_partial_share_verification_vectors::<Setup>(sorted);
 
     let computed_keys_coeffs = agg_coefficients::<Setup::Curve>(&verification_vectors);
     let expected_key = evaluate_polynomial::<Setup::Curve>(&computed_keys_coeffs, perpetrator_id);

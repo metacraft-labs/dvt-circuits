@@ -334,6 +334,29 @@ mod tests {
     use crate::types::*;
     use bls12_381::*;
 
+    // Helper functions to reduce test code duplication
+
+    fn hex_to_bls_g1(hex_str: &str) -> BlsG1 {
+        let pk_raw: BLSPubkeyRaw = hex::decode(hex_str).unwrap().try_into().unwrap();
+        BlsG1 {
+            g1: G1Affine::from_compressed(&pk_raw).into_option().unwrap(),
+        }
+    }
+
+    fn hexes_to_bls_g1s(hex_strings: &[&str]) -> Vec<BlsG1> {
+        hex_strings.iter().map(|hex| hex_to_bls_g1(hex)).collect()
+    }
+
+    fn hex_to_g1_affine(hex_str: &str) -> G1Affine {
+        let pk_raw: BLSPubkeyRaw = hex::decode(hex_str).unwrap().try_into().unwrap();
+        G1Affine::from_compressed(&pk_raw).into_option().unwrap()
+    }
+
+    fn hex_to_g2_affine(hex_str: &str) -> G2Affine {
+        let sig_raw: BLSSignatureRaw = hex::decode(hex_str).unwrap().try_into().unwrap();
+        G2Affine::from_compressed(&sig_raw).into_option().unwrap()
+    }
+
     use super::*;
 
     #[test]
@@ -377,34 +400,27 @@ mod tests {
     fn test_verify_signature() {
         let data = hex::decode("2f901d5cec8722e44afd59e94d0a56bf1506a72a0a60709920aad714d1a2ece0")
             .unwrap();
-        let pk: BLSPubkeyRaw = hex::decode("90346f9c5f3c09d96ea02acd0220daa8459f03866ed938c798e3716e42c7e033c9a7ef66a10f83af06d5c00b508c6d0f").unwrap().try_into().unwrap();
-        let sig:BLSSignatureRaw = hex::decode("a9c08eff13742f78f1e5929888f223b5b5b12b4836b5417c5a135cf24f4e2a4c66a6cdef91be3098b7e7a6a63903b61302e3cf2b8653101da245cf01a8d82b25debe7b18a3a2eb1778f8628fd2c59c8687f6e048a31250fbc2804c20043b8443").unwrap().try_into().unwrap();
-        let pk = G1Affine::from_compressed(&pk).into_option().unwrap();
-        let sig = G2Affine::from_compressed(&sig).into_option().unwrap();
+        let pk = hex_to_g1_affine("90346f9c5f3c09d96ea02acd0220daa8459f03866ed938c798e3716e42c7e033c9a7ef66a10f83af06d5c00b508c6d0f");
+        let sig = hex_to_g2_affine("a9c08eff13742f78f1e5929888f223b5b5b12b4836b5417c5a135cf24f4e2a4c66a6cdef91be3098b7e7a6a63903b61302e3cf2b8653101da245cf01a8d82b25debe7b18a3a2eb1778f8628fd2c59c8687f6e048a31250fbc2804c20043b8443");
         assert!(bls_verify(&pk, &sig, &data));
 
         let invalida_data = hex::decode("00").unwrap();
         assert!(!bls_verify(&pk, &sig, &invalida_data));
 
-        let wrong_pk: BLSPubkeyRaw = hex::decode("98876a81fe982573ec5f986956bf9bf0bcb5349d95c3c8da0aefd05a49fea6215f59b0696f906547baed90ab245804e8").unwrap().try_into().unwrap();
-        let wrong_pk = G1Affine::from_compressed(&wrong_pk).into_option().unwrap();
+        let wrong_pk = hex_to_g1_affine("98876a81fe982573ec5f986956bf9bf0bcb5349d95c3c8da0aefd05a49fea6215f59b0696f906547baed90ab245804e8");
         assert!(!bls_verify(&wrong_pk, &sig, &data));
 
-        let bad_sig: BLSSignatureRaw = hex::decode("999e7b24bee2587d687e8f358ed10627ef57ec54935bd7a500bbbb18a57e7aa21b800f8b1f487a980d7c93918fdbd8020b66ce9a9e5788a4826e610ac937d8c2ce0ad9c0ee9a5732cf73052493e9a500cc5100a15bdbf9e5b79104db52dbf07c").unwrap().try_into().unwrap();
-        let bad_sig = G2Affine::from_compressed(&bad_sig).into_option().unwrap();
+        let bad_sig = hex_to_g2_affine("999e7b24bee2587d687e8f358ed10627ef57ec54935bd7a500bbbb18a57e7aa21b800f8b1f487a980d7c93918fdbd8020b66ce9a9e5788a4826e610ac937d8c2ce0ad9c0ee9a5732cf73052493e9a500cc5100a15bdbf9e5b79104db52dbf07c");
         assert!(!bls_verify(&pk, &bad_sig, &data))
     }
 
     #[test]
     fn test_evaluate_polynomial() {
-        let pks: Vec<BlsG1> = [
+        let pks = hexes_to_bls_g1s(&[
             "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
             "98876a81fe982573ec5f986956bf9bf0bcb5349d95c3c8da0aefd05a49fea6215f59b0696f906547baed90ab245804e8",
-            "ad2c4e5b631fbded449ede4dca2d040b9c7eae58d1e73b3050486c1ba22c15a92d9ff13c05c356f974447e4fca84864a"]
-        .iter().map(|pk| -> BLSPubkeyRaw {
-            hex::decode(pk).unwrap().try_into().unwrap()
-        })
-        .map(|pk| BlsG1{ g1: G1Affine::from_compressed(&pk).into_option().unwrap() }).collect();
+            "ad2c4e5b631fbded449ede4dca2d040b9c7eae58d1e73b3050486c1ba22c15a92d9ff13c05c356f974447e4fca84864a",
+        ]);
 
         let target = "af8e0095ecc662f65b95ce57e5bd2f8739ff93b0621a1ad53f5616538d1323ff40e6e9ddd7132298710974fe6fc0344e";
 
@@ -417,14 +433,11 @@ mod tests {
 
     #[test]
     fn test_evaluate_polynomial_bad_base_keys() {
-        let pks: Vec<BlsG1> = [
+        let pks = hexes_to_bls_g1s(&[
             "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
             "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
-            "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9"]
-        .iter().map(|pk| -> BLSPubkeyRaw {
-            hex::decode(pk).unwrap().try_into().unwrap()
-        })
-        .map(|pk| BlsG1{ g1: G1Affine::from_compressed(&pk).into_option().unwrap() }).collect();
+            "92cad77a95432bc1030d81b5465cb69be672c1dd0da752230bf8112f8449b03149e7fa208a6fae460a9f0a1d5bd175e9",
+        ]);
 
         let target = "af8e0095ecc662f65b95ce57e5bd2f8739ff93b0621a1ad53f5616538d1323ff40e6e9ddd7132298710974fe6fc0344e";
 
@@ -437,16 +450,13 @@ mod tests {
 
     #[test]
     fn test_lagrange_interpolation() {
-        let pks: Vec<BlsG1> = [
+        let pks = hexes_to_bls_g1s(&[
             "8da434e68daef9af33e39ab727557a3cd86d7991cd6b545746bf92c8edec37012912cfa2292a21512bce9040a1c0e502",
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
             "8cbfb6cb7af927cfe5fb17621df7036de539b7ff4aa0620cdc218d6b7fe7f2e714a96bdeddb2a0dc24867a90594427e1",
             "9892b390d9d3000c7bf04763006fbc617b7ba9c261fff35094aec3f43599f2c254ae667d9ba135747309b77cd02f1fbc",
-            "b255c8a66fd1a13373537e8a4ba258f4990c141fc3c06daccda0711f5ebaffc092f0e5b0e4454e6344e2f97957be4017"]
-        .iter().map(|pk| -> BLSPubkeyRaw {
-            hex::decode(pk).unwrap().try_into().unwrap()
-        })
-        .map(|pk| BlsG1{ g1: G1Affine::from_compressed(&pk).into_option().unwrap()}).collect();
+            "b255c8a66fd1a13373537e8a4ba258f4990c141fc3c06daccda0711f5ebaffc092f0e5b0e4454e6344e2f97957be4017",
+        ]);
 
         let target = "a31d9a483703cd0da9873e5e76b4de5f7035d0a73d79b3be8667daa4fc7065a1bbb5bf77787fcf2a35bd327eecc4fa6b";
 
@@ -465,17 +475,13 @@ mod tests {
 
     #[test]
     fn test_lagrange_interpolation_out_of_order() {
-        let pks: Vec<BlsG1> = [
+        let pks = hexes_to_bls_g1s(&[
             "b255c8a66fd1a13373537e8a4ba258f4990c141fc3c06daccda0711f5ebaffc092f0e5b0e4454e6344e2f97957be4017",
             "8da434e68daef9af33e39ab727557a3cd86d7991cd6b545746bf92c8edec37012912cfa2292a21512bce9040a1c0e502",
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
             "8cbfb6cb7af927cfe5fb17621df7036de539b7ff4aa0620cdc218d6b7fe7f2e714a96bdeddb2a0dc24867a90594427e1",
             "9892b390d9d3000c7bf04763006fbc617b7ba9c261fff35094aec3f43599f2c254ae667d9ba135747309b77cd02f1fbc",
-            ]
-        .iter().map(|pk| -> BLSPubkeyRaw {
-            hex::decode(pk).unwrap().try_into().unwrap()
-        })
-        .map(|pk| BlsG1{ g1: G1Affine::from_compressed(&pk).into_option().unwrap()}).collect();
+        ]);
 
         let target = "a31d9a483703cd0da9873e5e76b4de5f7035d0a73d79b3be8667daa4fc7065a1bbb5bf77787fcf2a35bd327eecc4fa6b";
 
@@ -494,16 +500,13 @@ mod tests {
 
     #[test]
     fn test_lagrange_interpolation_wrong_order() {
-        let pks: Vec<BlsG1> = [
+        let pks = hexes_to_bls_g1s(&[
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
             "8da434e68daef9af33e39ab727557a3cd86d7991cd6b545746bf92c8edec37012912cfa2292a21512bce9040a1c0e502",
             "8cbfb6cb7af927cfe5fb17621df7036de539b7ff4aa0620cdc218d6b7fe7f2e714a96bdeddb2a0dc24867a90594427e1",
             "9892b390d9d3000c7bf04763006fbc617b7ba9c261fff35094aec3f43599f2c254ae667d9ba135747309b77cd02f1fbc",
-            "b255c8a66fd1a13373537e8a4ba258f4990c141fc3c06daccda0711f5ebaffc092f0e5b0e4454e6344e2f97957be4017"]
-        .iter().map(|pk| -> BLSPubkeyRaw {
-            hex::decode(pk).unwrap().try_into().unwrap()
-        })
-        .map(|pk| BlsG1{ g1: G1Affine::from_compressed(&pk).into_option().unwrap()}).collect();
+            "b255c8a66fd1a13373537e8a4ba258f4990c141fc3c06daccda0711f5ebaffc092f0e5b0e4454e6344e2f97957be4017",
+        ]);
 
         let target = "a31d9a483703cd0da9873e5e76b4de5f7035d0a73d79b3be8667daa4fc7065a1bbb5bf77787fcf2a35bd327eecc4fa6b";
 
@@ -522,16 +525,13 @@ mod tests {
 
     #[test]
     fn test_lagrange_interpolation_wrong_base_keys() {
-        let pks: Vec<BlsG1> = [
+        let pks = hexes_to_bls_g1s(&[
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
             "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
-            "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903"]
-        .iter().map(|pk| -> BLSPubkeyRaw {
-            hex::decode(pk).unwrap().try_into().unwrap()
-        })
-        .map(|pk| BlsG1{ g1: G1Affine::from_compressed(&pk).into_option().unwrap()}).collect();
+            "a3cd061aab6013f7561978959482d79e9ca636392bc94d4bcad9cb6f90fe2cdf52100f211052f1570db0ca690b6a9903",
+        ]);
 
         let target = "a31d9a483703cd0da9873e5e76b4de5f7035d0a73d79b3be8667daa4fc7065a1bbb5bf77787fcf2a35bd327eecc4fa6b";
 
