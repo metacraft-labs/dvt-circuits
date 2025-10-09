@@ -15,14 +15,14 @@ DKG enables a set of \(n\) participants to collaboratively generate a shared pub
 - **Zero-Knowledge Proofs (ZKPs) [2]**: Allow participants to prove the validity of their actions without revealing any secret information, ensuring that deviations can be detected without compromising the underlying secrets.
 
 The protocol outputs:
-  - Each participant will reconstruct a partial secret \(S_i\) such that the shared secret \(SS\) can be derived by evaluating the Lagrange interpolation[5] of these partial secrets at \(x=0\), where the partial secrets correspond to points \((1, S_1), (2, S_2), \dots, (n, S_n)\) on a polynomial \(F(x)\) of degree at most \(t\).
+  - Each participant will reconstruct a partial secret \(S_i\) such that the shared secret \(SS\) can be derived by evaluating the Lagrange interpolation[4] of these partial secrets at \(x=0\), where the partial secrets correspond to points \((1, S_1), (2, S_2), \dots, (n, S_n)\) on a polynomial \(F(x)\) of degree at most \(t\).
   - \(SS\) is the shared secret between the participants.
 
 The protocol ensures that:
 - The secret is generated according to Shamir's Secret Sharing scheme.
 - Any deviation — whether intentional or accidental — can be detected, and the malicious participant can be identified. Zero-knowledge proofs play a crucial role in enabling this detection without revealing any sensitive information exchanged during the process.
 
-## 2.0 High-Level Overview of Provable Distributed Key Generation (PDKG)
+## 2 High-Level Overview of Provable Distributed Key Generation (PDKG)
 
 1. **Initialization (Public Setup Phase):**
    One participant initializes the session by publishing the setup on a shared, publicly accessible platform (e.g., a blockchain smart contract, shared database, or bulletin board).
@@ -72,7 +72,7 @@ Participants agree on:
 - Threshold \(t\), total number of participants \(n\), message \(M\).
 - A unique \(\text{generation\_id}\).
 - Authentication key \(\text{AuthKey}_i\) and corresponding public key \(\text{AuthPK}_i\) for each participant \(P_i\). We assume these are ECDSA or similar public/private key pairs.
-- A homomorphic function \(\text{PK}(x)\), satisfying \(\text{PK}(x + y) = \text{PK}(x) + \text{PK}(y)\). For example, \(\text{PK}(x) = g \cdot x\) in BLS12-381. Being homomorphic is crucial is crucial for verifying the correctness of combined shares without revealing the individual shares.
+- A homomorphic function \(\text{PK}(x)\), satisfying \(\text{PK}(x + y) = \text{PK}(x) + \text{PK}(y)\). For example, \(\text{PK}(x) = g \cdot x\) in BLS12-381. Being homomorphic is crucial for verifying the correctness of combined shares without revealing the individual shares.
 
 ### 2.2 Commitment Phase
 
@@ -191,7 +191,7 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
   The circuit succeeds if it can produce a verifiable contradiction (a mismatch in hash, signature, or polynomial evaluation). If no contradiction is detected and no cryptographic proof of misbehavior is available, the circuit defers to the challenge mechanism.
 
 - **Public outputs**
-  - All commitement set C = { \(C_1\), ..., \(C_t\)}.
+  - All commitment set C = { \(C_1\), ..., \(C_n\)}.
   - Public key of the sender \(\text{AuthKey}_i\).
 
 ### Circuit 2: Incorrect Partial Public Key Detection
@@ -226,7 +226,7 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
   Successfully generate a proof if either step (3) or (4) fails, indicating incorrect share reconstruction leading to a wrong partial public key or an invalid signature using the claimed partial private key.
 
 - **Public outputs**
-  - All commitement set C = { \(C_1\), ... \(C_t\)}.
+  - All commitment set C = { \(C_1\), ... \(C_n\)}.
   - Public key of the sender \(\text{AuthKey}_i\).
 
 ### Circuit 3: Malicious Encryption Detection
@@ -245,20 +245,25 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
        \[
        K_{i,j} = \text{ECDH}(\text{PrivKey}_{i}^{\text{last}}, \text{PubKey}_{j}^{\text{last}})
        \]
-    - The result is passed through a key derivation function (e.g., HKDF) to produce a symmetric key \(K_{\text{enc}}\) for encryption with a cipher like ChaCha20-Poly1305[6].
+    - The result is passed through a key derivation function (e.g., HKDF) to produce a symmetric key \(K_{\text{enc}}\) for encryption with a cipher like ChaCha20-Poly1305[7].
 
-    - This shared secret is used to derive a symmetric encryption key (e.g., via HKDF), which is then used with a cipher like ChaCha20[6] to encrypt:
+    - This shared secret is used to derive a symmetric encryption key (e.g., via HKDF), which is then used with a cipher like ChaCha20[7] to encrypt:
        - The generation id
        - The share \(s_{i,j}\)
-       - The  \(\text{HASH}(n, t, \text{generation\_id}, \mathbf{V}_i)\)
-       -  \(\text{AuthPK}_i\)
-       -  \(\text{SIGN(AuthPK, HASH)}\)
+       - The commitment hash \(\text{HASH}(n, t, \text{generation\_id}, \mathbf{V}_i)\)
+       - The sender's public key \(\text{AuthPK}_i\)
+       - The signature \(\text{SIGN}(\text{AuthKey}_i, \text{HASH}(n, t, \text{generation\_id}, \mathbf{V}_i))\)
 
   2. **Decryption and Share Extraction**:
-     - Participant \(P_j\) derives the shared key:
-       \[
-       K_{j,i} = \text{ECDH}(\text{AuthKey}_j, \text{AuthPK}_i)
-       \]
+     - Participant \(P_j\) derives the shared key using the same method as in the challenge encryption:
+       - The vector \(\mathbf{V}_i\) is sorted deterministically (e.g., lexicographically by public key bytes).
+       - The last element of the sorted verification vector is used for key agreement:
+         - \(P_j\) uses the **private key** from their own last element.
+         - \(P_j\) uses the **public key** from the corresponding last element of \(P_i\)'s vector.
+       - They perform ECDH:
+         \[
+         K_{j,i} = \text{ECDH}(\text{PrivKey}_{j}^{\text{last}}, \text{PubKey}_{i}^{\text{last}})
+         \]
      - Since ECDH is symmetric, \(K_{i,j} = K_{j,i}\).
      - \(P_j\) uses the derived key to decrypt the ciphertext and extract the share \(s_{i,j}\) and accompanying data.
 
@@ -270,15 +275,15 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
 
 - **Expected Output**:  
   The circuit succeeds if it can produce a verifiable contradiction:
-    - Enability to decrypt the message.
-    - Parsing of the mssages fail.
+    - Inability to decrypt the message.
+    - Parsing of the messages fail.
     - A mismatch in hash.
     - Invalid signature.
     - Invalid polynomial evaluation.
 
 - **Public outputs**
-  - All commitement set C = { \(C_1\), ... \(C_t\)}.
-  - \(\text{PubkKey}_{i}\) and \(\text{PubkKey}_j\) (they are used to prove that the prover use correct keys in ECDH).
+  - All commitment set C = { \(C_1\), ... \(C_n\)}.
+  - \(\text{PubKey}_{i}\) and \(\text{PubKey}_j\) (they are used to prove that the prover use correct keys in ECDH).
   - Whole encrypted message.
 
 ### Circuit 4: Successful Finalization
@@ -317,7 +322,7 @@ Once all valid signatures are collected, any participant (or a subset thereof) c
   The circuit succeeds only if all commitments, partial keys, signatures, and the reconstructed final key are valid.
 
 - **Public outputs**
-  - All commitement set C = { \(C_1\), ... \(C_t\)}.
+  - All commitment set C = { \(C_1\), ... \(C_n\)}.
   - Public key of the sender \(\text{AuthKey}_i\).
 
 ## References for Zero-Knowledge Verification of Distributed Key Generation
