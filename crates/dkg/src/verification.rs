@@ -65,65 +65,72 @@ pub fn get_index_in_commitments(
     )))
 }
 
-pub fn verify_seed_exchange_commitment<Setup>(
-    verification_hashes: &VerificationHashes,
+#[cfg(feature = "auth_commitment")]
+fn verify_commitment_details<Setup>(
     seed_exchange: &SeedExchangeCommitment<Setup>,
-    initial_commitment: &InitialCommitment<Setup>,
 ) -> Result<(), Box<dyn std::error::Error>>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
 {
-    #[cfg(feature = "auth_commitment")]
-    {
-        let commitment = &seed_exchange.commitment;
+    let commitment = &seed_exchange.commitment;
 
-        if !verify_commitment(&seed_exchange.commitment) {
-            return Err(Box::new(VerificationErrors::UnslashableError(format!(
-                "Invalid field seeds_exchange_commitment.commitment.signature {},
+    if !verify_commitment(&seed_exchange.commitment) {
+        return Err(Box::new(VerificationErrors::UnslashableError(format!(
+            "Invalid field seeds_exchange_commitment.commitment.signature {},
                 message: {}
                 pubkey: {},
                 \n",
-                commitment.signature, commitment.hash, commitment.pubkey
-            ))));
-        }
+            commitment.signature, commitment.hash, commitment.pubkey
+        ))));
     }
 
+    let computed_commitment_hash = compute_seed_exchange_hash::<Setup>(seed_exchange);
+
+    if computed_commitment_hash.to_vec() != seed_exchange.commitment.hash.as_ref() {
+        return Err(Box::new(VerificationErrors::SlashableError(
+            format!(
+                "Invalid field seeds_exchange_commitment.commitment.hash. Expected: {:?}, got hash: {:?}\n",
+                seed_exchange.commitment.hash,
+                hex::encode(computed_commitment_hash.to_vec())
+            ),
+        )));
+    }
+
+    Ok(())
+}
+
+fn validate_shared_secret<Setup>(
+    seed_exchange: &SeedExchangeCommitment<Setup>,
+) -> Result<Setup::DkgSecretKey, Box<dyn std::error::Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
     let shared_secret = &seed_exchange.shared_secret;
-    let sk = match Setup::DkgSecretKey::from_bytes(&shared_secret.secret) {
-        Ok(sk) => sk,
-        Err(e) => {
-            return Err(Box::new(VerificationErrors::SlashableError(format!(
-                "Invalid field seeds_exchange_commitment.shared_secret.secret: {e} \n"
-            ))));
-        }
-    };
+    Setup::DkgSecretKey::from_bytes(&shared_secret.secret).map_err(|e| {
+        Box::new(VerificationErrors::SlashableError(format!(
+            "Invalid field seeds_exchange_commitment.shared_secret.secret: {e} \n"
+        ))) as Box<dyn std::error::Error>
+    })
+}
 
-    #[cfg(feature = "auth_commitment")]
-    {
-        let computed_commitment_hash = compute_seed_exchange_hash::<Setup>(seed_exchange);
-
-        if computed_commitment_hash.to_vec() != seed_exchange.commitment.hash.as_ref() {
-            return Err(Box::new(VerificationErrors::SlashableError(
-                format!(
-                    "Invalid field seeds_exchange_commitment.commitment.hash. Expected: {:?}, got hash: {:?}\n",
-                    seed_exchange.commitment.hash,
-                    hex::encode(computed_commitment_hash.to_vec())
-                ),
-            )));
-        }
-    }
-
-    let dest_id = match get_index_in_commitments(
+fn verify_polynomial_evaluation_for_seed<Setup>(
+    verification_hashes: &VerificationHashes,
+    seed_exchange: &SeedExchangeCommitment<Setup>,
+    initial_commitment: &InitialCommitment<Setup>,
+    sk: &Setup::DkgSecretKey,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    let dest_id = get_index_in_commitments(
         verification_hashes,
         &seed_exchange.shared_secret.dst_base_hash,
-    ) {
-        Ok(id) => id,
-        Err(e) => {
-            return Err(Box::new(VerificationErrors::SlashableError(format!(
-                "Invalid field seeds_exchange_commitment.shared_secret.dst_base_hash: {e} \n"
-            ))));
-        }
-    };
+    )
+    .map_err(|e| {
+        Box::new(VerificationErrors::SlashableError(format!(
+            "Invalid field seeds_exchange_commitment.shared_secret.dst_base_hash: {e} \n"
+        ))) as Box<dyn std::error::Error>
+    })?;
 
     // F(0) is always reserved for the aggregated key so we need to start from 1
     let dest_id = dest_id + 1;
@@ -144,6 +151,31 @@ where
             sk.to_public_key()
         ))));
     }
+
+    Ok(())
+}
+
+pub fn verify_seed_exchange_commitment<Setup>(
+    verification_hashes: &VerificationHashes,
+    seed_exchange: &SeedExchangeCommitment<Setup>,
+    initial_commitment: &InitialCommitment<Setup>,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    #[cfg(feature = "auth_commitment")]
+    {
+        verify_commitment_details(seed_exchange)?;
+    }
+
+    let sk = validate_shared_secret(seed_exchange)?;
+
+    verify_polynomial_evaluation_for_seed(
+        verification_hashes,
+        seed_exchange,
+        initial_commitment,
+        &sk,
+    )?;
 
     Ok(())
 }
@@ -261,9 +293,8 @@ fn compute_agg_key_from_dkg<C: Curve>(
     Ok(coefficients[0])
 }
 
-pub fn verify_generation_hashes<Setup>(
+fn verify_message_cleartext<Setup>(
     generations: &[Generation<Setup>],
-    settings: &GenerateSettings,
 ) -> Result<(), Box<dyn std::error::Error>>
 where
     Setup: DkgSetup + DkgSetupTypes<Setup>,
@@ -282,7 +313,16 @@ where
             )));
         }
     }
+    Ok(())
+}
 
+fn verify_signatures_and_commitments<Setup>(
+    generations: &[Generation<Setup>],
+    settings: &GenerateSettings,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
     let message_mapping = Setup::TargetCryptography::precompute_message_mapping(
         generations[0].message_cleartext.as_bytes(),
     );
@@ -301,13 +341,85 @@ where
         }
 
         let initial_commitment = generate_initial_commitment(generation, settings);
-        let ok = verify_initial_commitment_hash::<Setup>(&initial_commitment);
-        if !ok {
+        if !verify_initial_commitment_hash::<Setup>(&initial_commitment) {
             return Err(Box::new(VerificationErrors::UnslashableError(format!(
                 "Invalid initial commitment hash {}",
                 initial_commitment.hash
             ))));
         }
+    }
+    Ok(())
+}
+
+pub fn verify_generation_hashes<Setup>(
+    generations: &[Generation<Setup>],
+    settings: &GenerateSettings,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    verify_message_cleartext(generations)?;
+    verify_signatures_and_commitments(generations, settings)
+}
+
+fn sort_and_deserialize_vectors<Setup>(
+    generations: &[Generation<Setup>],
+) -> (Vec<Generation<Setup>>, Vec<Vec<Setup::Point>>)
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    let mut sorted = generations.to_vec();
+    sorted.sort_by(|a, b| a.base_hash.cmp(&b.base_hash));
+    let verification_vectors = deserialize_verification_vectors::<Setup>(&sorted);
+    (sorted, verification_vectors)
+}
+
+fn verify_computed_agg_key<Setup>(
+    verification_vectors: &[Vec<Setup::Point>],
+    ids: &[Setup::Scalar],
+    agg_key: &Setup::DkgPubkey,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    let computed_key = compute_agg_key_from_dkg::<Setup::Curve>(verification_vectors, ids)?;
+    if agg_key.to_bytes() != computed_key.to_bytes() {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "Computed key {} does not match aggregate public key {}",
+                computed_key, agg_key
+            ),
+        )));
+    }
+    Ok(())
+}
+
+fn verify_lagrange_interpolation_for_agg_key<Setup>(
+    sorted_generations: &[Generation<Setup>],
+    ids: &[Setup::Scalar],
+    agg_key: &Setup::DkgPubkey,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    let partial_keys: Vec<Setup::Point> = sorted_generations
+        .iter()
+        .map(|generation| {
+            Setup::Point::from_bytes(&generation.partial_pubkey).expect("Invalid g1 point")
+        })
+        .collect();
+
+    let computed_key = lagrange_interpolation::<Setup::Curve>(&partial_keys, ids)?;
+
+    if computed_key.to_bytes() != agg_key.to_bytes() {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "Computed key {} does not match aggregate public key {}",
+                computed_key, agg_key
+            ),
+        )));
     }
     Ok(())
 }
@@ -329,47 +441,14 @@ where
 
     verify_generation_hashes(generations, settings)?;
 
-    let mut sorted = generations.to_vec();
-    sorted.sort_by(|a, b| a.base_hash.cmp(&b.base_hash));
+    let (sorted, verification_vectors) = sort_and_deserialize_vectors(generations);
 
-    let verification_vectors = deserialize_verification_vectors::<Setup>(&sorted);
-
-    let ids: Vec<Setup::Scalar> = sorted
-        .iter()
-        .enumerate()
-        .map(|(i, _)| Setup::Scalar::from_u32((i + 1) as u32))
+    let ids: Vec<Setup::Scalar> = (1..=sorted.len())
+        .map(|i| Setup::Scalar::from_u32(i as u32))
         .collect();
 
-    let computed_key = compute_agg_key_from_dkg::<Setup::Curve>(&verification_vectors, &ids)?;
-
-    if agg_key.to_bytes() != computed_key.to_bytes() {
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!(
-                "Computed key {} does not match aggregate public key {}",
-                computed_key, agg_key
-            ),
-        )));
-    }
-
-    let partial_keys: Vec<Setup::Point> = sorted
-        .iter()
-        .map(|generation| {
-            Setup::Point::from_bytes(&generation.partial_pubkey).expect("Invalid g1 point")
-        })
-        .collect();
-
-    let computed_key = lagrange_interpolation::<Setup::Curve>(&partial_keys, &ids)?;
-
-    if computed_key.to_bytes() != agg_key.to_bytes() {
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!(
-                "Computed key {} does not match aggregate public key {}",
-                computed_key, agg_key
-            ),
-        )));
-    }
+    verify_computed_agg_key::<Setup>(&verification_vectors, &ids, agg_key)?;
+    verify_lagrange_interpolation_for_agg_key::<Setup>(&sorted, &ids, agg_key)?;
 
     Ok(())
 }
@@ -453,6 +532,44 @@ where
     Ok(())
 }
 
+fn verify_partial_signature<Setup>(
+    bad_partial: &BadPartialShare<Setup>,
+    key: &Setup::DkgPubkey,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    let sig =
+        Setup::DkgSignature::from_bytes_safe(&bad_partial.data.message_signature).map_err(|e| {
+            Box::new(VerificationErrors::SlashableError(format!(
+                "While uncompressing data.bad_partial.data.message_signature {}",
+                e
+            ))) as Box<dyn std::error::Error>
+        })?;
+
+    if !key.verify_signature(bad_partial.data.message_cleartext.as_bytes(), &sig) {
+        return Err(Box::new(VerificationErrors::SlashableError(format!(
+            "Invalid partial signature {} from key {}",
+            sig, key
+        ))));
+    }
+    Ok(())
+}
+
+fn get_perpetrator_key<Setup>(
+    bad_partial: &BadPartialShare<Setup>,
+) -> Result<Setup::DkgPubkey, Box<dyn std::error::Error>>
+where
+    Setup: DkgSetup + DkgSetupTypes<Setup>,
+{
+    Setup::DkgPubkey::from_bytes_safe(&bad_partial.data.partial_pubkey).map_err(|e| {
+        Box::new(VerificationErrors::SlashableError(format!(
+            "While uncompressing data.bad_partial.data.partial_pubkey {}",
+            e
+        ))) as Box<dyn std::error::Error>
+    })
+}
+
 pub fn prove_wrong_final_key_generation<Setup>(
     data: &BadPartialShareData<Setup>,
 ) -> Result<(), Box<dyn std::error::Error>>
@@ -471,29 +588,9 @@ where
     let perpetrator_index =
         find_perpetrator_index(&data.bad_partial.data.base_hash, &sorted_generation)?;
 
-    let key =
-        Setup::DkgPubkey::from_bytes_safe(&data.bad_partial.data.partial_pubkey).map_err(|e| {
-            VerificationErrors::SlashableError(format!(
-                "While uncompressing data.bad_partial.data.partial_pubkey {}",
-                e
-            ))
-        })?;
+    let key = get_perpetrator_key(&data.bad_partial)?;
 
-    let sig = Setup::DkgSignature::from_bytes_safe(&data.bad_partial.data.message_signature)
-        .map_err(|e| {
-            VerificationErrors::SlashableError(format!(
-                "While uncompressing data.bad_partial.data.message_signature {}",
-                e
-            ))
-        })?;
-
-    if !key.verify_signature(data.bad_partial.data.message_cleartext.as_bytes(), &sig) {
-        return Err(Box::new(VerificationErrors::SlashableError(format!(
-            "Invalid partial signature {} from key {}",
-            sig, key
-        ))));
-    }
-
+    verify_partial_signature(&data.bad_partial, &key)?;
     verify_expected_key::<Setup>(&sorted_generation, perpetrator_index, &key)?;
 
     Ok(())
