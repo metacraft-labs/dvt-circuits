@@ -202,10 +202,16 @@ where
 
 fn compute_agg_key_from_dkg<C: Curve>(
     verification_vectors: &[Vec<C::Point>],
-    ids: &[C::Scalar],
+    _ids: &[C::Scalar],
 ) -> Result<C::Point, Box<dyn std::error::Error>> {
-    let coefficients = agg_coefficients::<C>(verification_vectors, ids);
-    lagrange_interpolation::<C>(&coefficients, ids)
+    let coefficients = agg_coefficients::<C>(verification_vectors);
+    if coefficients.is_empty() {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "no verification vectors",
+        )));
+    }
+    Ok(coefficients[0])
 }
 
 pub fn verify_generation_hashes<Setup>(
@@ -539,14 +545,8 @@ where
         })
         .collect();
 
-    let ids: Vec<Setup::Scalar> = sorted
-        .iter()
-        .enumerate()
-        .map(|(i, _)| Setup::Scalar::from_u32((i + 1) as u32))
-        .collect();
-
-    let computed_keys = agg_coefficients::<Setup::Curve>(&verification_vectors, &ids);
-    let expected_key = evaluate_polynomial::<Setup::Curve>(&computed_keys, perpetrator_id);
+    let computed_keys_coeffs = agg_coefficients::<Setup::Curve>(&verification_vectors);
+    let expected_key = evaluate_polynomial::<Setup::Curve>(&computed_keys_coeffs, perpetrator_id);
     Setup::Point::from_bytes(&expected_key.to_bytes()).expect("Invalid pubkey")
 }
 

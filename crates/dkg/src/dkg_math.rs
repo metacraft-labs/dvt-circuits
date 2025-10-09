@@ -206,6 +206,7 @@ pub fn lagrange_interpolation<C: Curve>(
     }
     // Pre-allocate vectors for batch processing
     let mut terms = Vec::with_capacity(k);
+    let mut denominators = Vec::with_capacity(k);
 
     for i in 0..k {
         let mut b = x_vec[i];
@@ -221,7 +222,13 @@ pub fn lagrange_interpolation<C: Curve>(
                 b.mul_assign(&v);
             }
         }
-        let li0 = a.mul(&b.invert());
+        denominators.push(b);
+    }
+
+    let inv_denominators = batch_invert::<C>(&denominators);
+
+    for i in 0..k {
+        let li0 = a.mul(&inv_denominators[i]);
         terms.push(y_vec[i].mul_scalar(&li0));
     }
 
@@ -230,10 +237,10 @@ pub fn lagrange_interpolation<C: Curve>(
 }
 
 #[allow(clippy::assign_op_pattern)]
-pub fn agg_coefficients<C: Curve>(
-    verification_vectors: &[Vec<C::Point>],
-    ids: &[C::Scalar],
-) -> Vec<C::Point> {
+pub fn agg_coefficients<C: Curve>(verification_vectors: &[Vec<C::Point>]) -> Vec<C::Point> {
+    if verification_vectors.is_empty() {
+        return Vec::new();
+    }
     let num_vectors = verification_vectors.len();
     let vector_len = verification_vectors[0].len();
 
@@ -252,12 +259,7 @@ pub fn agg_coefficients<C: Curve>(
         let sum = batch_add_points::<C>(&points_to_sum);
         final_cfs.push(sum);
     }
-    let mut final_keys = Vec::new();
-    for id in ids.iter() {
-        let tmp = evaluate_polynomial::<C>(&final_cfs, id);
-        final_keys.push(tmp);
-    }
-    final_keys
+    final_cfs
 }
 
 // Optimized batch point addition function for elliptic curve operations
@@ -302,6 +304,30 @@ pub fn batch_add_points<C: Curve>(points: &[C::Point]) -> C::Point {
     current_points[0]
 }
 
+fn batch_invert<C: Curve>(scalars: &[C::Scalar]) -> Vec<C::Scalar> {
+    if scalars.is_empty() {
+        return Vec::new();
+    }
+
+    let mut products = Vec::with_capacity(scalars.len());
+    let mut current_product = C::Scalar::from_u32(1);
+
+    for s in scalars {
+        current_product = current_product.mul(s);
+        products.push(current_product);
+    }
+
+    let mut inv = products[products.len() - 1].invert();
+    let mut result = vec![C::Scalar::from_u32(0); scalars.len()];
+
+    for i in (1..scalars.len()).rev() {
+        result[i] = inv.mul(&products[i - 1]);
+        inv = inv.mul(&scalars[i]);
+    }
+    result[0] = inv;
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use crate::crypto::*;
@@ -309,6 +335,43 @@ mod tests {
     use bls12_381::*;
 
     use super::*;
+
+    #[test]
+    fn test_batch_invert_basic() {
+        let scalars = vec![
+            BlsScalar::from_u32(2),
+            BlsScalar::from_u32(3),
+            BlsScalar::from_u32(4),
+            BlsScalar::from_u32(5),
+        ];
+
+        let inverted = batch_invert::<BlsG1Curve>(&scalars);
+
+        assert_eq!(scalars.len(), inverted.len());
+
+        for i in 0..scalars.len() {
+            let product = scalars[i].mul(&inverted[i]);
+            assert_eq!(product.scalar, Scalar::one());
+        }
+    }
+
+    #[test]
+    fn test_batch_invert_empty() {
+        let scalars: Vec<BlsScalar> = vec![];
+        let inverted = batch_invert::<BlsG1Curve>(&scalars);
+        assert!(inverted.is_empty());
+    }
+
+    #[test]
+    fn test_batch_invert_single() {
+        let scalar = BlsScalar::from_u32(42);
+        let scalars = vec![scalar];
+
+        let inverted = batch_invert::<BlsG1Curve>(&scalars);
+
+        assert_eq!(inverted.len(), 1);
+        assert_eq!(inverted[0].scalar, scalar.invert().scalar);
+    }
 
     #[test]
     fn test_verify_signature() {
