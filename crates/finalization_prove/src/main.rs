@@ -82,10 +82,12 @@ where
     // Method 1: Compute P(0) directly as the constant term of aggregated polynomial
     // P(x) = Σ_{j=0}^t c_j x^j where c_j = Σ_{k=1}^n PK(a_{k,j})
     // P(0) = c_0 = Σ_{k=1}^n PK(a_{k,0})
-    let mut p0 = Setup::Point::identity();
-    for verification_vector in &verification_vectors {
-        p0 = p0.add(&verification_vector[0]); // Sum of constant terms
-    }
+
+    // Extract constant terms for batch addition
+    let constant_terms: Vec<Setup::Point> = verification_vectors.iter().map(|v| v[0]).collect();
+
+    // Use optimized batch addition
+    let p0 = dkg::batch_add_points::<Setup::Curve>(&constant_terms);
 
     // Method 2: Use Lagrange interpolation on partial public keys (spec requirement)
     // L(PK_1, ..., PK_n) should equal P(0)
@@ -119,7 +121,9 @@ fn lagrange_interpolation_at_zero<C: dkg::Curve>(
     // For each point (x_i, y_i), compute the Lagrange basis polynomial l_i(0)
     // l_i(0) = Π_{j≠i} (0 - x_j) / (x_i - x_j) = Π_{j≠i} (-x_j) / (x_i - x_j)
 
-    let mut result = C::Point::identity();
+    // Pre-allocate vectors for batch processing
+    let mut terms = Vec::with_capacity(k);
+
     for i in 0..k {
         let mut numerator = C::Scalar::from_u32(1); // This will be Π_{j≠i} (-x_j)
         let mut denominator = C::Scalar::from_u32(1); // This will be Π_{j≠i} (x_i - x_j)
@@ -138,8 +142,9 @@ fn lagrange_interpolation_at_zero<C: dkg::Curve>(
 
         let li0 = numerator.mul(&denominator.invert());
         let term = y_vec[i].mul_scalar(&li0);
-        result = result.add(&term);
+        terms.push(term);
     }
 
-    Ok(result)
+    // Batch add all terms instead of accumulating sequentially
+    Ok(dkg::batch_add_points::<C>(&terms))
 }

@@ -204,7 +204,9 @@ pub fn lagrange_interpolation<C: Curve>(
             "zero secret share id",
         )));
     }
-    let mut r = C::Point::identity();
+    // Pre-allocate vectors for batch processing
+    let mut terms = Vec::with_capacity(k);
+
     for i in 0..k {
         let mut b = x_vec[i];
         for j in 0..k {
@@ -220,10 +222,11 @@ pub fn lagrange_interpolation<C: Curve>(
             }
         }
         let li0 = a.mul(&b.invert());
-        let tmp = y_vec[i].mul_scalar(&li0);
-        r = r.add(&tmp);
+        terms.push(y_vec[i].mul_scalar(&li0));
     }
-    Ok(r)
+
+    // Batch add all terms
+    Ok(batch_add_points::<C>(&terms))
 }
 
 #[allow(clippy::assign_op_pattern)]
@@ -231,12 +234,22 @@ pub fn agg_coefficients<C: Curve>(
     verification_vectors: &[Vec<C::Point>],
     ids: &[C::Scalar],
 ) -> Vec<C::Point> {
-    let mut final_cfs = Vec::new();
-    for i in 0..verification_vectors[0].len() {
-        let mut sum = C::Point::identity();
+    let num_vectors = verification_vectors.len();
+    let vector_len = verification_vectors[0].len();
+
+    // Pre-allocate the result vector
+    let mut final_cfs = Vec::with_capacity(vector_len);
+
+    // Batch point additions for better cache locality and performance
+    for i in 0..vector_len {
+        // Collect all points at position i for batch addition
+        let mut points_to_sum = Vec::with_capacity(num_vectors);
         for v in verification_vectors {
-            sum = sum.add(&v[i]);
+            points_to_sum.push(v[i]);
         }
+
+        // Perform batched addition
+        let sum = batch_add_points::<C>(&points_to_sum);
         final_cfs.push(sum);
     }
     let mut final_keys = Vec::new();
@@ -245,6 +258,48 @@ pub fn agg_coefficients<C: Curve>(
         final_keys.push(tmp);
     }
     final_keys
+}
+
+// Optimized batch point addition function for elliptic curve operations
+pub fn batch_add_points<C: Curve>(points: &[C::Point]) -> C::Point {
+    if points.is_empty() {
+        return C::Point::identity();
+    }
+
+    if points.len() == 1 {
+        return points[0];
+    }
+
+    // For small numbers of points, use sequential addition
+    if points.len() <= 4 {
+        let mut sum = points[0];
+        for point in &points[1..] {
+            sum = sum.add(point);
+        }
+        return sum;
+    }
+
+    // For larger numbers, use a binary tree approach to reduce depth
+    let mut current_points = points.to_vec();
+
+    while current_points.len() > 1 {
+        let mut next_level = Vec::new();
+        let mut i = 0;
+        while i < current_points.len() {
+            if i + 1 < current_points.len() {
+                // Add pairs
+                next_level.push(current_points[i].add(&current_points[i + 1]));
+                i += 2;
+            } else {
+                // Handle odd element
+                next_level.push(current_points[i]);
+                i += 1;
+            }
+        }
+        current_points = next_level;
+    }
+
+    current_points[0]
 }
 
 #[cfg(test)]
