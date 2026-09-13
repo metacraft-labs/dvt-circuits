@@ -12,7 +12,7 @@ env:
 jobs:
   build:
 
-    runs-on: eph-linux-x64
+    runs-on: [self-hosted, linux, x64]
 
     steps:
     - uses: actions/checkout@v4
